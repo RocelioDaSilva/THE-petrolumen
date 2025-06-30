@@ -1,0 +1,53 @@
+productName = "PetroLúmen"
+version = "0.1.0"
+identifier = "com.petrolumen.dev"
+
+[build]
+beforeDevCommand = "npm run dev"
+beforeBuildCommand = "npm run build"
+frontendDist = "../app/.next"
+
+[allowlist]
+all = false
+  [allowlist.fs]
+  all = true
+  scope = ["**"]
+  [allowlist.dialog]
+  all = true
+  [allowlist.shell]
+  open = true
+
+[bundle]
+active = true
+category = "DeveloperTool"
+copyright = ""
+externalBin = []
+icon = ["icons/icon.png"]
+longDescription = "PetroLúmen - Aplicativo de análise de dados petrofísicos"
+resources = []
+shortDescription = "PetroLúmen Desktop"
+targets = "all"
+  [bundle.macOS]
+  entitlements = ""
+  exceptionDomain = ""
+  frameworks = []
+  providerShortName = ""
+  signingIdentity = ""
+  [bundle.windows]
+  certificateThumbprint = ""
+  digestAlgorithm = "sha256"
+  timestampUrl = ""
+
+[security]
+csp = ""
+
+[updater]
+active = false
+
+[[windows]]
+fullscreen = false
+height = 768
+resizable = true
+title = "PetroLúmen"
+width = 1024
+decorations = true
