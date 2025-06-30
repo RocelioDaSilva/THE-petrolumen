@@ -53,10 +53,9 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-      }}
+      // IconLeft and IconRight are not valid properties for the components prop in this version of react-day-picker.
+      // The main app's calendar.tsx (petrolumen/components/ui/calendar.tsx) correctly omits this.
+      // Default icons will be used, or styling can be applied via CSS to nav_button_previous/nav_button_next.
       {...props}
     />
   )

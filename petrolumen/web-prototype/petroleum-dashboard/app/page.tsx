@@ -187,6 +187,8 @@ const modules = [
 ]
 
 // Mock AI insights data for different modules
+type AiInsightKey = keyof typeof aiInsights;
+
 const aiInsights = {
   "reservoir-simulation": {
     title: "Simulação de Reservatórios - Análise IA",
@@ -249,7 +251,7 @@ export default function ComprehensiveReservoirInterface() {
   }
 
   // Get current AI insights
-  const currentInsights = aiInsights[activeModule] || aiInsights["reservoir-simulation"]
+  const currentInsights = aiInsights[activeModule as AiInsightKey] || aiInsights["reservoir-simulation"]
 
   // Get current module and submodules
   const currentModule = modules.find((m) => m.id === activeModule)
@@ -479,8 +481,18 @@ export default function ComprehensiveReservoirInterface() {
   )
 }
 
+// Define Prop Types for sub-components
+interface ModuleContentProps {
+  activeSubModule: string;
+}
+
+interface DefaultModuleContentProps {
+  activeSubModule: string;
+  module: (typeof modules)[0] | undefined;
+}
+
 // Reservoir Simulation Content Component
-function ReservoirSimulationContent({ activeSubModule }) {
+function ReservoirSimulationContent({ activeSubModule }: ModuleContentProps) {
   return (
     <Tabs defaultValue="configuration" className="space-y-6">
       <TabsList className="grid w-full grid-cols-5">
@@ -724,7 +736,7 @@ function ReservoirSimulationContent({ activeSubModule }) {
 }
 
 // Production Analysis Content Component
-function ProductionAnalysisContent({ activeSubModule }) {
+function ProductionAnalysisContent({ activeSubModule }: ModuleContentProps) {
   return (
     <Tabs defaultValue="data-upload" className="space-y-6">
       <TabsList className="grid w-full grid-cols-5">
@@ -864,7 +876,7 @@ function ProductionAnalysisContent({ activeSubModule }) {
 }
 
 // Advanced Analytics Content Component
-function AdvancedAnalyticsContent({ activeSubModule }) {
+function AdvancedAnalyticsContent({ activeSubModule }: ModuleContentProps) {
   return (
     <Tabs defaultValue="ml-models" className="space-y-6">
       <TabsList className="grid w-full grid-cols-6">
@@ -1108,7 +1120,7 @@ function AdvancedAnalyticsContent({ activeSubModule }) {
 }
 
 // Default Module Content Component
-function DefaultModuleContent({ module, activeSubModule }) {
+function DefaultModuleContent({ module, activeSubModule }: DefaultModuleContentProps) {
   return (
     <Card>
       <CardHeader>

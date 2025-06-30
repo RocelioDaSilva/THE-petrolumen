@@ -104,8 +104,8 @@ const ChartTooltip = RechartsPrimitive.Tooltip
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-    React.ComponentProps<"div"> & {
+  React.ComponentProps<typeof RechartsPrimitive.Tooltip> & // Keep original props type for forwardRef
+    React.ComponentProps<"div"> & { // It also includes div props like className
       hideLabel?: boolean
       hideIndicator?: boolean
       indicator?: "line" | "dot" | "dashed"
@@ -113,43 +113,40 @@ const ChartTooltipContent = React.forwardRef<
       labelKey?: string
     }
 >(
-  (
-    {
-      active,
-      payload,
+  (props, ref) => { // props is the full props object
+    // TEMPORARY: Cast props to any for diagnostic purposes
+    const p = props as any;
+
+    // Destructure only custom/styling props from the original 'props' object
+    const {
       className,
       indicator = "dot",
       hideLabel = false,
       hideIndicator = false,
-      label,
-      labelFormatter,
+      nameKey, // Custom prop for item name key
+      labelKey, // Custom prop for item label key
       labelClassName,
-      formatter,
-      color,
-      nameKey,
-      labelKey,
-    },
-    ref
-  ) => {
+    } = props; // Destructure non-Recharts specific props from original props
     const { config } = useChart()
 
     const tooltipLabel = React.useMemo(() => {
-      if (hideLabel || !payload?.length) {
+      if (hideLabel || !p.payload?.length) { // Use p.payload
         return null
       }
 
-      const [item] = payload
-      const key = `${labelKey || item.dataKey || item.name || "value"}`
-      const itemConfig = getPayloadConfigFromPayload(config, item, key)
+      const [item] = p.payload // Use p.payload
+      // Use destructured labelKey if available, else default logic for key
+      const currentLabelKey = labelKey || item.dataKey || item.name || "value";
+      const itemConfig = getPayloadConfigFromPayload(config, item, currentLabelKey);
       const value =
-        !labelKey && typeof label === "string"
-          ? config[label as keyof typeof config]?.label || label
+        !labelKey && typeof p.label === "string" // Use p.label and destructured labelKey
+          ? config[p.label as keyof typeof config]?.label || p.label
           : itemConfig?.label
 
-      if (labelFormatter) {
+      if (p.labelFormatter) { // Use p.labelFormatter
         return (
           <div className={cn("font-medium", labelClassName)}>
-            {labelFormatter(value, payload)}
+            {p.labelFormatter(value, p.payload)}
           </div>
         )
       }
@@ -160,58 +157,60 @@ const ChartTooltipContent = React.forwardRef<
 
       return <div className={cn("font-medium", labelClassName)}>{value}</div>
     }, [
-      label,
-      labelFormatter,
-      payload,
-      hideLabel,
-      labelClassName,
+      p.label, // Use p.label
+      p.labelFormatter, // Use p.labelFormatter
+      p.payload, // Use p.payload
+      p.labelKey, // If labelKey from p is used in effect
+      hideLabel, // from destructuring
+      labelClassName, // from destructuring
       config,
-      labelKey,
+      labelKey, // from destructuring (used for currentLabelKey)
     ])
 
-    if (!active || !payload?.length) {
+    if (!p.active || !p.payload?.length) { // Use p.active and p.payload
       return null
     }
 
-    const nestLabel = payload.length === 1 && indicator !== "dot"
+    const nestLabel = p.payload.length === 1 && indicator !== "dot" // Use p.payload
 
     return (
       <div
         ref={ref}
         className={cn(
           "grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
-          className
+          className // from destructuring
         )}
       >
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
-          {payload.map((item, index) => {
-            const key = `${nameKey || item.name || item.dataKey || "value"}`
-            const itemConfig = getPayloadConfigFromPayload(config, item, key)
-            const indicatorColor = color || item.payload.fill || item.color
+          {p.payload.map((item: any, index: number) => { // Use p.payload
+            // Use destructured nameKey if available, else default logic for key
+            const currentNameKey = nameKey || item.name || item.dataKey || "value";
+            const itemConfig = getPayloadConfigFromPayload(config, item, currentNameKey);
+            const indicatorColor = p.color || item.payload.fill || item.color // Use p.color
 
             return (
               <div
                 key={item.dataKey}
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
-                  indicator === "dot" && "items-center"
+                  indicator === "dot" && "items-center" // indicator from destructuring
                 )}
               >
-                {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                {p.formatter && item?.value !== undefined && item.name ? ( // Use p.formatter
+                  p.formatter(item.value, item.name, item, index, item.payload) // Use p.formatter
                 ) : (
                   <>
                     {itemConfig?.icon ? (
                       <itemConfig.icon />
                     ) : (
-                      !hideIndicator && (
+                      !hideIndicator && ( // hideIndicator from destructuring
                         <div
                           className={[
                             "shrink-0 rounded-[2px] border-[--color-border] bg-[--color-bg]",
-                            indicator === "dot" && "h-2.5 w-2.5",
-                            indicator === "line" && "w-1",
-                            indicator === "dashed" && "w-0 border-[1.5px] border-dashed bg-transparent",
+                            indicator === "dot" && "h-2.5 w-2.5", // indicator from destructuring
+                            indicator === "line" && "w-1", // indicator from destructuring
+                            indicator === "dashed" && "w-0 border-[1.5px] border-dashed bg-transparent", // indicator from destructuring
                             nestLabel && indicator === "dashed" && "my-0.5"
                           ].filter(Boolean).join(" ")}
                           style={
@@ -255,13 +254,19 @@ ChartTooltipContent.displayName = "ChartTooltip"
 
 const ChartLegend = RechartsPrimitive.Legend
 
+// Define props for ChartLegendContent
+type ChartLegendContentProps = Pick<
+  RechartsPrimitive.LegendProps,
+  "payload" | "verticalAlign"
+> & {
+  className?: string;
+  hideIcon?: boolean;
+  nameKey?: string;
+};
+
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-      hideIcon?: boolean
-      nameKey?: string
-    }
+  ChartLegendContentProps
 >(
   (
     { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
