@@ -2,7 +2,7 @@
 name = "petrolumen-desktop"
 version = "0.1.0"
 description = "Aplicativo desktop PetroLúmen"
-authors = ["you"]
+authors = ["PetroLúmen Development Team"]
 license = ""
 repository = ""
 default-run = "petrolumen-desktop"
@@ -10,12 +10,12 @@ edition = "2021"
 rust-version = "1.59"
 
 [build-dependencies]
-tauri-build = { version = "1.4.0", features = [] }
+tauri-build = { version = "2.2.0", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2", features = ["config-toml"] }
+tauri = { version = "2.5.1", features = ["config-toml"] } # Using specific resolved version
 
 [features]
 default = [ "custom-protocol" ]
