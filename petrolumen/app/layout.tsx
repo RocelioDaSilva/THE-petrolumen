@@ -27,8 +27,12 @@ export default function RootLayout({
           enableSystem 
           disableTransitionOnChange
         >
-          <div className="min-h-screen bg-background">
-            {children}
+          <div className="flex min-h-screen bg-background">
+            <Sidebar />
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+              {/* Added padding to the main content area */}
+              {children}
+            </main>
           </div>
         </ThemeProvider>
       </body>

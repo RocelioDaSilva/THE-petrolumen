@@ -9,3 +9,6 @@ build/
 
 # Exclude web-prototype directory
 web-prototype/
+
+# Tauri build artifacts
+src-tauri/target/
