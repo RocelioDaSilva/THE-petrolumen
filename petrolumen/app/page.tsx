@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 // import { SidebarTrigger } from "@/components/ui/sidebar" // SidebarTrigger is no longer needed
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
-import { invoke } from '@tauri-apps/api/tauri'
 
 // Define the status enum to match Rust's ModuleStatusEnum (after serialization)
 type ModuleStatusType = "active" | "inactive" | "error";
@@ -22,51 +21,47 @@ export default function Dashboard() {
   const [tauriVersion, setTauriVersion] = useState<string>("")
 
   useEffect(() => {
-    // Check if we're running in Tauri
-    const checkTauri = async () => {
-      try {
-        const version = await invoke('get_version')
-        setTauriVersion(version as string)
-      } catch (e) {
-        // Not running in Tauri or tauri API not available (e.g. web browser)
-        console.log('Not running in Tauri or Tauri API not available.')
-        // Set mock data for web development if not in Tauri
-        if (!window.__TAURI_IPC__) {
-            setModules([
-                { name: "Web: Reservoir Simulation", status: "active", description: "Mock data for web" },
-                { name: "Web: Production Analysis", status: "inactive", description: "Mock data for web" },
-            ]);
-            setLoading(false);
-        }
-      }
-    }
-    checkTauri()
-    
-    const fetchStatus = async () => {
-      if (!window.__TAURI_IPC__) {
-        // Already handled by checkTauri for non-Tauri environments or if API fails
-        // You might want to set loading to false here if not already handled
-        if (modules.length === 0) setLoading(false); // If checkTauri didn't set modules
-        return;
-      }
-      try {
-        console.log("Attempting to invoke get_module_statuses");
-        const result = await invoke<ModuleStatus[]>('get_module_statuses');
-        console.log("Received from Tauri:", result);
-        setModules(result);
-      } catch (error) {
-        console.error("Failed to fetch status from Tauri:", error)
-        // Fallback or error display
-        setModules([
-            { name: "Error Fetching Data", status: "error", description: "Could not connect to backend" }
-        ]);
-      } finally {
-        setLoading(false)
-      }
-    }
+    const loadAndInvoke = async () => {
+      if (typeof window !== "undefined" && window.__TAURI_IPC__) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/tauri');
 
-    fetchStatus()
-  }, []) // modules was removed from dependency array, as it caused an infinite loop
+          // Check Tauri version
+          try {
+            const version = await invoke('get_version');
+            setTauriVersion(version as string);
+          } catch (e) {
+            console.log('Failed to get Tauri version:', e);
+            // Still proceed to fetch module statuses even if version check fails
+          }
+
+          // Fetch module statuses
+          console.log("Attempting to invoke get_module_statuses");
+          const result = await invoke<ModuleStatus[]>('get_module_statuses');
+          console.log("Received from Tauri:", result);
+          setModules(result);
+
+        } catch (error) {
+          console.error("Failed to interact with Tauri API:", error);
+          setModules([
+            { name: "Error Initializing Tauri", status: "error", description: "Could not connect or load Tauri API" }
+          ]);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Not running in Tauri or Tauri API not available (e.g. web browser or during SSR)
+        console.log('Not running in Tauri or Tauri API not available. Using mock data.');
+        setModules([
+          { name: "Web: Reservoir Simulation", status: "active", description: "Mock data for web" },
+          { name: "Web: Production Analysis", status: "inactive", description: "Mock data for web" },
+        ]);
+        setLoading(false);
+      }
+    };
+
+    loadAndInvoke();
+  }, []); // Empty dependency array means this runs once on mount
 
   const getStatusIcon = (status: ModuleStatusType) => {
     switch (status) {
