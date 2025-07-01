@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+// import { SidebarTrigger } from "@/components/ui/sidebar" // SidebarTrigger is no longer needed
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 import { invoke } from '@tauri-apps/api/tauri'
 
