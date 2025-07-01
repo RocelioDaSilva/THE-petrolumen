@@ -91,3 +91,33 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("erro ao executar aplicação");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*; // To import ModuleStatus, ModuleStatusEnum, get_module_statuses
+
+    #[test]
+    fn test_get_module_statuses_returns_data() {
+        let statuses = get_module_statuses();
+        assert!(!statuses.is_empty(), "Should return some module statuses");
+
+        // Check if specific known modules are present to confirm data structure and content
+        assert!(statuses.iter().any(|m| m.name == "Reservoir Simulation"), "Reservoir Simulation module missing");
+        assert!(statuses.iter().any(|m| m.name == "Well Testing" && matches!(m.status, ModuleStatusEnum::Error)), "Well Testing module with error status missing or incorrect");
+        assert_eq!(statuses.len(), 10, "Expected 10 modules based on current hardcoded data");
+
+        if let Some(first_module) = statuses.get(0) {
+            assert_eq!(first_module.name, "Reservoir Simulation");
+            match first_module.status {
+                ModuleStatusEnum::Active => {} // Correct
+                _ => panic!("First module status should be Active"),
+            }
+        } else {
+            panic!("Statuses vector was empty, expected at least one module.");
+        }
+    }
+
+    // Note: Testing `get_version` command directly is challenging in a unit test
+    // because it requires an `AppHandle`. This would typically be tested
+    // via integration tests or by mocking `AppHandle` if possible with a testing framework.
+}
