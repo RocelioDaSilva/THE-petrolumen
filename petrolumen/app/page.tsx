@@ -3,61 +3,55 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, XCircle, Server, Activity, Brain } from "lucide-react"; // Added more icons for status cards
+import { Loader2, CheckCircle, XCircle, Server, Activity, Brain } from "lucide-react";
 
 // Define the status enum to match Rust's ModuleStatusEnum (after serialization)
 type ModuleStatusType = "active" | "inactive" | "error";
 
-interface ModuleStatus {
+// More specific type for the module status received from Tauri
+interface TauriModuleStatus {
   name: string;
-  status: ModuleStatusType; // This will align with the serialized Rust enum
+  status: ModuleStatusType;
   description: string;
 }
 
 export default function DashboardPage() { // Renamed component for clarity
-  const [modules, setModules] = useState<ModuleStatus[]>([]);
+  const [modules, setModules] = useState<TauriModuleStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  // const [tauriVersion, setTauriVersion] = useState<string>(""); // Tauri version can be displayed in Header if needed globally
+  const [error, setError] = useState<string | null>(null); // Added error state
 
-  useEffect(() => {
-    const loadAndInvoke = async () => {
-      if (typeof window !== "undefined" && window.__TAURI_IPC__) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/tauri');
-
-          // Tauri version can be fetched here and passed to a global state/context if needed in Header
-          // try {
-          //   const version = await invoke('get_version');
-          //   // setTauriVersion(version as string); // Example: update global state or context
-          // } catch (e) {
-          //   console.log('Failed to get Tauri version:', e);
-          // }
-
-          console.log("Attempting to invoke get_module_statuses");
-          const result = await invoke<ModuleStatus[]>('get_module_statuses');
-          console.log("Received from Tauri:", result);
-          setModules(result);
-
-        } catch (error) {
-          console.error("Failed to interact with Tauri API:", error);
-          setModules([
-            { name: "Error Initializing Tauri", status: "error", description: "Could not connect or load Tauri API" }
-          ]);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        console.log('Not running in Tauri or Tauri API not available. Using mock data.');
-        setModules([
-          { name: "Web: Reservoir Simulation", status: "active", description: "Mock data for web environment" },
-          { name: "Web: Production Analysis", status: "inactive", description: "Mock data for web environment" },
-          { name: "Web: AI Analytics", status: "error", description: "Mock data for web environment" },
-        ]);
+  const fetchModuleStatuses = async () => {
+    setLoading(true);
+    setError(null);
+    if (typeof window !== "undefined" && window.__TAURI_IPC__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/tauri');
+        console.log("Attempting to invoke get_module_statuses");
+        const result = await invoke<TauriModuleStatus[]>('get_module_statuses');
+        console.log("Received from Tauri:", result);
+        setModules(result);
+      } catch (e) {
+        console.error("Failed to interact with Tauri API:", e);
+        setError("Falha ao carregar dados dos módulos. Verifique a conexão com o backend ou tente novamente.");
+        setModules([]); // Clear modules on error
+      } finally {
         setLoading(false);
       }
-    };
+    } else {
+      console.log('Not running in Tauri or Tauri API not available. Using mock data.');
+      // Simulating a delay for mock data loading
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setModules([
+        { name: "Web: Reservoir Simulation", status: "active", description: "Mock data for web environment" },
+        { name: "Web: Production Analysis", status: "inactive", description: "Mock data for web environment" },
+        { name: "Web: AI Analytics", status: "error", description: "Mock data for web environment" },
+      ]);
+      setLoading(false);
+    }
+  };
 
-    loadAndInvoke();
+  useEffect(() => {
+    fetchModuleStatuses();
   }, []);
 
   const getStatusIcon = (status: ModuleStatusType) => {
@@ -91,10 +85,9 @@ export default function DashboardPage() { // Renamed component for clarity
   };
 
   return (
-    // The main page container. Padding is handled by layout.tsx's <main> tag.
-    // Removed min-h-screen and background gradients as they are handled by layout or global styles.
+    // Padding for the main page container is handled by layout.tsx's <main> tag.
     <div className="space-y-6">
-      {/* Page specific title/header - this can be enhanced or made dynamic */}
+      {/* Page specific title/header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">
@@ -104,7 +97,6 @@ export default function DashboardPage() { // Renamed component for clarity
             Overview of system status and modules.
           </p>
         </div>
-        {/* Optional: Add page-specific actions here */}
       </div>
 
       {/* Status Cards */}
@@ -152,18 +144,33 @@ export default function DashboardPage() { // Renamed component for clarity
       </div>
 
       {/* Modules Grid */}
-      <div>
+      <div aria-live="polite">
         <h2 className="text-xl font-semibold text-foreground mb-3">Status dos Módulos</h2>
-        {loading ? (
-          <div className="col-span-full flex justify-center items-center p-8 bg-card rounded-lg shadow-sm">
+        {loading && (
+          <div className="col-span-full flex justify-center items-center p-8 bg-card rounded-lg shadow-sm" role="status">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
             <span className="ml-2 text-muted-foreground">Carregando módulos...</span>
           </div>
-        ) : modules.length === 0 ? (
-           <div className="col-span-full flex justify-center items-center p-8 bg-card rounded-lg shadow-sm">
-            <span className="text-muted-foreground">Nenhum módulo encontrado ou falha ao carregar.</span>
+        )}
+        {!loading && error && (
+          <div className="col-span-full flex flex-col justify-center items-center p-8 bg-destructive/10 border border-destructive rounded-lg shadow-sm">
+            <XCircle className="w-10 h-10 text-destructive mb-3" />
+            <p className="text-destructive font-medium text-center mb-1">{error}</p>
+            <p className="text-sm text-muted-foreground text-center mb-4">
+              Por favor, verifique sua conexão ou tente novamente mais tarde.
+            </p>
+            <Button onClick={fetchModuleStatuses} variant="destructive" className="gap-2">
+              <Loader2 className={`mr-2 h-4 w-4 ${!loading ? 'hidden' : 'animate-spin'}`} /> {/* Show loader when retrying */}
+              Tentar Novamente
+            </Button>
           </div>
-        ) : (
+        )}
+        {!loading && !error && modules.length === 0 && (
+           <div className="col-span-full flex justify-center items-center p-8 bg-card rounded-lg shadow-sm">
+            <span className="text-muted-foreground">Nenhum módulo encontrado.</span>
+          </div>
+        )}
+        {!loading && !error && modules.length > 0 && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {modules.map((module) => (
               <Card key={module.name} className="shadow-sm hover:shadow-md transition-shadow">

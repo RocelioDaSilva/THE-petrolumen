@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Search, Bell, User } from 'lucide-react'; // Microscope can be an alternative to image
+import { ChevronLeft, ChevronRight, Search, Bell, User } from 'lucide-react';
 
 interface HeaderProps {
   sidebarOpen: boolean;
