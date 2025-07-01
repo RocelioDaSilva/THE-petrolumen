@@ -1,7 +1,9 @@
 
-# Gaia Genesis - Engenharia de Reservatórios
+# PetroLúmen - Engenharia de Reservatórios
 
-Aplicação desktop eficiente para Windows, integrando frontend moderno (React/Next.js), backend Python e empacotamento nativo com Tauri.
+Aplicação desktop eficiente para Windows, integrando frontend moderno (React/Next.js), backend Python e empacotamento nativo com Tauri para o projeto PetroLúmen.
+
+**Nota sobre o Backend Python:** Os exemplos de código Python neste README referem-se a módulos como `gaia_genesis.reservoir_engineering`. Esta é uma referência ao nome original do projeto Python. Se o backend Python (localizado em `../backend/` e gerenciado separadamente) também for renomeado para alinhar com "PetroLúmen", os nomes dos módulos e as importações nesses exemplos precisarão ser atualizados em conformidade pelo mantenedor do backend.
 
 ## Como rodar como aplicativo Windows
 
@@ -18,14 +20,27 @@ Aplicação desktop eficiente para Windows, integrando frontend moderno (React/N
    > Certifique-se de usar apenas um gerenciador de pacotes por vez (npm, yarn ou pnpm) para evitar conflitos de dependências.
 
 2. **Instale as dependências do backend Python:**
+   O backend Python é um projeto separado e espera-se que esteja localizado em um diretório chamado `backend` ao lado deste diretório `petrolumen` (ou seja, `../backend/` a partir do diretório `petrolumen`).
+   A estrutura esperada para o diretório `backend` é:
+   ```
+   your-main-project-folder/
+   ├── petrolumen/  # Este repositório
+   └── backend/     # Backend Python
+       ├── main.py  # Ponto de entrada da aplicação (ex: para Uvicorn/FastAPI)
+       ├── requirements.txt
+       └── gaia_genesis/  # Pacote principal do código Python
+           └── ...
+   ```
+   Navegue até o diretório do backend e instale suas dependências:
    ```bash
-   cd ../backend
+   cd ../backend  # Ou o caminho para seu diretório de backend
    pip install -r requirements.txt
    ```
 
 3. **Inicie o backend Python localmente:**
+   A partir do diretório do backend (ex: `../backend/`), inicie seu servidor Python. O exemplo abaixo usa Uvicorn com um arquivo `main.py` contendo um app FastAPI.
    ```bash
-   # Exemplo usando FastAPI
+   # Estando no diretório do backend (ex: ../backend/)
    uvicorn main:app --reload
    ```
 
@@ -68,8 +83,9 @@ npm install
 ```
 
 ### 3. Instale as dependências do backend
+O backend Python é um projeto separado e espera-se que esteja localizado em um diretório chamado `backend` ao lado deste diretório `petrolumen` (ou seja, `../backend/` a partir daqui). Certifique-se de que ele contenha um arquivo `requirements.txt` e que a estrutura interna seja como descrito na seção "Como rodar como aplicativo Windows".
 ```powershell
-cd ../backend
+cd ../backend # Ou o caminho para seu diretório de backend
 pip install -r requirements.txt
 ```
 
