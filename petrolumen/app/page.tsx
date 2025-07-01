@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+// import { SidebarTrigger } from "@/components/ui/sidebar" // SidebarTrigger is no longer needed
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 import { invoke } from '@tauri-apps/api/tauri'
 
+// Define the status enum to match Rust's ModuleStatusEnum (after serialization)
+type ModuleStatusType = "active" | "inactive" | "error";
+
 interface ModuleStatus {
-  name: string
-  status: "active" | "inactive" | "error"
-  description: string
+  name: string;
+  status: ModuleStatusType; // This will align with the serialized Rust enum
+  description: string;
 }
 
 export default function Dashboard() {
@@ -25,49 +28,60 @@ export default function Dashboard() {
         const version = await invoke('get_version')
         setTauriVersion(version as string)
       } catch (e) {
-        console.log('Not running in Tauri')
+        // Not running in Tauri or tauri API not available (e.g. web browser)
+        console.log('Not running in Tauri or Tauri API not available.')
+        // Set mock data for web development if not in Tauri
+        if (!window.__TAURI_IPC__) {
+            setModules([
+                { name: "Web: Reservoir Simulation", status: "active", description: "Mock data for web" },
+                { name: "Web: Production Analysis", status: "inactive", description: "Mock data for web" },
+            ]);
+            setLoading(false);
+        }
       }
     }
     checkTauri()
     
     const fetchStatus = async () => {
+      if (!window.__TAURI_IPC__) {
+        // Already handled by checkTauri for non-Tauri environments or if API fails
+        // You might want to set loading to false here if not already handled
+        if (modules.length === 0) setLoading(false); // If checkTauri didn't set modules
+        return;
+      }
       try {
-        // Simulated API call - replace with actual endpoint
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        setModules([
-          { name: "Reservoir Simulation", status: "active", description: "Eclipse, CMG, tNavigator simulators ready" },
-          { name: "Production Analysis", status: "active", description: "Decline curve analysis available" },
-          { name: "Optimization", status: "active", description: "History matching algorithms ready" },
-          { name: "Static Modeling", status: "active", description: "Grid and property models loaded" },
-          { name: "Uncertainty Analysis", status: "active", description: "Monte Carlo simulation ready" },
-          { name: "Well Testing", status: "active", description: "Pressure analysis tools available" },
-          { name: "Economic Analysis", status: "active", description: "Reserves calculation ready" },
-          { name: "Visualization", status: "active", description: "3D rendering engine active" },
-          { name: "AI Analytics", status: "active", description: "Machine learning models loaded" },
-          { name: "Integration", status: "active", description: "Data connectors available" },
-        ])
+        console.log("Attempting to invoke get_module_statuses");
+        const result = await invoke<ModuleStatus[]>('get_module_statuses');
+        console.log("Received from Tauri:", result);
+        setModules(result);
       } catch (error) {
-        console.error("Failed to fetch status:", error)
+        console.error("Failed to fetch status from Tauri:", error)
+        // Fallback or error display
+        setModules([
+            { name: "Error Fetching Data", status: "error", description: "Could not connect to backend" }
+        ]);
       } finally {
         setLoading(false)
       }
     }
 
     fetchStatus()
-  }, [])
+  }, []) // modules was removed from dependency array, as it caused an infinite loop
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: ModuleStatusType) => {
     switch (status) {
       case "active":
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case "error":
         return <XCircle className="h-4 w-4 text-red-500" />
-      default:
+      case "inactive": // Explicitly handle inactive
         return <div className="h-4 w-4 rounded-full bg-gray-300" />
+      default: // Fallback, though should not be reached with strict types
+        return <div className="h-4 w-4 rounded-full bg-yellow-300" />
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: ModuleStatusType) => {
     switch (status) {
       case "active":
         return (
@@ -77,8 +91,10 @@ export default function Dashboard() {
         )
       case "error":
         return <Badge variant="destructive">Error</Badge>
-      default:
+      case "inactive": // Explicitly handle inactive
         return <Badge variant="secondary">Inactive</Badge>
+      default: // Fallback
+        return <Badge variant="outline">Unknown</Badge>
     }
   }
 
