@@ -1,11 +1,12 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
+import React from 'react'; // Removed useState as it's now controlled by layout
 import Link from 'next/link';
-import Image from 'next/image';
+// Image component for logo is in Header.tsx, so not needed here unless we want a different logo/title presentation when expanded.
+// For now, the Header component handles the main logo and title.
 import {
-  ChevronLeft,
-  ChevronRight,
+  // ChevronLeft, // Controlled by Header
+  // ChevronRight, // Controlled by Header
   LayoutDashboard,
   Droplets,
   LineChart,
@@ -17,7 +18,7 @@ import {
   FileText,
   HelpCircle
 } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+// Button for toggle is in Header.tsx
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
