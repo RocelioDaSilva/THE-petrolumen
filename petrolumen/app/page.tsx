@@ -23,24 +23,37 @@ export default function DashboardPage() { // Renamed component for clarity
   const fetchModuleStatuses = async () => {
     setLoading(true);
     setError(null);
+    console.log("[Frontend] fetchModuleStatuses: Initiating fetch.");
+
     if (typeof window !== "undefined" && window.__TAURI_IPC__) {
+      console.log("[Frontend] fetchModuleStatuses: Tauri environment detected.");
       try {
         const { invoke } = await import('@tauri-apps/api/tauri');
-        console.log("Attempting to invoke get_module_statuses");
+        console.log("[Frontend] fetchModuleStatuses: Attempting to invoke 'get_module_statuses'.");
+        // Since the backend now returns Result<Vec<TauriModuleStatus>, String>,
+        // the type expected from invoke should match this structure if invoke transparently handles Results,
+        // or we might need to adjust how we process `e` in catch.
+        // For now, assuming invoke still gives direct array on Ok, or throws error which is caught.
+        // If `invoke` itself forwards the Rust `Err` content as part of the JS error, `e` might contain it.
         const result = await invoke<TauriModuleStatus[]>('get_module_statuses');
-        console.log("Received from Tauri:", result);
+        console.log("[Frontend] fetchModuleStatuses: Successfully received data from Tauri:", result);
         setModules(result);
-      } catch (e) {
-        console.error("Failed to interact with Tauri API:", e);
-        setError("Falha ao carregar dados dos módulos. Verifique a conexão com o backend ou tente novamente.");
+      } catch (e: any) { // Added ': any' to type 'e' for accessing its properties.
+        console.error("[Frontend] fetchModuleStatuses: Failed to interact with Tauri API. Error:", e);
+        // Try to extract a more specific message if 'e' is a string or has a message property.
+        const errorMessage = typeof e === 'string' ? e : (e?.message || "Erro desconhecido ao buscar dados dos módulos.");
+        setError(`Falha ao carregar dados dos módulos: ${errorMessage} Verifique a conexão com o backend ou tente novamente.`);
+        console.warn("[Frontend] fetchModuleStatuses: Setting error state:", errorMessage);
         setModules([]); // Clear modules on error
       } finally {
         setLoading(false);
+        console.log("[Frontend] fetchModuleStatuses: Fetch attempt finished.");
       }
     } else {
-      console.log('Not running in Tauri or Tauri API not available. Using mock data.');
+      console.warn('[Frontend] fetchModuleStatuses: Not running in Tauri or Tauri API not available. Using mock data.');
       // Simulating a delay for mock data loading
       await new Promise(resolve => setTimeout(resolve, 500));
+      console.log("[Frontend] fetchModuleStatuses: Mock data timer complete.");
       setModules([
         { name: "Web: Reservoir Simulation", status: "active", description: "Mock data for web environment" },
         { name: "Web: Production Analysis", status: "inactive", description: "Mock data for web environment" },

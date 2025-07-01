@@ -4,6 +4,7 @@
 )]
 
 use serde::Serialize;
+use log::{info, error}; // Added for logging
 
 // Define the status enum
 #[derive(Serialize, Clone, Debug)]
@@ -29,9 +30,12 @@ fn get_version(app: tauri::AppHandle) -> String {
 }
 
 #[tauri::command]
-fn get_module_statuses() -> Vec<ModuleStatus> {
+fn get_module_statuses() -> Result<Vec<ModuleStatus>, String> {
+    info!("Fetching module statuses"); // Logging at the beginning of the function
     // Simulate fetching data
-    vec![
+    // In a real application, this is where you might encounter errors (e.g., database connection, API calls)
+    // For now, we'll just wrap the existing data in Ok()
+    let statuses = vec![
         ModuleStatus {
             name: "Reservoir Simulation".to_string(),
             status: ModuleStatusEnum::Active,
@@ -82,14 +86,25 @@ fn get_module_statuses() -> Vec<ModuleStatus> {
             status: ModuleStatusEnum::Active,
             description: "Data connectors available".to_string(),
         },
-    ]
+    ];
+    info!("Successfully fetched {} module statuses", statuses.len()); // Logging before returning
+    Ok(statuses)
 }
 
 fn main() {
+    // Initialize the logger
+    // You can configure the log level via the RUST_LOG environment variable
+    // For example, RUST_LOG=info cargo run
+    env_logger::init();
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![get_version, get_module_statuses])
         .run(tauri::generate_context!())
-        .expect("erro ao executar aplicação");
+        .unwrap_or_else(|e| {
+            error!("Failed to run Tauri application: {}", e); // Log the error if Tauri fails to run
+            // Optionally, panic or exit the application if running the app is critical
+            // std::process::exit(1);
+        });
 }
 
 #[cfg(test)]
@@ -98,7 +113,13 @@ mod tests {
 
     #[test]
     fn test_get_module_statuses_returns_data() {
-        let statuses = get_module_statuses();
+        // Initialize logger for tests, if you want to see logs during test execution
+        // let _ = env_logger::builder().is_test(true).try_init();
+
+        let result = get_module_statuses();
+        assert!(result.is_ok(), "get_module_statuses should return Ok");
+
+        let statuses = result.unwrap();
         assert!(!statuses.is_empty(), "Should return some module statuses");
 
         // Check if specific known modules are present to confirm data structure and content
