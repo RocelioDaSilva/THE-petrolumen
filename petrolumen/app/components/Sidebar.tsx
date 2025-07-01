@@ -1,10 +1,8 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import {
-  ChevronLeft,
-  ChevronRight,
   LayoutDashboard,
   Droplets,
   LineChart,
@@ -16,7 +14,6 @@ import {
   FileText,
   HelpCircle
 } from 'lucide-react';
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -40,37 +37,44 @@ const navItems: NavItem[] = [
   { href: "/help", icon: HelpCircle, label: "Help & Documentation" },
 ];
 
-export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+import Image from 'next/image'; // Added Image import
+// Removed Button and Chevron imports as the toggle is now only in Header
+// import { Button } from '@/components/ui/button';
+// import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+interface SidebarProps {
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+}
 
+export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
   return (
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "flex flex-col h-screen bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
-          isCollapsed ? "w-20" : "w-64"
+          "flex-col h-full bg-card border-r border-border transition-all duration-300 ease-in-out",
+          sidebarOpen ? "flex w-64" : "w-20 hidden md:flex" // Manages width and mobile visibility
         )}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          {!isCollapsed && (
-            <Link href="/" className="flex items-center space-x-2">
-              <img src="/placeholder-logo.svg" alt="PetroLúmen" className="w-8 h-8" />
-              <span className="text-xl font-semibold text-gray-800 dark:text-white">PetroLúmen</span>
-            </Link>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-          >
-            {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-            <span className="sr-only">{isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}</span>
-          </Button>
+        {/* Sidebar header: Displays logo/title. Toggle is in Header.tsx. */}
+        <div className={cn(
+          "flex items-center p-4 border-b border-border",
+          sidebarOpen ? "justify-between" : "justify-center"
+        )}>
+          <Link href="/" className="flex items-center space-x-2">
+            <Image
+              src="/placeholder-logo.svg"
+              alt="PetroLúmen Logo"
+              width={sidebarOpen ? 32 : 28}
+              height={sidebarOpen ? 32 : 28}
+              className={sidebarOpen ? "w-8 h-8" : "w-7 h-7"}
+            />
+            {sidebarOpen && (
+              <span className="text-xl font-semibold text-foreground">
+                PetroLúmen
+              </span>
+            )}
+          </Link>
         </div>
 
         <nav className="flex-grow px-2 py-4 space-y-1 overflow-y-auto">
@@ -81,17 +85,18 @@ export default function Sidebar() {
                   href={item.disabled ? "#" : item.href}
                   className={cn(
                     "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-                    "text-gray-700 hover:bg-gray-200 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white",
+                    "text-muted-foreground hover:bg-muted hover:text-foreground",
                     item.disabled && "opacity-50 cursor-not-allowed"
+                    // Add active link styling if needed, e.g., based on current path
                   )}
                   aria-disabled={item.disabled}
                   onClick={(e) => item.disabled && e.preventDefault()}
                 >
-                  <item.icon className={cn("w-5 h-5", isCollapsed ? "mx-auto" : "mr-3")} />
-                  {!isCollapsed && <span>{item.label}</span>}
+                  <item.icon className={cn("w-5 h-5", sidebarOpen ? "mr-3" : "mx-auto")} />
+                  {sidebarOpen && <span>{item.label}</span>}
                 </Link>
               </TooltipTrigger>
-              {isCollapsed && (
+              {!sidebarOpen && ( // Show tooltip only when sidebar is collapsed
                 <TooltipContent side="right">
                   {item.label}
                 </TooltipContent>
@@ -100,9 +105,9 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {!isCollapsed && (
-          <div className="p-4 mt-auto border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+        {sidebarOpen && ( // Show footer only when sidebar is expanded
+          <div className="p-4 mt-auto border-t border-border">
+            <p className="text-xs text-center text-muted-foreground">
               © {new Date().getFullYear()} PetroLúmen
             </p>
           </div>
