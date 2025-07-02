@@ -67,11 +67,13 @@
 }
  
 @layer base {
-  * {
-    @apply border-border;
-  }
+  /* * {
+    @apply border-border; // This was removed as it's generally too broad
+  } */
   body {
-    @apply bg-background text-foreground;
+    /* @apply bg-background text-foreground; */
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 

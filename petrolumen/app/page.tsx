@@ -28,7 +28,7 @@ export default function DashboardPage() { // Renamed component for clarity
     if (typeof window !== "undefined" && window.__TAURI_IPC__) {
       console.log("[Frontend] fetchModuleStatuses: Tauri environment detected.");
       try {
-        const { invoke } = await import('@tauri-apps/api/tauri');
+        const { invoke } = await import('@tauri-apps/api/core');
         console.log("[Frontend] fetchModuleStatuses: Attempting to invoke 'get_module_statuses'.");
         // Since the backend now returns Result<Vec<TauriModuleStatus>, String>,
         // the type expected from invoke should match this structure if invoke transparently handles Results,
