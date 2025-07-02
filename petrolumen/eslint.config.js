@@ -1,11 +1,16 @@
 // @ts-check
 
 const nextEsLintConfig = require('eslint-config-next');
-// const { FlatCompat } = require('@eslint/eslintrc'); // Only if needed for legacy configs
+const { FlatCompat } = require('@eslint/eslintrc');
+const path = require('path'); // Needed for FlatCompat
 
-// const compat = new FlatCompat({
-//   baseDirectory: __dirname,
-// });
+// nextEsLintConfig is already defined at the top of the file.
+
+const baseDirectory = __dirname; // path.resolve(__dirname) might be more robust depending on execution context
+const compat = new FlatCompat({
+  baseDirectory: baseDirectory,
+  resolvePluginsRelativeTo: baseDirectory, // Important for plugin resolution from the old config
+});
 
 /** @type {import('eslint').Linter.FlatConfig[]} */
 module.exports = [
@@ -19,9 +24,9 @@ module.exports = [
       // e.g., "src-tauri/target/" (though ESLint might not look there anyway)
     ]
   },
-  // Spread the Next.js default configurations
-  // eslint-config-next should export an array for flat config
-  ...nextEsLintConfig,
+  // Convert and spread the Next.js eslintrc-style configurations
+  // nextEsLintConfig might be the config object itself, or inside .default
+  ...compat.config(nextEsLintConfig.default || nextEsLintConfig),
 
   // Custom project-specific configurations can be added below
   // For example, to ensure TypeScript project reference is correctly set up
