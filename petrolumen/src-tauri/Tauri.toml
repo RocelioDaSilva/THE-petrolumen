@@ -1,20 +1,24 @@
+productName = "Petrolumen"
+version = "0.1.0"
+identifier = "io.github.placeholderusername.petrolumen" # User-provided format, username is a placeholder
 
- 
+[build]
+beforeDevCommand = "npm run dev"
+beforeBuildCommand = "npm run build"
+frontendDist = "../out" # Usually 'out' or 'dist' for Next.js static export
+devUrl = "http://localhost:3000"
 
+[app]
 
+  [[app.windows]]
+  label = "main"
+  title = "Petrolumen"
+  width = 800
+  height = 600
 
+  [app.security]
+  csp = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self';"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+[bundle]
+active = true
+targets = ["msi"]
