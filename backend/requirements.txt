@@ -1,0 +1,43 @@
+# FastAPI and Uvicorn
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+
+# Pydantic (used by FastAPI, but good to specify)
+pydantic>=2.0.0
+
+# Database Connector (PostgreSQL)
+psycopg2-binary>=2.9.0
+
+# JWT for Authentication
+PyJWT>=2.6.0
+
+# Password Hashing
+Werkzeug>=2.2.0 # Provides security helpers like password hashing
+
+# OAuth2 Support (python-multipart is needed for form data, e.g. OAuth2PasswordRequestForm)
+python-multipart>=0.0.5
+
+# Data Handling and Numerics
+pandas>=1.5.0
+numpy>=1.23.0
+
+# Machine Learning / AI
+scikit-learn>=1.1.0
+xgboost>=1.7.0
+# joblib is often a dependency of scikit-learn but can be listed explicitly
+joblib>=1.2.0
+
+# Decline Curve Analysis (fitting)
+scipy>=1.9.0
+
+# Plotting (primarily for dev/testing of modules, not directly used by API responses unless generating images)
+matplotlib>=3.5.0
+
+# Add any other specific libraries your modules might depend on.
+# For example, if PDF generation was fully implemented in decline_analysis:
+# fpdf2>=2.7.0
+# or reportlab
+
+# If you plan to use TimescaleDB specific features via a Python library (other than psycopg2):
+# (List TimescaleDB client library here if applicable)
+```
