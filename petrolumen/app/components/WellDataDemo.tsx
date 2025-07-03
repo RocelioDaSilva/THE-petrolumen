@@ -34,8 +34,13 @@ const WellDataDemo: React.FC = () => {
       if (wells.length > 0 && !selectedWell) {
         setSelectedWell(wells[0]);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch loaded wells.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(`Failed to fetch loaded wells: ${err.message}. Is the backend running?`);
+      } else {
+        setError("Failed to fetch loaded wells due to an unexpected error.");
+      }
+      console.error("Error in fetchLoadedWells:", err);
     } finally {
       setIsLoading(false);
     }
@@ -63,8 +68,13 @@ const WellDataDemo: React.FC = () => {
     try {
       const data = await getWellDataPreview(selectedWell);
       setPreviewData(data);
-    } catch (err: any) {
-      setError(`Preview error: ${err.message}`);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(`Preview error for ${selectedWell}: ${err.message}`);
+      } else {
+        setError(`Preview error for ${selectedWell}: An unexpected error occurred.`);
+      }
+      console.error(`Error in handleFetchPreview for ${selectedWell}:`, err);
     } finally {
       setIsLoading(false);
     }
@@ -78,8 +88,13 @@ const WellDataDemo: React.FC = () => {
     try {
       const data = await getWellStatistics(selectedWell);
       setStatistics(data);
-    } catch (err: any) {
-      setError(`Statistics error: ${err.message}`);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(`Statistics error for ${selectedWell}: ${err.message}`);
+      } else {
+        setError(`Statistics error for ${selectedWell}: An unexpected error occurred.`);
+      }
+      console.error(`Error in handleFetchStatistics for ${selectedWell}:`, err);
     } finally {
       setIsLoading(false);
     }
@@ -101,9 +116,14 @@ const WellDataDemo: React.FC = () => {
       fetchLoadedWells();
       // Optionally, select the newly uploaded well
       setSelectedWell(wellNameToUpload);
-    } catch (err: any) {
-      setError(`Upload error: ${err.message}`);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(`Upload error: ${err.message}`);
+      } else {
+        setError("Upload error: An unexpected error occurred.");
+      }
       setUploadStatus("Upload failed.");
+      console.error("Error in handleFileUpload:", err);
     } finally {
       setIsLoading(false);
     }
@@ -123,8 +143,13 @@ const WellDataDemo: React.FC = () => {
         setPreviewData(null);
         setStatistics(null);
         setUploadStatus("");
-    } catch (err: any) {
+    } catch (err) {
+      if (err instanceof Error) {
         setError(`Clear data error: ${err.message}`);
+      } else {
+        setError("Clear data error: An unexpected error occurred.");
+      }
+      console.error("Error in handleClearData:", err);
     } finally {
         setIsLoading(false);
     }
