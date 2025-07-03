@@ -7,6 +7,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Sidebar from "@/app/components/Sidebar";
 import Header from "@/app/components/Header"; // Import the new Header component
+import AuthInitializer from "@/components/AuthInitializer"; // Import the AuthInitializer
 
 const inter = Inter({ subsets: ["latin"] });
 

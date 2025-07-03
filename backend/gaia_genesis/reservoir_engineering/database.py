@@ -1,7 +1,7 @@
 from typing import List, Any, Dict, Optional
 import datetime
 import logging
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date, ForeignKey, UniqueConstraint
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
@@ -43,9 +43,25 @@ class ProductionData(Base):
     def __repr__(self):
         return f"<ProductionData(id={self.id}, well_id={self.well_id}, date='{self.date}', oil={self.oil_rate})>"
 
+# User Model
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String, nullable=True)
+    role = Column(String, default="user", nullable=False) # e.g., "user", "admin"
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(Date, default=datetime.date.today)
+
+    def __repr__(self):
+        return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"
+
 
 class DatabaseManager:
-    def __init__(self, db_url: str = "sqlite:///./reservoir_data.db" SENSITIVE_VALUE_DO_NOT_LOG):
+    def __init__(self, db_url: str = "sqlite:///./reservoir_data.db"):
         """
         Constructor for database connection parameters using SQLAlchemy.
         db_url: SQLAlchemy database URL (e.g., "sqlite:///./reservoir_data.db" or "postgresql://user:pass@host/dbname")
@@ -104,12 +120,13 @@ class DatabaseManager:
             session.refresh(new_well)
             logger.info(f"Well '{well_name}' inserted with ID {new_well.id}.")
             return new_well.id
-        except IntegrityError: # Handles unique constraint violation for well_name
+        except IntegrityError:
             session.rollback()
-            logger.warning(f"Well with name '{well_name}' already exists.")
-            # Optionally, query and return existing well's ID
-            existing_well = session.query(Well).filter(Well.name == well_name).first()
-            return existing_well.id if existing_well else None
+            logger.warning(f"Well with name '{well_name}' already exists (IntegrityError). Not updating metadata here.")
+            # Query and return existing well's ID without attempting to update its metadata.
+            # The test should ensure a clean state if it expects a new well or specific metadata.
+            existing_well_after_integrity_error = session.query(Well).filter(Well.name == well_name).first()
+            return existing_well_after_integrity_error.id if existing_well_after_integrity_error else None
         except SQLAlchemyError as e:
             session.rollback()
             logger.error(f"Error inserting well '{well_name}': {e}")
@@ -213,6 +230,120 @@ class DatabaseManager:
         except SQLAlchemyError as e:
             logger.error(f"Error retrieving production data for well ID {well_id}: {e}")
             return []
+        finally:
+            session.close()
+
+    # --- User Management Methods ---
+    def create_db_user(self, username: str, email: str, hashed_password: str,
+                       full_name: Optional[str] = None, role: str = "user", is_active: bool = True) -> Optional[User]:
+        """Creates a new user in the database."""
+        session = self.get_session()
+        try:
+            new_user = User(
+                username=username,
+                email=email,
+                hashed_password=hashed_password, # Password should already be hashed
+                full_name=full_name,
+                role=role,
+                is_active=is_active
+            )
+            session.add(new_user)
+            session.commit()
+            session.refresh(new_user)
+            logger.info(f"User '{username}' created successfully in DB with ID {new_user.id}.")
+            return new_user
+        except IntegrityError: # Handles unique constraint violation for username or email
+            session.rollback()
+            logger.warning(f"User creation failed: Username '{username}' or email '{email}' already exists in DB.")
+            return None
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Error creating user '{username}' in DB: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_db_user_by_username(self, username: str) -> Optional[User]:
+        """Retrieves a user by username from the database."""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.username == username).first()
+            if user:
+                logger.debug(f"User '{username}' found in DB.")
+            else:
+                logger.debug(f"User '{username}' not found in DB.")
+            return user
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching user '{username}' from DB: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_db_user_by_email(self, email: str) -> Optional[User]:
+        """Retrieves a user by email from the database."""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.email == email).first()
+            return user
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching user by email '{email}' from DB: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_all_db_users(self, skip: int = 0, limit: int = 100) -> List[User]:
+        """Retrieves all users from the database with pagination."""
+        session = self.get_session()
+        try:
+            users = session.query(User).offset(skip).limit(limit).all()
+            return users
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching all users from DB: {e}")
+            return []
+        finally:
+            session.close()
+
+    def update_db_user(self, username: str, updates: Dict[str, Any]) -> Optional[User]:
+        """Updates a user's details in the database. 'username' cannot be changed via this method."""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.username == username).first()
+            if not user:
+                logger.warning(f"User '{username}' not found for update.")
+                return None
+
+            for key, value in updates.items():
+                if hasattr(user, key) and key != "username" and key != "id": # Protect username and id
+                    setattr(user, key, value)
+
+            session.commit()
+            session.refresh(user)
+            logger.info(f"User '{username}' updated successfully in DB.")
+            return user
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Error updating user '{username}' in DB: {e}")
+            return None
+        finally:
+            session.close()
+
+    def delete_db_user(self, username: str) -> bool:
+        """Deletes a user from the database by username."""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.username == username).first()
+            if not user:
+                logger.warning(f"User '{username}' not found for deletion.")
+                return False
+
+            session.delete(user)
+            session.commit()
+            logger.info(f"User '{username}' deleted successfully from DB.")
+            return True
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Error deleting user '{username}' from DB: {e}")
+            return False
         finally:
             session.close()
 

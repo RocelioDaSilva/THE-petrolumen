@@ -6,6 +6,7 @@ import datetime
 
 # Import DatabaseManager and related SQLAlchemy parts
 from .database import DatabaseManager, Well, ProductionData
+import numpy as np # For handling NaN
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +174,8 @@ class DataUploader:
             "longitude": well.longitude,
             "rows": len(df),
             "columns": list(df.columns),
-            "description": df.describe(include='all', datetime_is_numeric=True).to_dict()
+            # Replace np.nan with None for JSON compatibility after describe
+            "description": df.describe(include='all').replace({np.nan: None}).to_dict()
         }
         return stats
 

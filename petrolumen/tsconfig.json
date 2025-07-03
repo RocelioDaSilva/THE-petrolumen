@@ -18,6 +18,7 @@
     "jsx": "preserve",
     "target": "ES2017",
     "downlevelIteration": true,
+    "types": ["node", "jest", "@testing-library/jest-dom", "vitest/globals"], // Added vitest/globals and jest-dom for matchers
     "plugins": [
       {
         "name": "next"

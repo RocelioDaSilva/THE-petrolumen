@@ -1,13 +1,13 @@
 from typing import List, Any, Tuple, Dict
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
-# For actual use, you'd import more sophisticated models:
-# from xgboost import XGBRegressor
-# from sklearn.svm import SVR
-# import joblib # For saving/loading models
+import joblib # For saving/loading models
+import os
 
 import logging
 logger = logging.getLogger(__name__)
@@ -41,22 +41,44 @@ class AIPrediction:
             logger.error("Training data (X_train or y_train) is empty.")
             return {}
 
-        # Placeholder: Train a simple Linear Regression model
-        lr_model = LinearRegression()
+        self.trained_models = {} # Clear any previous models
+
+        # --- Linear Regression ---
         try:
+            lr_model = LinearRegression()
             lr_model.fit(X_train, y_train)
             self.trained_models['linear_regression'] = lr_model
             logger.info("Linear Regression model trained successfully.")
         except Exception as e:
-            logger.exception(f"Error training Linear Regression model: {e}") # Changed to logger.exception
-            return {}
+            logger.exception(f"Error training Linear Regression model: {e}")
 
-        # In a real scenario, you would train multiple models (XGBoost, SVR, etc.)
-        # and potentially perform hyperparameter tuning.
-        # Example:
-        # xgb_model = XGBRegressor(random_state=42)
-        # xgb_model.fit(X_train, y_train)
-        # self.trained_models['xgboost'] = xgb_model
+        # --- Support Vector Regressor (SVR) ---
+        try:
+            svr_model = SVR()
+            # Basic GridSearchCV for SVR
+            param_grid_svr = {'C': [0.1, 1, 10], 'gamma': ['scale', 'auto']}
+            grid_search_svr = GridSearchCV(SVR(), param_grid_svr, cv=2, n_jobs=-1) # cv=2 for speed in example
+            grid_search_svr.fit(X_train, y_train)
+            self.trained_models['svr'] = grid_search_svr.best_estimator_
+            logger.info(f"SVR model trained successfully with best params: {grid_search_svr.best_params_}")
+        except Exception as e:
+            logger.exception(f"Error training SVR model: {e}")
+
+        # --- Random Forest Regressor ---
+        try:
+            rf_model = RandomForestRegressor(random_state=42, n_jobs=-1)
+            # Basic GridSearchCV for Random Forest
+            param_grid_rf = {'n_estimators': [50, 100], 'max_depth': [None, 5, 10]} # Reduced grid for speed
+            grid_search_rf = GridSearchCV(RandomForestRegressor(random_state=42, n_jobs=-1), param_grid_rf, cv=2)
+            grid_search_rf.fit(X_train, y_train)
+            self.trained_models['random_forest'] = grid_search_rf.best_estimator_
+            logger.info(f"Random Forest Regressor model trained successfully with best params: {grid_search_rf.best_params_}")
+        except Exception as e:
+            logger.exception(f"Error training Random Forest Regressor model: {e}")
+
+        if not self.trained_models:
+            logger.error("No models were trained successfully.")
+            return {}
 
         return self.trained_models
 
@@ -106,34 +128,35 @@ class AIPrediction:
     def save_model(self, model_name: str, model_path: str) -> str:
         """Saves a trained AI model."""
         if model_name not in self.trained_models:
-            return f"Model '{model_name}' not found in trained models."
+            logger.error(f"Model '{model_name}' not found in trained models for saving.")
+            return f"Error: Model '{model_name}' not found."
 
         model = self.trained_models[model_name]
-        # In a real scenario, use joblib or pickle:
-        # try:
-        #     joblib.dump(model, model_path)
-        #     logger.info(f"Model '{model_name}' saved to {model_path}")
-        #     return f"Model '{model_name}' saved to {model_path}"
-        # except Exception as e:
-        #     logger.error(f"Error saving model {model_name} to {model_path}: {e}")
-        #     return f"Error saving model {model_name}: {e}"
-        logger.info(f"Placeholder: Model '{model_name}' would be saved to {model_path}.")
-        return f"Model '{model_name}' would be saved to {model_path} (placeholder action)."
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            joblib.dump(model, model_path)
+            logger.info(f"Model '{model_name}' saved to {model_path}")
+            return f"Model '{model_name}' saved successfully to {model_path}"
+        except Exception as e:
+            logger.exception(f"Error saving model {model_name} to {model_path}: {e}")
+            return f"Error saving model {model_name}: {str(e)}"
 
-    def _hyperparameter_tuning(self, X_train: pd.DataFrame, y_train: pd.Series, model_name: str = 'linear_regression') -> Dict[str, Any]:
-        """Performs hyperparameter tuning for models (placeholder)."""
-        logger.info(f"Placeholder: Hyperparameter tuning for {model_name} would be performed here.")
-        # Example for LinearRegression (not many hyperparameters to tune, but for illustration)
-        if model_name == 'linear_regression':
-            return {'fit_intercept': True, 'positive': False}
-        # For XGBoost, you'd use GridSearchCV or RandomizedSearchCV
-        # from sklearn.model_selection import GridSearchCV
-        # param_grid = {'n_estimators': [100, 200], 'max_depth': [3, 5]}
-        # grid_search = GridSearchCV(XGBRegressor(), param_grid, cv=3)
-        # grid_search.fit(X_train, y_train)
-        # return grid_search.best_params_
-        return {"info": f"No actual tuning implemented for {model_name} in this placeholder."}
+    def load_model(self, model_name: str, model_path: str) -> bool:
+        """Loads a trained AI model and adds it to trained_models."""
+        try:
+            if not os.path.exists(model_path):
+                logger.error(f"Model file not found at {model_path} for loading '{model_name}'.")
+                return False
+            model = joblib.load(model_path)
+            self.trained_models[model_name] = model
+            logger.info(f"Model '{model_name}' loaded successfully from {model_path}")
+            return True
+        except Exception as e:
+            logger.exception(f"Error loading model {model_name} from {model_path}: {e}")
+            return False
 
+    # _hyperparameter_tuning method is removed as tuning is now integrated into train_models via GridSearchCV.
 
     def _evaluate_performance(self, y_true: pd.Series, y_pred: np.ndarray) -> Dict[str, float]:
         """Evaluates the performance of a model."""

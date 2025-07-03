@@ -13,7 +13,8 @@ xgboost
 
 # Database (PostgreSQL example)
 psycopg2-binary
-# sqlalchemy # Often used with FastAPI for ORM capabilities
+sqlalchemy # Often used with FastAPI for ORM capabilities
+alembic    # For database migrations
 
 # Plotting (if backend generates plots directly, though often done by frontend)
 plotly
@@ -25,6 +26,7 @@ passlib[bcrypt] # For password hashing
 
 # Other utilities
 python-dotenv # For managing environment variables
+pydantic-settings # For advanced configuration management
 # requests # If the backend needs to call other APIs
 # openpyxl # For Excel export/import if needed
 # reportlab # For PDF generation if done from scratch

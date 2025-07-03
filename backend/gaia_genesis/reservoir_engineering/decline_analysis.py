@@ -11,6 +11,26 @@ def exponential_decline(t: np.ndarray, qi: float, di: float) -> np.ndarray:
     """Exponential decline model."""
     return qi * np.exp(-di * t)
 
+def hyperbolic_decline(t: np.ndarray, qi: float, di: float, b: float) -> np.ndarray:
+    """Hyperbolic decline model.
+    Requires 1 + b * Di * t > 0.
+    b is the hyperbolic exponent.
+    """
+    # Add a small epsilon to prevent division by zero or log of zero if 1 + b * di * t is very close to 0
+    # and to handle cases where it might be slightly negative due to floating point issues or bad fit.
+    # However, curve_fit bounds should ideally prevent parameters that lead to this.
+    denominator = 1 + b * di * t
+    # Ensure denominator is positive to avoid issues with fractional exponent for negative bases
+    denominator[denominator <= 0] = 1e-9 # Replace non-positive values with a small positive number
+    return qi / np.power(denominator, 1.0 / b)
+
+def harmonic_decline(t: np.ndarray, qi: float, di: float) -> np.ndarray:
+    """Harmonic decline model (special case of hyperbolic with b=1)."""
+    # Add a small epsilon to prevent division by zero if 1 + di * t is very close to 0
+    denominator = 1 + di * t
+    denominator[denominator <= 0] = 1e-9
+    return qi / denominator
+
 class AdvancedDeclineAnalysis:
     def __init__(self):
         self.models: Dict[str, Any] = {}
@@ -26,34 +46,82 @@ class AdvancedDeclineAnalysis:
 
         # Initial parameter guesses (can be improved with more sophisticated methods)
         q_initial_guess = rate[0]
-        d_initial_guess = -np.log(rate[1]/rate[0]) / (time[1]-time[0]) if rate[0] > 0 and rate[1] > 0 else 0.01
+        # Ensure time difference is not zero and rates are positive for log
+        if time[1] - time[0] > 1e-6 and rate[0] > 0 and rate[1] > 0 and rate[1] < rate[0] :
+            d_initial_guess = -np.log(rate[1] / rate[0]) / (time[1] - time[0])
+        else:
+            d_initial_guess = 0.05 # A small default if initial points are problematic
 
+        b_initial_guess = 0.5 # For hyperbolic
+
+        fitted_models_sse = {}
+
+        # --- Fit Exponential ---
         try:
-            # For simplicity, only implementing exponential decline
-            # In a real scenario, you'd try multiple models (Hyperbolic, Harmonic)
-            # and select the best one based on some criteria (e.g., R-squared, AIC)
-            popt_exp, pcov_exp = curve_fit(
-                exponential_decline,
-                time,
-                rate,
+            popt_exp, _ = curve_fit(
+                exponential_decline, time, rate,
                 p0=[q_initial_guess, d_initial_guess],
-                bounds=([0, 0], [np.inf, 1.]) # qi > 0, 0 < di < 1 (annual)
+                bounds=([0, 0], [q_initial_guess * 2, 5.0]), # Max decline rate: 500% per unit time (e.g. year)
+                maxfev=5000
             )
             self.params['exponential'] = popt_exp
-            self.models['exponential'] = {
-                'qi': popt_exp[0],
-                'Di': popt_exp[1],
-                'type': 'Exponential'
-            }
-            self.best_model_name = 'exponential' # Defaulting to exponential
-            logger.info(f"Fitted Exponential Decline: qi={popt_exp[0]:.2f}, Di={popt_exp[1]:.4f}")
-            return self.models
+            self.models['exponential'] = {'qi': popt_exp[0], 'Di': popt_exp[1], 'type': 'Exponential'}
+            pred_exp = exponential_decline(time, *popt_exp)
+            fitted_models_sse['exponential'] = np.sum((rate - pred_exp)**2)
+            logger.info(f"Fitted Exponential: qi={popt_exp[0]:.2f}, Di={popt_exp[1]:.4f}, SSE={fitted_models_sse['exponential']:.2f}")
         except RuntimeError as e:
-            logger.error(f"Could not fit exponential decline curve: {e}", exc_info=True)
-            return {"error": "Could not fit model due to numerical issues."}
+            logger.warning(f"Could not fit Exponential model: {e}")
         except Exception as e:
-            logger.exception(f"An unexpected error occurred during model fitting: {e}")
-            return {"error": f"An unexpected error occurred during model fitting: {str(e)}"}
+            logger.warning(f"Unexpected error fitting Exponential model: {e}", exc_info=True)
+
+        # --- Fit Hyperbolic ---
+        # Bounds: qi > 0, Di > 0, 0 < b < 1 (strictly hyperbolic)
+        # Looser b bound (e.g. up to 2) can sometimes be useful but might become unstable or resemble exponential/harmonic
+        try:
+            popt_hyp, _ = curve_fit(
+                hyperbolic_decline, time, rate,
+                p0=[q_initial_guess, d_initial_guess, b_initial_guess],
+                bounds=([0, 1e-9, 1e-9], [q_initial_guess * 2, 5.0, 0.9999]), # Di>0, 0<b<1
+                maxfev=5000
+            )
+            self.params['hyperbolic'] = popt_hyp
+            self.models['hyperbolic'] = {'qi': popt_hyp[0], 'Di': popt_hyp[1], 'b': popt_hyp[2], 'type': 'Hyperbolic'}
+            pred_hyp = hyperbolic_decline(time, *popt_hyp)
+            fitted_models_sse['hyperbolic'] = np.sum((rate - pred_hyp)**2)
+            logger.info(f"Fitted Hyperbolic: qi={popt_hyp[0]:.2f}, Di={popt_hyp[1]:.4f}, b={popt_hyp[2]:.2f}, SSE={fitted_models_sse['hyperbolic']:.2f}")
+        except RuntimeError as e:
+            logger.warning(f"Could not fit Hyperbolic model: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error fitting Hyperbolic model: {e}", exc_info=True)
+
+        # --- Fit Harmonic ---
+        # Bounds: qi > 0, Di > 0
+        try:
+            popt_harm, _ = curve_fit(
+                harmonic_decline, time, rate,
+                p0=[q_initial_guess, d_initial_guess],
+                bounds=([0, 1e-9], [q_initial_guess * 2, 5.0]), # Di > 0
+                maxfev=5000
+            )
+            self.params['harmonic'] = popt_harm
+            self.models['harmonic'] = {'qi': popt_harm[0], 'Di': popt_harm[1], 'type': 'Harmonic'}
+            pred_harm = harmonic_decline(time, *popt_harm)
+            fitted_models_sse['harmonic'] = np.sum((rate - pred_harm)**2)
+            logger.info(f"Fitted Harmonic: qi={popt_harm[0]:.2f}, Di={popt_harm[1]:.4f}, SSE={fitted_models_sse['harmonic']:.2f}")
+        except RuntimeError as e:
+            logger.warning(f"Could not fit Harmonic model: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error fitting Harmonic model: {e}", exc_info=True)
+
+        # Select best model based on lowest SSE
+        if not fitted_models_sse:
+            logger.error("No models could be fitted.")
+            return {"error": "Could not fit any decline model."}
+
+        self.best_model_name = min(fitted_models_sse, key=fitted_models_sse.get)
+        logger.info(f"Best model selected: {self.best_model_name.capitalize()} with SSE={fitted_models_sse[self.best_model_name]:.2f}")
+
+        return self.models # Return all fitted models info
 
 
     def predict_future(self, months: int) -> pd.DataFrame:
@@ -72,11 +140,20 @@ class AdvancedDeclineAnalysis:
                 if qi < 0 or di < 0:
                     logger.error(f"Invalid model parameters for exponential decline: qi={qi}, di={di}. Cannot predict.")
                     return empty_df
-                predicted_rate = exponential_decline(future_time, qi, di / 12.0) # Assuming Di is annual, convert to monthly
-            # Add other models (hyperbolic, harmonic) here if implemented
-            # elif self.best_model_name == 'hyperbolic':
-            #     qi, di, b = self.params['hyperbolic']
-            #     predicted_rate = hyperbolic_decline(future_time, qi, di / 12.0, b)
+                # Assuming Di is annual, convert to monthly for prediction step
+                predicted_rate = exponential_decline(future_time, qi, di / 12.0)
+            elif self.best_model_name == 'hyperbolic':
+                qi, di, b = self.params['hyperbolic']
+                if qi < 0 or di <= 0 or b <= 0 or b >=1: # Stricter b for pure hyperbolic
+                     logger.error(f"Invalid model parameters for hyperbolic decline: qi={qi}, di={di}, b={b}. Cannot predict.")
+                     return empty_df
+                predicted_rate = hyperbolic_decline(future_time, qi, di / 12.0, b)
+            elif self.best_model_name == 'harmonic':
+                qi, di = self.params['harmonic']
+                if qi < 0 or di <= 0:
+                     logger.error(f"Invalid model parameters for harmonic decline: qi={qi}, di={di}. Cannot predict.")
+                     return empty_df
+                predicted_rate = harmonic_decline(future_time, qi, di / 12.0)
             else:
                 logger.warning(f"Model type {self.best_model_name} not implemented for prediction.")
                 return empty_df
@@ -127,6 +204,18 @@ class AdvancedDeclineAnalysis:
             if self.best_model_name == 'exponential':
                 report_content += f"  Initial Rate (qi): {params[0]:.2f}\n"
                 report_content += f"  Decline Rate (Di): {params[1]:.4f} (annual)\n"
+            elif self.best_model_name == 'hyperbolic':
+                report_content += f"  Initial Rate (qi): {params[0]:.2f}\n"
+                report_content += f"  Initial Decline Rate (Di): {params[1]:.4f} (annual)\n"
+                report_content += f"  Hyperbolic Exponent (b): {params[2]:.2f}\n"
+            elif self.best_model_name == 'harmonic':
+                report_content += f"  Initial Rate (qi): {params[0]:.2f}\n"
+                report_content += f"  Decline Rate (Di): {params[1]:.4f} (annual)\n"
+
+            # Could also add SSE or other fit metrics here
+            # sse = fitted_models_sse.get(self.best_model_name, float('nan')) # Need fitted_models_sse to be an instance var
+            # report_content += f"  Sum of Squared Errors (SSE): {sse:.2f}\n"
+
 
         # In a real scenario, you would use a library like ReportLab or FPDF to create a PDF
         # and include plots and more detailed analysis.
