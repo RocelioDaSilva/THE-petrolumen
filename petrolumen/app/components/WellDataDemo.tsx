@@ -1,29 +1,35 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  uploadWellData,
   getWellDataPreview,
   getWellStatistics,
   listLoadedWells,
-  adminClearAllData,
+  adminClearAllData, // This function might be removed if endpoint is gone
   WellDataPreview,
   WellStatistics,
   UploadResponse,
-  ApiErrorResponse,
-} from "@/lib/backendClient"; // Assuming backendClient.ts is in lib
+} from "@/lib/backendClient";
+import { useAppStore } from "@/stores/appStore";
+
+// Import child components
+import { AuthStatusDisplay } from "./AuthStatusDisplay";
+import { WellFileUploadForm } from "./WellFileUploadForm";
+import { WellDataSelector } from "./WellDataSelector";
+import { WellDataViewer } from "./WellDataViewer";
+import { AdminActionsPanel } from "./AdminActionsPanel";
+import { LoginForm } from "./LoginForm";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const WellDataDemo: React.FC = () => {
+  const { isAuthenticated } = useAppStore(); // Get auth state
+
   const [loadedWells, setLoadedWells] = useState<string[]>([]);
   const [selectedWell, setSelectedWell] = useState<string>("");
   const [previewData, setPreviewData] = useState<WellDataPreview[] | null>(null);
   const [statistics, setStatistics] = useState<WellStatistics | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  const [wellNameToUpload, setWellNameToUpload] = useState<string>("TestWell");
-  const [filesToUpload, setFilesToUpload] = useState<FileList | null>(null);
 
   const fetchLoadedWells = async () => {
     setIsLoading(true);
@@ -33,35 +39,43 @@ const WellDataDemo: React.FC = () => {
       setLoadedWells(wells);
       if (wells.length > 0 && !selectedWell) {
         setSelectedWell(wells[0]);
+      } else if (wells.length === 0) {
+        setSelectedWell("");
+        setPreviewData(null);
+        setStatistics(null);
       }
     } catch (err) {
       if (err instanceof Error) {
-        setError(`Failed to fetch loaded wells: ${err.message}. Is the backend running?`);
+        setError(`Failed to fetch loaded wells: ${err.message}. Is the backend running or are you logged in?`);
       } else {
         setError("Failed to fetch loaded wells due to an unexpected error.");
       }
       console.error("Error in fetchLoadedWells:", err);
+      // If fetching wells fails (e.g. 401), clear existing well data
+      setLoadedWells([]);
+      setSelectedWell("");
+      setPreviewData(null);
+      setStatistics(null);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLoadedWells();
-  }, []);
-
-  useEffect(() => {
-    if (selectedWell) {
-      handleFetchPreview();
-      handleFetchStatistics();
-    } else {
+    if (isAuthenticated) { // Only fetch wells if authenticated
+      fetchLoadedWells();
+    } else { // Clear data if not authenticated
+      setLoadedWells([]);
+      setSelectedWell("");
       setPreviewData(null);
       setStatistics(null);
+      setError(""); // Clear errors too
     }
-  }, [selectedWell]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]); // Re-fetch or clear when auth state changes
 
   const handleFetchPreview = async () => {
-    if (!selectedWell) return;
+    if (!selectedWell || !isAuthenticated) return;
     setIsLoading(true);
     setError("");
     setPreviewData(null);
@@ -74,14 +88,13 @@ const WellDataDemo: React.FC = () => {
       } else {
         setError(`Preview error for ${selectedWell}: An unexpected error occurred.`);
       }
-      console.error(`Error in handleFetchPreview for ${selectedWell}:`, err);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleFetchStatistics = async () => {
-    if (!selectedWell) return;
+    if (!selectedWell || !isAuthenticated) return;
     setIsLoading(true);
     setError("");
     setStatistics(null);
@@ -94,159 +107,115 @@ const WellDataDemo: React.FC = () => {
       } else {
         setError(`Statistics error for ${selectedWell}: An unexpected error occurred.`);
       }
-      console.error(`Error in handleFetchStatistics for ${selectedWell}:`, err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleFileUpload = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!filesToUpload || filesToUpload.length === 0 || !wellNameToUpload) {
-      setError("Please select files and enter a well name for upload.");
-      return;
+  useEffect(() => {
+    if (selectedWell && isAuthenticated) {
+      handleFetchPreview();
+      handleFetchStatistics();
+    } else {
+      setPreviewData(null);
+      setStatistics(null);
     }
-    setIsLoading(true);
-    setError("");
-    setUploadStatus("");
-    try {
-      const response: UploadResponse = await uploadWellData(wellNameToUpload, filesToUpload);
-      setUploadStatus(response.message || "Upload successful!");
-      // Refresh loaded wells list
-      fetchLoadedWells();
-      // Optionally, select the newly uploaded well
-      setSelectedWell(wellNameToUpload);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(`Upload error: ${err.message}`);
-      } else {
-        setError("Upload error: An unexpected error occurred.");
-      }
-      setUploadStatus("Upload failed.");
-      console.error("Error in handleFileUpload:", err);
-    } finally {
-      setIsLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWell, isAuthenticated]);
+
+
+  const handleUploadSuccess = (response: UploadResponse, uploadedWellName: string) => {
+    if (isAuthenticated) { // Re-fetch wells only if authenticated
+        fetchLoadedWells().then(() => {
+            setSelectedWell(uploadedWellName);
+        });
     }
   };
 
-  const handleClearData = async () => {
-    if (!confirm("Are you sure you want to delete all in-memory well data on the backend?")) {
-        return;
-    }
-    setIsLoading(true);
-    setError("");
-    try {
-        const response = await adminClearAllData();
-        alert(response.message);
-        setLoadedWells([]);
-        setSelectedWell("");
-        setPreviewData(null);
-        setStatistics(null);
-        setUploadStatus("");
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(`Clear data error: ${err.message}`);
-      } else {
-        setError("Clear data error: An unexpected error occurred.");
-      }
-      console.error("Error in handleClearData:", err);
-    } finally {
-        setIsLoading(false);
-    }
+  const handleClearAllData = async () => {
+    // Note: The backend endpoint for adminClearAllData was removed.
+    // This function would need to be updated if a replacement admin delete function is added.
+    // For now, it will likely error out or do nothing if called.
+    // Consider disabling this button or removing the feature if endpoint is gone.
+    alert("Admin clear all data functionality is currently disabled as the backend endpoint was removed.");
+    // if (!confirm("Are you sure you want to delete all backend well data? This action cannot be undone.")) {
+    //     return;
+    // }
+    // setIsLoading(true);
+    // setError("");
+    // try {
+    //     const response = await adminClearAllData(); // This will fail
+    //     alert(response.message);
+    //     fetchLoadedWells();
+    // } catch (err) {
+    //   // ... error handling ...
+    // } finally {
+    //     setIsLoading(false);
+    // }
   };
-
 
   return (
-    <div style={{ fontFamily: "sans-serif", padding: "20px", maxWidth: "800px", margin: "auto" }}>
-      <h2>Well Data API Demo</h2>
+    <div className="font-sans p-5 max-w-4xl mx-auto space-y-6">
+      <h2 className="text-2xl font-bold text-center">Well Data Management Demo</h2>
 
-      {isLoading && <p>Loading...</p>}
-      {error && <p style={{ color: "red" }}>Error: {error}</p>}
+      <AuthStatusDisplay /> {/* This component handles its own dummy login/logout for now */}
 
-      <section style={{ marginBottom: "20px", padding: "10px", border: "1px solid #eee" }}>
-        <h3>Upload Well Data</h3>
-        <form onSubmit={handleFileUpload}>
-          <div>
-            <label htmlFor="wellNameUpload">Well Name: </label>
-            <input
-              id="wellNameUpload"
-              type="text"
-              value={wellNameToUpload}
-              onChange={(e) => setWellNameToUpload(e.target.value)}
-              required
-              style={{marginRight: "10px"}}
-            />
-          </div>
-          <div style={{marginTop: "10px", marginBottom: "10px"}}>
-            <label htmlFor="fileUpload">Select CSV File(s): </label>
-            <input
-              id="fileUpload"
-              type="file"
-              multiple
-              accept=".csv"
-              onChange={(e) => setFilesToUpload(e.target.files)}
-              required
-            />
-          </div>
-          <button type="submit" disabled={isLoading}>
-            Upload Data
-          </button>
-        </form>
-        {uploadStatus && <p>{uploadStatus}</p>}
-      </section>
+      {error && <p className="text-red-600 bg-red-100 p-3 rounded-md my-4 text-center" aria-live="assertive">Error: {error}</p>}
 
-      <section style={{ marginBottom: "20px", padding: "10px", border: "1px solid #eee" }}>
-        <h3>View Well Data</h3>
-        <div>
-          <label htmlFor="wellSelect">Select Well: </label>
-          <select
-            id="wellSelect"
-            value={selectedWell}
-            onChange={(e) => setSelectedWell(e.target.value)}
-            disabled={isLoading || loadedWells.length === 0}
-            style={{marginRight: "10px"}}
-          >
-            <option value="" disabled>
-              {loadedWells.length === 0 ? "No wells loaded" : "Select a well"}
-            </option>
-            {loadedWells.map((well) => (
-              <option key={well} value={well}>
-                {well}
-              </option>
-            ))}
-          </select>
-          <button onClick={fetchLoadedWells} disabled={isLoading} style={{marginRight: "5px"}}>Refresh Well List</button>
-        </div>
+      {!isAuthenticated && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Please Login</CardTitle>
+            <CardContent>
+              <p className="mb-4 text-muted-foreground">You need to log in to manage and view well data.</p>
+              <LoginForm />
+            </CardContent>
+          </CardHeader>
+        </Card>
+      )}
 
-        {selectedWell && (
-          <>
-            <h4>Preview for: {selectedWell}</h4>
-            {previewData ? (
-              <pre style={{ background: "#f4f4f4", padding: "10px", overflowX: "auto" }}>
-                {JSON.stringify(previewData, null, 2)}
-              </pre>
-            ) : (
-              <p>No preview data available or loading...</p>
-            )}
+      {isAuthenticated && (
+        <>
+          {/* Error message moved above the conditional block to be visible even when not authenticated if a global error occurs */}
+          {/* isLoading for well list is now implicitly handled by isAuthenticated block or specific component states */}
+          {isLoading && !selectedWell && <p className="text-center my-4 text-blue-600">Loading well list...</p>}
 
-            <h4>Statistics for: {selectedWell}</h4>
-            {statistics ? (
-              <pre style={{ background: "#f4f4f4", padding: "10px", overflowX: "auto" }}>
-                {JSON.stringify(statistics, null, 2)}
-              </pre>
-            ) : (
-              <p>No statistics available or loading...</p>
-            )}
-          </>
-        )}
-      </section>
+          <WellFileUploadForm
+            onUploadSuccess={handleUploadSuccess}
+            setIsLoadingGlobal={setIsLoading}
+            setErrorGlobal={setError}
+            isLoadingGlobal={isLoading}
+          />
 
-      <section style={{ marginTop: "30px", padding: "10px", border: "1px solid #fcc" }}>
-        <h3>Admin Actions</h3>
-        <button onClick={handleClearData} disabled={isLoading} style={{backgroundColor: "#ffdddd"}}>
-            Clear All In-Memory Well Data (Admin)
-        </button>
-      </section>
+          <Card>
+            <CardHeader>
+              <CardTitle>View Well Data</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <WellDataSelector
+                loadedWells={loadedWells}
+                selectedWell={selectedWell}
+                onSelectedWellChange={setSelectedWell}
+                onRefreshWells={fetchLoadedWells}
+                isLoading={isLoading}
+              />
+              <WellDataViewer
+                selectedWell={selectedWell}
+                previewData={previewData}
+                statistics={statistics}
+                // Show loading specifically for viewer if a well is selected and parent is loading its data
+                isLoading={isLoading && !!selectedWell && (!previewData || !statistics)}
+              />
+            </CardContent>
+          </Card>
+
+          {/* AdminActionsPanel might also check for admin role internally from store */}
+          <AdminActionsPanel
+            onClearAllData={handleClearAllData}
+            isLoading={isLoading}
+          />
+        </>
+      )}
     </div>
   );
 };

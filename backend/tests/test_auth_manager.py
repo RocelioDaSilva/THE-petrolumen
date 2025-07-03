@@ -1,0 +1,197 @@
+import pytest
+from fastapi import HTTPException, status
+import datetime
+import time # For testing token expiry
+
+# Assuming conftest.py handles path adjustments for imports
+from gaia_genesis.reservoir_engineering.api import AuthManager
+from gaia_genesis.reservoir_engineering.database import DatabaseManager, User as DBUser # For type hints
+
+# This module tests AuthManager.
+# It uses fixtures from conftest.py:
+# - `test_db_manager`: A DatabaseManager connected to the test DB.
+# - `test_auth_manager`: An AuthManager instance using `test_db_manager`.
+# - `db_session`: A SQLAlchemy session for direct DB checks if needed (though most checks are via AuthManager methods).
+# - `clear_users_table`: Ensures the users table is empty before each test.
+
+# --- Test User Creation and Retrieval ---
+def test_create_user_successful(test_auth_manager: AuthManager, clear_users_table):
+    """Test successful user creation."""
+    username = "auth_test_user"
+    email = "auth_test@example.com"
+    password = "strongpassword123"
+
+    created_user = test_auth_manager.create_user(username, email, password, "Auth Test User", "user")
+    assert created_user is not None
+    assert created_user["username"] == username
+    assert created_user["email"] == email
+    assert "id" in created_user
+    assert created_user["role"] == "user"
+    assert created_user["is_active"] is True
+
+    # Verify user exists in DB through AuthManager's internal method (which uses DatabaseManager)
+    db_user_obj = test_auth_manager.get_user_by_username(username)
+    assert db_user_obj is not None
+    assert db_user_obj.email == email
+    assert test_auth_manager.verify_password(password, db_user_obj.hashed_password)
+
+def test_create_user_duplicate_username(test_auth_manager: AuthManager, clear_users_table):
+    """Test creating a user with a duplicate username fails."""
+    username = "duplicate_uname"
+    test_auth_manager.create_user(username, "email1@example.com", "pass1")
+
+    failed_creation = test_auth_manager.create_user(username, "email2@example.com", "pass2")
+    assert failed_creation is None
+
+def test_create_user_duplicate_email(test_auth_manager: AuthManager, clear_users_table):
+    """Test creating a user with a duplicate email fails."""
+    email = "duplicate_email@example.com"
+    test_auth_manager.create_user("userA", email, "pass1")
+
+    failed_creation = test_auth_manager.create_user("userB", email, "pass2")
+    assert failed_creation is None
+
+# --- Test User Authentication ---
+def test_authenticate_user_successful(test_auth_manager: AuthManager, clear_users_table):
+    """Test successful user authentication."""
+    username = "auth_user_login"
+    password = "login_pass! সুরক্ষিত"
+    test_auth_manager.create_user(username, f"{username}@example.com", password)
+
+    authenticated_user = test_auth_manager.authenticate_user(username, password)
+    assert authenticated_user is not None
+    assert authenticated_user["username"] == username
+    assert "password" not in authenticated_user # Ensure raw password is not returned
+    assert "hashed_password" not in authenticated_user
+
+def test_authenticate_user_wrong_password(test_auth_manager: AuthManager, clear_users_table):
+    """Test authentication with wrong password fails."""
+    username = "auth_user_wrong_pass"
+    password = "correct_password"
+    test_auth_manager.create_user(username, f"{username}@example.com", password)
+
+    assert test_auth_manager.authenticate_user(username, "wrong_password_here") is None
+
+def test_authenticate_non_existent_user(test_auth_manager: AuthManager, clear_users_table):
+    """Test authentication for a user that does not exist fails."""
+    assert test_auth_manager.authenticate_user("ghost_user", "any_pass") is None
+
+def test_authenticate_inactive_user(test_auth_manager: AuthManager, clear_users_table):
+    """Test authentication for an inactive user fails."""
+    username = "inactive_user_test"
+    password = "pa$$word"
+    test_auth_manager.create_user(username, f"{username}@example.com", password, is_active=False)
+
+    assert test_auth_manager.authenticate_user(username, password) is None
+
+# --- Test Token Creation and Validation ---
+def test_create_and_validate_access_token(test_auth_manager: AuthManager, clear_users_table):
+    """Test JWT creation and validation."""
+    username = "token_user"
+    password = "token_password_123"
+    user_data = test_auth_manager.create_user(username, f"{username}@example.com", password)
+    assert user_data is not None
+
+    token_data = {"sub": username, "custom_field": "test_value"}
+    access_token = test_auth_manager.create_access_token(data=token_data)
+    assert isinstance(access_token, str)
+
+    current_user_from_token = test_auth_manager.get_current_user_from_token(access_token)
+    assert current_user_from_token is not None
+    assert current_user_from_token["username"] == username
+
+def test_token_validation_expired(test_auth_manager: AuthManager, clear_users_table):
+    """Test that an expired token fails validation."""
+    username = "expired_token_user"
+    test_auth_manager.create_user(username, f"{username}@example.com", "pass")
+
+    expired_token = test_auth_manager.create_access_token(
+        data={"sub": username},
+        expires_delta=datetime.timedelta(seconds=1)
+    )
+    time.sleep(1.2)
+
+    with pytest.raises(HTTPException) as exc_info:
+        test_auth_manager.get_current_user_from_token(expired_token)
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert exc_info.value.detail == "Token has expired" # The manual check should be hit based on logs
+
+def test_token_validation_invalid_signature(test_auth_manager: AuthManager, clear_users_table):
+    """Test that a token with an invalid signature (e.g., wrong secret key) fails."""
+    username = "sig_user"
+    test_auth_manager.create_user(username, f"{username}@example.com", "pass")
+
+    hacker_auth_manager = AuthManager(db_manager=test_auth_manager.db_manager, secret_key="completely_different_secret_key")
+    rogue_token = hacker_auth_manager.create_access_token(data={"sub": username})
+
+    with pytest.raises(HTTPException) as exc_info:
+        test_auth_manager.get_current_user_from_token(rogue_token)
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "Could not validate credentials" in exc_info.value.detail
+
+def test_token_validation_inactive_user(test_auth_manager: AuthManager, clear_users_table):
+    """Test that a token for an inactive user fails validation."""
+    username = "token_inactive_user"
+    password = "securePassword"
+    test_auth_manager.create_user(username, f"{username}@example.com", password, is_active=False)
+
+    access_token = test_auth_manager.create_access_token(data={"sub": username})
+
+    with pytest.raises(HTTPException) as exc_info:
+        test_auth_manager.get_current_user_from_token(access_token)
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert exc_info.value.detail == "Inactive user"
+
+# --- Test User Management (CRUD through AuthManager) ---
+def test_get_all_users(test_auth_manager: AuthManager, clear_users_table):
+    """Test retrieving all users."""
+    test_auth_manager.create_user("crud_user1", "crud1@example.com", "pass")
+    test_auth_manager.create_user("crud_user2", "crud2@example.com", "pass")
+
+    users = test_auth_manager.get_all_users()
+    assert len(users) >= 2
+    usernames = [u["username"] for u in users]
+    assert "crud_user1" in usernames
+    assert "crud_user2" in usernames
+    for user_dict in users:
+        assert "hashed_password" not in user_dict
+
+def test_update_user_details(test_auth_manager: AuthManager, clear_users_table):
+    """Test updating user details."""
+    username = "update_me_auth"
+    test_auth_manager.create_user(username, "original@update.com", "pass", "Original Name", "user")
+
+    updates = {
+        "email": "updated@update.com",
+        "full_name": "Updated Name Here",
+        "role": "editor",
+        "is_active": False
+    }
+    updated_user = test_auth_manager.update_user_details(username, updates)
+    assert updated_user is not None
+    assert updated_user["email"] == updates["email"]
+    assert updated_user["full_name"] == updates["full_name"]
+    assert updated_user["role"] == updates["role"]
+    assert updated_user["is_active"] == updates["is_active"]
+
+    db_user_obj = test_auth_manager.get_user_by_username(username)
+    assert db_user_obj is not None
+    assert db_user_obj.email == updates["email"]
+    assert db_user_obj.role == updates["role"]
+
+    with pytest.raises(ValueError, match="Password updates not allowed through this method"):
+        test_auth_manager.update_user_details(username, {"password": "newpass123"})
+
+    with pytest.raises(ValueError, match="Password updates not allowed through this method"):
+        test_auth_manager.update_user_details(username, {"hashed_password": "newhash"})
+
+
+def test_delete_user(test_auth_manager: AuthManager, clear_users_table):
+    """Test deleting a user."""
+    username_to_delete = "delete_target_auth"
+    test_auth_manager.create_user(username_to_delete, "delete@auth.com", "pass")
+
+    assert test_auth_manager.delete_user(username_to_delete) is True
+    assert test_auth_manager.get_user_by_username(username_to_delete) is None
+
+    assert test_auth_manager.delete_user("nosuchuser_auth_delete") is False
