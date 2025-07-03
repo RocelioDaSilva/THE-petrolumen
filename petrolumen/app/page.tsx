@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, XCircle, Server, Activity, Brain } from "lucide-react";
+import WellDataDemo from "@/app/components/WellDataDemo"; // Import the new component
 
 // Define the status enum to match Rust's ModuleStatusEnum (after serialization)
 type ModuleStatusType = "active" | "inactive" | "error";
@@ -208,6 +209,17 @@ export default function DashboardPage() { // Renamed component for clarity
             ))}
           </div>
         )}
+      </div>
+
+      {/* Section for Well Data API Demo */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-foreground mb-3">Demonstração API de Dados de Poços</h2>
+        <Card className="shadow-sm">
+          <CardContent className="pt-6">
+            {/* WellDataDemo component is client-side only, ensure it's correctly imported */}
+            {typeof window !== "undefined" && <WellDataDemo />}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

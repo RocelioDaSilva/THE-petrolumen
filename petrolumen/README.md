@@ -26,7 +26,7 @@ Aplicação desktop eficiente para Windows, integrando frontend moderno (React/N
    your-main-project-folder/
    ├── petrolumen/  # Este repositório
    └── backend/     # Backend Python
-       ├── main.py  # Ponto de entrada da aplicação (ex: para Uvicorn/FastAPI)
+       ├── main.py  # Ponto de entrada da aplicação FastAPI
        ├── requirements.txt
        └── gaia_genesis/  # Pacote principal do código Python
            └── ...
@@ -38,19 +38,35 @@ Aplicação desktop eficiente para Windows, integrando frontend moderno (React/N
    ```
 
 3. **Inicie o backend Python localmente:**
-   A partir do diretório do backend (ex: `../backend/`), inicie seu servidor Python. O exemplo abaixo usa Uvicorn com um arquivo `main.py` contendo um app FastAPI.
+   A partir do diretório do backend (ex: `../backend/`), inicie seu servidor Python (FastAPI).
    ```bash
    # Estando no diretório do backend (ex: ../backend/)
-   uvicorn main:app --reload
+   uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
+   O backend FastAPI estará disponível em `http://localhost:8000`. A aplicação frontend se comunicará com este backend para funcionalidades como upload de dados, análises, etc.
 
-4. **Build do frontend:**
+   **Nota Importante sobre o Backend:** Atualmente, a lógica de manipulação de dados no backend (especificamente em `backend/gaia_genesis/reservoir_engineering/data_management.py`) é um *placeholder*. Ela utiliza um armazenamento em memória e validações mínimas, implementado para demonstrar e testar o pipeline de comunicação API. Você precisará substituir esta lógica placeholder pela sua lógica de processamento e armazenamento de dados robusta e definitiva.
+
+4. **Desenvolvimento do Frontend (Tauri):**
+   Para rodar o frontend em modo de desenvolvimento com o Tauri (que inclui hot-reloading para a interface web):
+   No diretório `petrolumen` (este diretório):
+   ```bash
+   # Se preferir usar npm:
+   npm run tauri dev
+   # Ou, se preferir usar yarn:
+   yarn tauri dev
+   # Ou, se preferir usar pnpm:
+   pnpm tauri dev
+   ```
+   Isso abrirá a aplicação desktop. A interface web (Next.js) se conectará ao backend FastAPI iniciado no passo anterior.
+
+5. **Build do frontend (para empacotamento):**
    No diretório `petrolumen` (este diretório):
    ```bash
    npm run build
    ```
 
-5. **Empacote como app Windows com Tauri:**
+6. **Empacote como app Windows com Tauri:**
    Ainda no diretório `petrolumen`:
    ```bash
    # Instale o Tauri CLI se necessário (se ainda não o fez globalmente)
