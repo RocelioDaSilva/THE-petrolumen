@@ -24,7 +24,7 @@ python-jose[cryptography]
 passlib[bcrypt] # For password hashing
 
 # Other utilities
-# python-dotenv # For managing environment variables
+python-dotenv # For managing environment variables
 # requests # If the backend needs to call other APIs
 # openpyxl # For Excel export/import if needed
 # reportlab # For PDF generation if done from scratch
