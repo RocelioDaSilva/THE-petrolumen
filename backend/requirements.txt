@@ -29,3 +29,4 @@ passlib[bcrypt] # For password hashing
 # openpyxl # For Excel export/import if needed
 # reportlab # For PDF generation if done from scratch
 # WeasyPrint # For HTML to PDF generation (often easier than reportlab)
+python-multipart
