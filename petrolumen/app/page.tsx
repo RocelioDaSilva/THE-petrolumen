@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, XCircle, Server, Activity, Brain } from "lucide-react";
 
 // Define the status enum to match Rust's ModuleStatusEnum (after serialization)
