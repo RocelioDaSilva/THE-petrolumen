@@ -11,7 +11,7 @@ PetroLúmen is a comprehensive application designed for reservoir engineering. I
 This project is organized into the following main components:
 
 *   **Frontend (`petrolumen/`):** A desktop application built with React/Next.js and packaged natively using Tauri. It provides the user interface for interacting with the reservoir engineering tools. For detailed information about the frontend, its features, and how to run it, please refer to the [frontend README](./petrolumen/README.md).
-*   **Backend (Assumed `../backend/` or a separate repository):** The backend is expected to be a Python application (potentially using FastAPI or a similar framework) that handles data processing, simulations, and API services. *Note: The exact location and setup instructions for the backend should be confirmed and documented here.*
+*   **Backend (`backend/`):** A Python application using FastAPI that handles data processing, simulations, and API services. It includes functionalities from the integrated `gaia_genesis` library.
 
 ## Getting Started
 
@@ -22,20 +22,32 @@ To get the full application running, you will typically need to set up both the 
     *   Follow the instructions in the [frontend README](./petrolumen/README.md) for installation and running the application.
 
 2.  **Backend Setup:**
-    *   *(Placeholder: Specific instructions for setting up and running the backend need to be added here. This might involve navigating to the backend directory, installing Python dependencies, and starting a server.)*
-    *   If the backend has its own `README.md`, link to it here.
+    *   The backend is located in the `backend/` directory.
+    *   Ensure you have Python installed (typically 3.9+).
+    *   Create a virtual environment: `python -m venv venv` and activate it (e.g., `source venv/bin/activate` on Linux/macOS, `venv\\Scripts\\activate` on Windows).
+    *   Install dependencies: `pip install -r backend/requirements.txt`.
+    *   Set up necessary environment variables (e.g., by creating a `.env` file in the `backend/` directory based on `.env.example`). This includes `DATABASE_URL` and `SECRET_KEY`.
+    *   Initialize the database: If using Alembic for migrations, run `alembic upgrade head` from within the `backend/` directory.
+    *   Run the backend server: `uvicorn main:app --reload --host 0.0.0.0 --port 8000` from within the `backend/` directory.
+    *   The backend API documentation (Swagger UI) will be available at `http://localhost:8000/docs`.
 
 ## Key Features
 
 PetroLúmen offers a range of functionalities, including:
 
-*   Data upload and validation
-*   Decline curve analysis (Exponential, Hyperbolic, Harmonic)
-*   AI-based prediction models (XGBoost, SVR)
-*   Interactive data visualization
-*   Automated report generation
-*   Reservoir simulation capabilities
-*   Database integration for data management
+*   User authentication (JWT-based).
+*   Well data upload, storage (via PostgreSQL or SQLite), and retrieval.
+*   Basic PVT (Pressure-Volume-Temperature) calculations via API:
+    *   Z-Factor
+    *   Formation Volume Factor (Oil & Gas)
+    *   Viscosity (Oil & Gas)
+    *   Solution Gas-Oil Ratio
+    *   (Refer to the API documentation at `/docs` on the running backend for details on these endpoints under the "Gaia - PVT Calculations" tag).
+*   Decline curve analysis (Exponential, Hyperbolic, Harmonic) via API.
+*   Reservoir simulation capabilities (partially integrated, ongoing).
+*   AI-based prediction models (placeholder, integration ongoing).
+*   Interactive data visualization (primarily via frontend).
+*   Database integration for data management using SQLAlchemy and Alembic migrations.
 
 (For a more detailed list of features, especially concerning the frontend application, please see the [frontend README](./petrolumen/README.md).)
 
