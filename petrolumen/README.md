@@ -8,8 +8,8 @@ Aplicação desktop eficiente para Windows, integrando frontend moderno (React/N
 ## Como rodar como aplicativo Windows
 
 1. **Instale as dependências do frontend:**
+   No diretório `petrolumen` (este diretório):
    ```bash
-   cd app
    # Se preferir usar npm:
    npm install
    # Ou, se preferir usar yarn:
@@ -45,18 +45,20 @@ Aplicação desktop eficiente para Windows, integrando frontend moderno (React/N
    ```
 
 4. **Build do frontend:**
+   No diretório `petrolumen` (este diretório):
    ```bash
-   cd ../app
    npm run build
    ```
 
 5. **Empacote como app Windows com Tauri:**
+   Ainda no diretório `petrolumen`:
    ```bash
-   cd ../src-tauri
-   # Instale o Tauri CLI se necessário
-   cargo install tauri-cli
-   # Gere o executável Windows
-   tauri build
+   # Instale o Tauri CLI se necessário (se ainda não o fez globalmente)
+   # cargo install tauri-cli
+   # Rode o comando de build do Tauri (ele usará o `src-tauri` internamente)
+   npm run desktop:build
+   # Ou diretamente:
+   # tauri build
    ```
 
 O instalador `.exe` será gerado em `src-tauri/target/release/bundle`.
@@ -75,12 +77,14 @@ O instalador `.exe` será gerado em `src-tauri/target/release/bundle`.
   ```
 
 ### 2. Instale as dependências do frontend
+No diretório `petrolumen` (este diretório):
 ```powershell
-cd app
 npm install
 # ou yarn install
 # ou pnpm install
 ```
+   > Certifique-se de que está no diretório `petrolumen` antes de executar este comando.
+   > Use apenas um gerenciador de pacotes por vez (npm, yarn ou pnpm) para evitar conflitos de dependências.
 
 ### 3. Instale as dependências do backend
 O backend Python é um projeto separado e espera-se que esteja localizado em um diretório chamado `backend` ao lado deste diretório `petrolumen` (ou seja, `../backend/` a partir daqui). Certifique-se de que ele contenha um arquivo `requirements.txt` e que a estrutura interna seja como descrito na seção "Como rodar como aplicativo Windows".
@@ -90,15 +94,18 @@ pip install -r requirements.txt
 ```
 
 ### 4. Build do frontend
+No diretório `petrolumen` (este diretório):
 ```powershell
-cd ../app
 npm run build
 ```
 
 ### 5. Build do Tauri (gera o .exe)
+Ainda no diretório `petrolumen` (este diretório):
 ```powershell
-cd ../src-tauri
+# Se você tem o Tauri CLI instalado globalmente e configurado no seu PATH:
 tauri build
+# Ou use o script do package.json:
+npm run desktop:build
 ```
 
 ### 6. Encontre o instalador
