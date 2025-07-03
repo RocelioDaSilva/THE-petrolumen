@@ -26,6 +26,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/pvt-calculations", icon: Droplets, label: "PVT Calculations" }, // Added new link
   { href: "/simulation", icon: Droplets, label: "Reservoir Simulation" },
   { href: "/production", icon: LineChart, label: "Production Analysis" },
   { href: "/optimization", icon: Sliders, label: "Optimization" },

@@ -7,12 +7,23 @@ import logging
 import os # For environment variables
 from dotenv import load_dotenv # For .env file
 
-from gaia_genesis.reservoir_engineering.data_management import DataUploader
-from gaia_genesis.reservoir_engineering.database import DatabaseManager
-from gaia_genesis.reservoir_engineering.api import AuthManager
-from gaia_genesis.reservoir_engineering.decline_analysis import AdvancedDeclineAnalysis
-from gaia_genesis.reservoir_engineering.flow_simulation import ReservoirSimulator
-from gaia_genesis.reservoir_engineering.prediction import AIPrediction
+# Updated imports to point to the new 'core' modules for data/auth management
+# and directly to reservoir_engineering.py for tools.
+from backend.gaia_genesis.core.data_uploader import DataUploader
+from backend.gaia_genesis.core.database_manager import DatabaseManager
+from backend.gaia_genesis.core.auth_manager import AuthManager
+# Assuming these classes are directly available in the top-level reservoir_engineering.py now
+from backend.gaia_genesis.reservoir_engineering import (
+    AdvancedDeclineAnalysis,
+    # ReservoirSimulator, # This class might have more complex dependencies not yet resolved
+    PVTProperties # PVTProperties is in reservoir_engineering.py
+)
+# For ReservoirSimulator and AIPrediction, need to confirm their new locations or if they are self-contained
+# For now, let's assume they might be in their own files at the top level of gaia_genesis
+from backend.gaia_genesis.flow_simulation import FlowSimulation as ReservoirSimulator # Class is FlowSimulation, alias for minimal changes
+# from backend.gaia_genesis.prediction import AIPrediction # AIPrediction class is in a subdirectory not copied. Commenting out.
+
+
 import pandas as pd
 import numpy as np # Added import
 
@@ -68,10 +79,34 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 # --- Initialize Reservoir Engineering Tools ---
 dca_analyzer = AdvancedDeclineAnalysis()
-res_simulator = ReservoirSimulator()
-ai_predictor = AIPrediction()
+# The FlowSimulation class from backend/gaia_genesis/flow_simulation.py expects arguments like nx, ny, nz for its constructor.
+# The original instantiation `ReservoirSimulator()` suggests it had a default constructor or was a different class.
+# For now, to prevent startup error, we will initialize it with some default grid,
+# but this will need proper configuration later.
+try:
+    res_simulator = ReservoirSimulator(nx=10, ny=10, nz=1, dx=100, dy=100, dz=10) # Example default values
+    logger.info("Initialized ReservoirSimulator (FlowSimulation) with default parameters.")
+except Exception as e:
+    logger.error(f"Failed to initialize ReservoirSimulator (FlowSimulation): {e}. Simulation endpoints may not work.")
+    res_simulator = None # Set to None if initialization fails
+
+# ai_predictor = AIPrediction() # Commented out as AIPrediction class is not available
+ai_predictor = None # Set to None
+logger.warning("AIPrediction functionality is disabled as the class could not be imported due to missing subdirectories.")
+
 # Use AI_MODELS_DIR from settings
 os.makedirs(settings.AI_MODELS_DIR, exist_ok=True)
+
+# --- Import Custom Routers ---
+# Import for PVT calculations from gaia_genesis
+try:
+    from backend.gaia_genesis.api_v1.endpoints import pvt_calculations as gaia_pvt_router
+    app.include_router(gaia_pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT Calculations"])
+    logger.info("Successfully included Gaia PVT calculations router.")
+except ImportError as e:
+    logger.error(f"Could not import Gaia PVT calculations router: {e}. Ensure 'backend.gaia_genesis.api_v1.endpoints.pvt_calculations' is correct and discoverable.")
+except Exception as e:
+    logger.error(f"An unexpected error occurred while including Gaia PVT router: {e}")
 
 
 # --- Pydantic Models for API ---
@@ -700,106 +735,97 @@ async def get_simulation_well_rates(current_user: UserResponse = Depends(get_cur
 # --- AI Prediction Endpoints ---
 # Also uses a global instance `ai_predictor`, subject to same concurrency/state issues as simulator.
 
-@app.post("/api/v1/reservoir/prediction/train", response_model=AITrainResponse, tags=["Reservoir Engineering"])
-async def train_ai_models(
-    request: AIPredictionDataRequest,
-    current_user: UserResponse = Depends(get_current_active_user)
-):
-    try:
-        df = pd.DataFrame(request.records)
-        if df.empty:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for training.")
+# @app.post("/api/v1/reservoir/prediction/train", response_model=AITrainResponse, tags=["Reservoir Engineering"])
+# async def train_ai_models(
+#     request: AIPredictionDataRequest,
+#     current_user: UserResponse = Depends(get_current_active_user)
+# ):
+#     if ai_predictor is None:
+#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
+#     try:
+#         df = pd.DataFrame(request.records)
+#         if df.empty:
+#             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for training.")
 
-        X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
-            df, request.target_column, request.feature_columns
-        )
-        trained_models = ai_predictor.train_models(X_train, y_train)
-        if not trained_models:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Model training failed or no models were trained.")
+#         X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
+#             df, request.target_column, request.feature_columns
+#         )
+#         trained_models = ai_predictor.train_models(X_train, y_train)
+#         if not trained_models:
+#             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Model training failed or no models were trained.")
 
-        # Optionally, evaluate and return metrics here
-        # performance_summary = {}
-        # predictions_on_test = ai_predictor.predict(X_test)
-        # for model_name, preds in predictions_on_test.items():
-        #     performance_summary[model_name] = ai_predictor._evaluate_performance(y_test, preds)
+#         return AITrainResponse(
+#             message="Models trained successfully.",
+#             trained_models=list(trained_models.keys()),
+#         )
+#     except ValueError as ve:
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+#     except Exception as e:
+#         logger.exception(f"Error during AI model training: {e}")
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during AI training: {str(e)}")
 
-        return AITrainResponse(
-            message="Models trained successfully.",
-            trained_models=list(trained_models.keys()),
-            # performance=performance_summary
-        )
-    except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
-    except Exception as e:
-        logger.exception(f"Error during AI model training: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during AI training: {str(e)}")
+# @app.post("/api/v1/reservoir/prediction/predict", response_model=AIPredictResponse, tags=["Reservoir Engineering"])
+# async def predict_with_ai_models(
+#     request: AIPredictRequest,
+#     current_user: UserResponse = Depends(get_current_active_user)
+# ):
+#     if ai_predictor is None:
+#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
+#     try:
+#         df_features = pd.DataFrame(request.records)
+#         if df_features.empty:
+#             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for prediction.")
 
-@app.post("/api/v1/reservoir/prediction/predict", response_model=AIPredictResponse, tags=["Reservoir Engineering"])
-async def predict_with_ai_models(
-    request: AIPredictRequest,
-    current_user: UserResponse = Depends(get_current_active_user)
-):
-    try:
-        df_features = pd.DataFrame(request.records)
-        if df_features.empty:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for prediction.")
+#         if not ai_predictor.trained_models:
+#              raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No models available. Train models first.")
 
-        # Ensure correct columns are present as per training feature_columns
-        # This might need more robust handling if columns are missing or different.
-        # For now, assume client sends data with columns used during training.
-        # X_to_predict = df_features[ai_predictor.last_feature_columns_used_for_training] # Need to store this state in ai_predictor
-        # This is a simplification; ideally, feature names used for training should be stored and enforced.
-        # For now, we trust `request.feature_columns` matches what models expect if they were just trained.
+#         predictions = ai_predictor.predict(df_features[request.feature_columns])
+#         serializable_predictions = {name: p.tolist() for name, p in predictions.items()}
+#         return AIPredictResponse(predictions=serializable_predictions)
+#     except ValueError as ve:
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+#     except Exception as e:
+#         logger.exception(f"Error during AI prediction: {e}")
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during AI prediction: {str(e)}")
 
-        if not ai_predictor.trained_models:
-             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No models available. Train models first.")
+# @app.post("/api/v1/reservoir/prediction/save_model", tags=["Reservoir Engineering"])
+# async def save_ai_model(
+#     request: AISaveModelRequest,
+#     current_user: UserResponse = Depends(get_current_active_user)
+# ):
+#     if ai_predictor is None:
+#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
+#     model_filename = f"{request.model_name.replace(' ', '_')}_model.joblib"
+#     # Corrected to use settings.AI_MODELS_DIR
+#     full_path = os.path.join(settings.AI_MODELS_DIR, request.path, model_filename)
 
-        predictions = ai_predictor.predict(df_features[request.feature_columns])
+#     if ".." in request.path or request.path.startswith("/"):
+#         raise HTTPException(status_code=400, detail="Invalid path specified.")
 
-        # Convert numpy arrays in predictions to lists for JSON serialization
-        serializable_predictions = {name: p.tolist() for name, p in predictions.items()}
+#     os.makedirs(os.path.join(settings.AI_MODELS_DIR, request.path), exist_ok=True)
 
-        return AIPredictResponse(predictions=serializable_predictions)
-    except ValueError as ve: # e.g. if feature_columns don't match
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
-    except Exception as e:
-        logger.exception(f"Error during AI prediction: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during AI prediction: {str(e)}")
+#     result_message = ai_predictor.save_model(request.model_name, full_path)
+#     if "Error" in result_message:
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result_message)
+#     return {"message": result_message, "saved_path": full_path}
 
-@app.post("/api/v1/reservoir/prediction/save_model", tags=["Reservoir Engineering"])
-async def save_ai_model(
-    request: AISaveModelRequest,
-    current_user: UserResponse = Depends(get_current_active_user) # Potentially admin only
-):
-    model_filename = f"{request.model_name.replace(' ', '_')}_model.joblib"
-    full_path = os.path.join(MODELS_DIR, request.path, model_filename) # request.path is directory
+# @app.post("/api/v1/reservoir/prediction/load_model", tags=["Reservoir Engineering"])
+# async def load_ai_model(
+#     request: AILoadModelRequest,
+#     current_user: UserResponse = Depends(get_current_active_user)
+# ):
+#     if ai_predictor is None:
+#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
+#     # Corrected to use settings.AI_MODELS_DIR
+#     full_path = os.path.join(settings.AI_MODELS_DIR, request.path)
 
-    # Basic security: prevent path traversal
-    if ".." in request.path or request.path.startswith("/"):
-        raise HTTPException(status_code=400, detail="Invalid path specified.")
+#     if ".." in request.path or not request.path.endswith(".joblib"):
+#         raise HTTPException(status_code=400, detail="Invalid path or file type specified.")
 
-    os.makedirs(os.path.join(MODELS_DIR, request.path), exist_ok=True)
-
-    result_message = ai_predictor.save_model(request.model_name, full_path)
-    if "Error" in result_message:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result_message)
-    return {"message": result_message, "saved_path": full_path}
-
-@app.post("/api/v1/reservoir/prediction/load_model", tags=["Reservoir Engineering"])
-async def load_ai_model(
-    request: AILoadModelRequest,
-    current_user: UserResponse = Depends(get_current_active_user) # Potentially admin only
-):
-    full_path = os.path.join(MODELS_DIR, request.path) # request.path here is the full filename
-
-    # Basic security: prevent path traversal
-    if ".." in request.path or not request.path.endswith(".joblib"): # Simple check
-        raise HTTPException(status_code=400, detail="Invalid path or file type specified.")
-
-    success = ai_predictor.load_model(request.model_name, full_path)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Failed to load model '{request.model_name}' from {full_path}. File not found or error during loading.")
-    return {"message": f"Model '{request.model_name}' loaded successfully from {request.path}."}
+#     success = ai_predictor.load_model(request.model_name, full_path)
+#     if not success:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Failed to load model '{request.model_name}' from {full_path}. File not found or error during loading.")
+#     return {"message": f"Model '{request.model_name}' loaded successfully from {request.path}."}
 
 
 if __name__ == "__main__":

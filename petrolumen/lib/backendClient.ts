@@ -204,3 +204,87 @@ export const getCurrentUser = async (): Promise<UserProfileResponse> => {
   const response = await fetchWithAuth(`${API_BASE_URL}/users/me`);
   return handleApiResponse<UserProfileResponse>(response);
 };
+
+// --- PVT Calculation Types ---
+// Based on backend pydantic models: backend/gaia_genesis/api_v1/models/pvt_models.py
+
+export interface ZFactorRequestData {
+  pressure: number; // in psia
+  temperature: number; // in Fahrenheit (°F)
+  gas_specific_gravity: number;
+}
+
+export interface ZFactorResponseData {
+  z_factor: number;
+}
+
+export interface FormationVolumeFactorRequestData {
+  pressure: number;
+  temperature: number;
+  fluid_type: 'oil' | 'gas';
+  api_gravity?: number | null;
+  gas_specific_gravity?: number | null;
+}
+
+export interface FormationVolumeFactorResponseData {
+  fvf: number; // Formation Volume Factor (Bo or Bg)
+}
+
+export interface ViscosityRequestData {
+  pressure: number;
+  temperature: number;
+  fluid_type: 'oil' | 'gas';
+  api_gravity?: number | null;
+  gas_specific_gravity?: number | null;
+}
+
+export interface ViscosityResponseData {
+  viscosity: number; // in cP
+}
+
+export interface SolutionGasRatioRequestData {
+  pressure: number;
+  temperature: number;
+  api_gravity: number;
+  gas_specific_gravity: number;
+}
+
+export interface SolutionGasRatioResponseData {
+  rs: number; // Solution Gas-Oil Ratio (scf/stb)
+}
+
+// --- PVT Calculation API Client Functions ---
+
+const GAIA_API_PREFIX = `${API_BASE_URL}/gaia`; // Specific prefix for these new endpoints
+
+export const calculateZFactor = async (data: ZFactorRequestData): Promise<ZFactorResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_z_factor`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<ZFactorResponseData>(response);
+};
+
+export const calculateFormationVolumeFactor = async (data: FormationVolumeFactorRequestData): Promise<FormationVolumeFactorResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_formation_volume_factor`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<FormationVolumeFactorResponseData>(response);
+};
+
+export const calculateViscosity = async (data: ViscosityRequestData): Promise<ViscosityResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_viscosity`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<ViscosityResponseData>(response);
+};
+
+export const calculateSolutionGasRatio = async (data: SolutionGasRatioRequestData): Promise<SolutionGasRatioResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_solution_gas_ratio`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<SolutionGasRatioResponseData>(response);
+};
