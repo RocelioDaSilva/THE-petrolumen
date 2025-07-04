@@ -288,3 +288,273 @@ export const calculateSolutionGasRatio = async (data: SolutionGasRatioRequestDat
   });
   return handleApiResponse<SolutionGasRatioResponseData>(response);
 };
+
+// --- Reservoir Analysis Tools Types ---
+
+// Material Balance
+export interface OGIPRequestData {
+  pressure_history: number[];
+  production_history: number[];
+  temperature: number;
+  gas_specific_gravity: number;
+}
+
+export interface OGIPResponseData {
+  ogip: number;
+}
+
+export interface STOIIPRequestData {
+  pressure_history: number[];
+  production_history: number[];
+  temperature: number;
+  api_gravity: number;
+  gas_specific_gravity: number;
+  bo_initial?: number | null;
+  rs_initial?: number | null;
+}
+
+export interface STOIIPResponseData {
+  stoiip: number;
+}
+
+// Well Testing
+export interface WellTestInputBaseData {
+  time_data: number[];
+  pressure_data: number[];
+  production_rate: number;
+  fluid_viscosity: number;
+  total_compressibility: number;
+  formation_porosity: number;
+  wellbore_radius: number;
+  formation_thickness?: number | null;
+}
+
+export type BuildupTestAnalysisRequestData = WellTestInputBaseData;
+export type DrawdownTestAnalysisRequestData = WellTestInputBaseData;
+
+export interface WellTestAnalysisResponseData {
+  permeability: number;
+  skin_factor: number;
+  slope?: number | null;
+  intercept?: number | null;
+}
+
+// EUR Calculation
+export interface EURCalculationRequestData {
+  qi: number;
+  Di: number;
+  b: number;
+  method_type: 'exponential' | 'harmonic' | 'hyperbolic';
+}
+
+export interface EURCalculationResponseData {
+  eur: number;
+}
+
+
+// --- Reservoir Analysis Tools API Client Functions ---
+
+const GAIA_RESERVOIR_TOOLS_API_PREFIX = `${GAIA_API_PREFIX}/reservoir-tools`;
+
+export const calculateOGIP = async (data: OGIPRequestData): Promise<OGIPResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_RESERVOIR_TOOLS_API_PREFIX}/material-balance/ogip`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<OGIPResponseData>(response);
+};
+
+export const calculateSTOIIP = async (data: STOIIPRequestData): Promise<STOIIPResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_RESERVOIR_TOOLS_API_PREFIX}/material-balance/stoiip`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<STOIIPResponseData>(response);
+};
+
+export const analyzeBuildupTest = async (data: BuildupTestAnalysisRequestData): Promise<WellTestAnalysisResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_RESERVOIR_TOOLS_API_PREFIX}/well-testing/analyze-buildup`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<WellTestAnalysisResponseData>(response);
+};
+
+export const analyzeDrawdownTest = async (data: DrawdownTestAnalysisRequestData): Promise<WellTestAnalysisResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_RESERVOIR_TOOLS_API_PREFIX}/well-testing/analyze-drawdown`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<WellTestAnalysisResponseData>(response);
+};
+
+export const calculateEUR = async (data: EURCalculationRequestData): Promise<EURCalculationResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_RESERVOIR_TOOLS_API_PREFIX}/decline-curve/calculate-eur`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<EURCalculationResponseData>(response);
+};
+
+// --- Static Modeling Tools Types ---
+
+export interface GridDefinitionData {
+  nx: number;
+  ny: number;
+  nz: number;
+  dx: number;
+  dy: number;
+  dz: number;
+}
+
+export interface WellPropertyLogData {
+  md: number[];
+  values: number[];
+}
+
+export interface StaticWellDataRequestData {
+  well_name: string;
+  x_coord: number;
+  y_coord: number;
+  properties: Record<string, WellPropertyLogData>; // e.g., {"Porosity": WellPropertyLogData, ...}
+}
+
+export interface VariogramCalculationRequestData {
+  property_name: string;
+  variogram_model_type?: 'spherical' | 'exponential' | 'gaussian';
+  direction?: string; // 'omnidirectional', '0_degrees', etc.
+  max_lag_distance?: number | null;
+  number_of_lags?: number;
+}
+
+export interface VariogramPointData {
+  lag: number;
+  gamma: number;
+  num_pairs: number;
+}
+
+export interface VariogramResponseData {
+  property_name: string;
+  experimental_variogram: VariogramPointData[];
+  fitted_model_type: string;
+  fitted_model_parameters: Record<string, number>; // e.g., {c0, c1, a}
+  fitted_model_values?: number[] | null;
+}
+
+export interface KrigingRequestData {
+  property_name: string;
+}
+
+export interface KrigingResponseData {
+  property_name: string;
+  interpolated_grid_values: number[][]; // Assuming 2D grid for now
+  kriging_std_dev_grid_values?: number[][] | null;
+  grid_dimensions?: [number, number] | null; // [nx, ny]
+}
+
+// Rock Physics
+export interface RockPhysicsRequestBaseData {
+  model_type: 'gassmann' | 'hertz_mindlin';
+  porosity: number;
+}
+
+export interface GassmannRequestData extends RockPhysicsRequestBaseData {
+  model_type: 'gassmann';
+  k_dry: number;
+  k_matrix: number;
+  k_fluid: number;
+  g_matrix: number;
+}
+
+export interface HertzMindlinRequestData extends RockPhysicsRequestBaseData {
+  model_type: 'hertz_mindlin';
+  g_matrix: number;
+  k_matrix: number;
+  critical_porosity?: number;
+  effective_pressure?: number;
+  poisson_ratio_matrix?: number;
+}
+
+export type RockPhysicsModelsUnion = GassmannRequestData | HertzMindlinRequestData;
+
+export interface RockPhysicsResponseData {
+  model_type: string;
+  k_saturated: number;
+  g_saturated: number;
+  vp: number;
+  vs: number;
+  rho_bulk: number;
+}
+
+// NMR Analysis
+export interface NMRAnalysisRequestData {
+  well_name: string;
+  t2_distribution: number[];
+  t2_times: number[];
+}
+
+export interface NMRAnalysisResponseData {
+  well_name: string;
+  t2_log_mean: number;
+  bulk_volume_irreducible: number;
+  free_fluid_volume: number;
+  pore_sizes_microns?: number[] | null;
+  permeability_coates_md?: number | null;
+  permeability_sdr_md?: number | null;
+  capillary_pressure_psi_proxy?: number[] | null;
+  t2_distribution_echo: number[];
+  t2_times_echo: number[];
+}
+
+
+// --- Static Modeling Tools API Client Functions ---
+
+const GAIA_STATIC_MODELING_API_PREFIX = `${GAIA_API_PREFIX}/static-modeling`;
+
+export const defineStaticGrid = async (data: GridDefinitionData): Promise<{ message: string; grid_definition: GridDefinitionData }> => {
+  const response = await fetchWithAuth(`${GAIA_STATIC_MODELING_API_PREFIX}/grid`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<{ message: string; grid_definition: GridDefinitionData }>(response);
+};
+
+export const addStaticWellData = async (data: StaticWellDataRequestData): Promise<{ message: string }> => {
+  const response = await fetchWithAuth(`${GAIA_STATIC_MODELING_API_PREFIX}/well-data`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<{ message: string }>(response);
+};
+
+export const calculatePropertyVariogram = async (data: VariogramCalculationRequestData): Promise<VariogramResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_STATIC_MODELING_API_PREFIX}/variogram`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<VariogramResponseData>(response);
+};
+
+export const performKrigingInterpolation = async (data: KrigingRequestData): Promise<KrigingResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_STATIC_MODELING_API_PREFIX}/kriging`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<KrigingResponseData>(response);
+};
+
+export const calculateRockPhysicsProperties = async (data: RockPhysicsModelsUnion): Promise<RockPhysicsResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_STATIC_MODELING_API_PREFIX}/rock-physics`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<RockPhysicsResponseData>(response);
+};
+
+export const performNMRAnalysis = async (data: NMRAnalysisRequestData): Promise<NMRAnalysisResponseData> => {
+  const response = await fetchWithAuth(`${GAIA_STATIC_MODELING_API_PREFIX}/nmr-analysis`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<NMRAnalysisResponseData>(response);
+};

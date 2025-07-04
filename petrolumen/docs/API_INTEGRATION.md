@@ -27,6 +27,47 @@ Currently, the frontend uses a manual API client located at `petrolumen/lib/back
 -   Specific functions for each API endpoint (e.g., `loginForAccessToken`, `getCurrentUser`, `uploadWellData`, etc.).
 -   TypeScript interfaces for request and response payloads (e.g., `UploadResponse`, `UserProfileResponse`).
 
+This client has been updated to include functions for newly integrated features.
+
+## Newly Integrated API Endpoint Groups
+
+As part of recent updates, several new groups of API endpoints, primarily leveraging the `gaia_genesis` toolkit, have been added to the backend. These are fully documented in the auto-generated OpenAPI specification (Swagger/ReDoc) accessible via `/docs` and `/redoc` when the backend is running.
+
+Key new endpoint groups include:
+
+-   **Gaia - PVT Calculations (`/api/v1/gaia/pvt/...`)**:
+    -   Endpoints for calculating fluid properties like Z-Factor, Formation Volume Factor, Viscosity, and Solution Gas Ratio.
+    -   These were already partially integrated and have been verified.
+
+-   **Gaia - Reservoir Analysis Tools (`/api/v1/gaia/reservoir-tools/...`)**:
+    -   Material Balance: Endpoints for OGIP and STOIIP calculations.
+    -   Well Testing: Endpoints for analyzing pressure buildup and drawdown tests.
+    -   Decline Curve Analysis: Endpoint for EUR (Estimated Ultimate Recovery) calculation from Arps parameters.
+
+-   **Gaia - Static Modeling Tools (`/api/v1/gaia/static-modeling/...`)**:
+    -   Endpoints for defining a 3D grid and adding well data for static models.
+    -   Variogram calculation and fitting.
+    -   Kriging interpolation.
+    -   Rock physics calculations (Gassmann, Hertz-Mindlin).
+    -   NMR T2 data analysis.
+    -   *Note: Some of these endpoints operate on a shared global instance in the backend and may not be concurrency-safe. Grid and well data setup are stateful.*
+
+-   **Reservoir Engineering - AI Prediction (`/api/v1/reservoir/prediction/...`)**:
+    -   Endpoints for training AI models (SVR, XGBoost) for general regression tasks.
+    -   Predicting with trained models.
+    -   Saving and loading trained models.
+    -   *Note: The AI predictor instance is global. Training a new model will overwrite the previously trained models in that instance unless models are explicitly saved and loaded.*
+
+-   **Reservoir Engineering - Decline Curve Analysis (`/api/v1/reservoir/dca/...`)**:
+    *   Endpoints for fitting Arps decline curves and predicting future rates.
+    *   These have been refactored to use a stateless `DeclineAnalysis` class.
+
+-   **Reservoir Engineering - Flow Simulation (`/api/v1/reservoir/flowsim/...`)**:
+    *   Endpoints for setting up and running flow simulations.
+    *   *Note: These endpoints operate on a shared global simulator instance and are not concurrency-safe. A `/reset` endpoint is provided for single-user workflow management.*
+
+Please refer to the Swagger UI (`/docs`) or ReDoc (`/redoc`) for detailed request/response schemas and to try out these new endpoints.
+
 ## Recommended: Client Code Generation
 
 To improve type safety, reduce boilerplate, and ensure better synchronization between the frontend and backend API definitions, it is **highly recommended** to use an OpenAPI client code generator.

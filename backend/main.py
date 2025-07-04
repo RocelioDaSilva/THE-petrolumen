@@ -14,14 +14,14 @@ from backend.gaia_genesis.core.database_manager import DatabaseManager
 from backend.gaia_genesis.core.auth_manager import AuthManager
 # Assuming these classes are directly available in the top-level reservoir_engineering.py now
 from backend.gaia_genesis.reservoir_engineering import (
-    AdvancedDeclineAnalysis,
+    DeclineAnalysis, # Changed from AdvancedDeclineAnalysis
     # ReservoirSimulator, # This class might have more complex dependencies not yet resolved
     PVTProperties # PVTProperties is in reservoir_engineering.py
 )
 # For ReservoirSimulator and AIPrediction, need to confirm their new locations or if they are self-contained
 # For now, let's assume they might be in their own files at the top level of gaia_genesis
 from backend.gaia_genesis.flow_simulation import FlowSimulation as ReservoirSimulator # Class is FlowSimulation, alias for minimal changes
-# from backend.gaia_genesis.prediction import AIPrediction # AIPrediction class is in a subdirectory not copied. Commenting out.
+from backend.gaia_genesis.prediction import AIPrediction # Import AIPrediction
 
 
 import pandas as pd
@@ -78,11 +78,16 @@ data_uploader = DataUploader(db_manager=db_manager)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 # --- Initialize Reservoir Engineering Tools ---
-dca_analyzer = AdvancedDeclineAnalysis()
-# The FlowSimulation class from backend/gaia_genesis/flow_simulation.py expects arguments like nx, ny, nz for its constructor.
-# The original instantiation `ReservoirSimulator()` suggests it had a default constructor or was a different class.
-# For now, to prevent startup error, we will initialize it with some default grid,
-# but this will need proper configuration later.
+# WARNING: dca_analyzer is a global instance. If DeclineAnalysis methods become stateful, this could lead to concurrency issues.
+# Currently, DeclineAnalysis methods (fit_arps, forecast_production) appear stateless.
+dca_analyzer = DeclineAnalysis() # Changed from AdvancedDeclineAnalysis
+logger.info("Initialized DeclineAnalysis.")
+
+# WARNING: res_simulator is a global instance of FlowSimulation.
+# FlowSimulation is stateful (stores grid, properties, wells, results).
+# This is NOT thread-safe for concurrent users modifying the same simulation setup.
+# In a real multi-user app, simulation state would need to be managed per user/session or per simulation ID.
+# Consider implementing a /reset endpoint as a minimal step for single-user workflow.
 try:
     res_simulator = ReservoirSimulator(nx=10, ny=10, nz=1, dx=100, dy=100, dz=10) # Example default values
     logger.info("Initialized ReservoirSimulator (FlowSimulation) with default parameters.")
@@ -90,9 +95,8 @@ except Exception as e:
     logger.error(f"Failed to initialize ReservoirSimulator (FlowSimulation): {e}. Simulation endpoints may not work.")
     res_simulator = None # Set to None if initialization fails
 
-# ai_predictor = AIPrediction() # Commented out as AIPrediction class is not available
-ai_predictor = None # Set to None
-logger.warning("AIPrediction functionality is disabled as the class could not be imported due to missing subdirectories.")
+ai_predictor = AIPrediction() # Instantiate AIPrediction
+logger.info("AIPrediction functionality enabled.")
 
 # Use AI_MODELS_DIR from settings
 os.makedirs(settings.AI_MODELS_DIR, exist_ok=True)
@@ -108,6 +112,23 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"An unexpected error occurred while including Gaia PVT router: {e}")
 
+try:
+    from backend.gaia_genesis.api_v1.endpoints import reservoir_analysis_tools as gaia_reservoir_tools_router
+    app.include_router(gaia_reservoir_tools_router.router, prefix="/api/v1/gaia/reservoir-tools", tags=["Gaia - Reservoir Analysis Tools"])
+    logger.info("Successfully included Gaia Reservoir Analysis Tools router.")
+except ImportError as e:
+    logger.error(f"Could not import Gaia Reservoir Analysis Tools router: {e}. Ensure 'backend.gaia_genesis.api_v1.endpoints.reservoir_analysis_tools' is correct.")
+except Exception as e:
+    logger.error(f"An unexpected error occurred while including Gaia Reservoir Analysis Tools router: {e}")
+
+try:
+    from backend.gaia_genesis.api_v1.endpoints import static_modeling_tools as gaia_static_modeling_router
+    app.include_router(gaia_static_modeling_router.router, prefix="/api/v1/gaia/static-modeling", tags=["Gaia - Static Modeling Tools"])
+    logger.info("Successfully included Gaia Static Modeling Tools router.")
+except ImportError as e:
+    logger.error(f"Could not import Gaia Static Modeling Tools router: {e}. Ensure 'backend.gaia_genesis.api_v1.endpoints.static_modeling_tools' is correct.")
+except Exception as e:
+    logger.error(f"An unexpected error occurred while including Gaia Static Modeling Tools router: {e}")
 
 # --- Pydantic Models for API ---
 class Token(BaseModel):
@@ -145,26 +166,27 @@ class WellMetadata(BaseModel): # For creating wells along with data
 class DCARequestData(BaseModel):
     time: List[float] # In months or days, consistent units
     rate: List[float] # Production rates corresponding to time data
+    method_type: str # 'exponential', 'hyperbolic', 'harmonic'
 
-class DCAParams(BaseModel):
+class DCAParams(BaseModel): # Parameters for a single Arps model
     qi: float
     Di: float
-    b: Optional[float] = None # For hyperbolic
-    type: str
+    b: float # b=0 for exponential, b=1 for harmonic
+    type: str # 'exponential', 'hyperbolic', 'harmonic'
 
-class DCAResponse(BaseModel):
-    fitted_models: Dict[str, DCAParams]
-    best_model: Optional[str] = None
+class DCAResponse(BaseModel): # Response for fitting a single model type
+    fitted_params: DCAParams
+    # best_model: Optional[str] = None # No longer fitting multiple, so no 'best_model' selection here
     error: Optional[str] = None
 
 class DCAPredictionRequest(BaseModel):
-    model_name: str # Which model to use for prediction if not best_model
-    months_to_predict: int
-    # Optionally include parameters if not relying on previously fitted ones stored in an instance
-    # params: Optional[DCAParams] = None
+    # model_name: str # No longer needed as params are passed directly
+    params: DCAParams # Client sends the parameters of the model to use for prediction
+    time_horizon: List[float] # Array of future time points for prediction (e.g., [30, 60, 90] days or months)
+    # months_to_predict: int # Replaced by time_horizon for more flexibility
 
 class DCAPredictionResponse(BaseModel):
-    time_months: List[float]
+    time_horizon: List[float] # Echo back the time horizon used
     predicted_rate: List[float]
     model_used: str
 
@@ -549,25 +571,41 @@ async def fit_decline_models(
     current_user: UserResponse = Depends(get_current_active_user)
 ):
     """
-    Fits decline curve models (Exponential, Hyperbolic, Harmonic) to provided time and rate data.
+    Fits a specified Arps decline curve model to provided time and rate data.
     """
     try:
         time_array = np.array(data.time)
         rate_array = np.array(data.rate)
 
-        # Use a new dca_analyzer instance per request or manage state carefully if global
-        dca_instance = AdvancedDeclineAnalysis()
-        fitted_models_info = dca_instance.fit_models(time_array, rate_array)
+        if data.method_type not in ['exponential', 'hyperbolic', 'harmonic']:
+            raise ValueError("Invalid method_type. Must be 'exponential', 'hyperbolic', or 'harmonic'.")
 
-        if "error" in fitted_models_info:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=fitted_models_info["error"])
+        # dca_analyzer is now an instance of DeclineAnalysis
+        # fit_arps returns a dict like {'qi': ..., 'di': ..., 'b': ..., 'method': ...}
+        fitted_params_dict = dca_analyzer.fit_arps(
+            time=time_array,
+            rate=rate_array,
+            method=data.method_type
+        )
 
-        # Convert output params to fit DCAParams model
-        response_models = {}
-        for name, params_dict in dca_instance.models.items():
-            response_models[name] = DCAParams(**params_dict)
+        if not fitted_params_dict: # Should not happen if fit_arps raises errors for bad fits
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Model fitting failed to return parameters.")
 
-        return DCAResponse(fitted_models=response_models, best_model=dca_instance.best_model_name)
+        # Ensure 'b' is present, default if necessary (e.g. for exponential/harmonic from fit_arps)
+        b_value = fitted_params_dict.get('b')
+        if b_value is None: # fit_arps for exponential/harmonic might not return 'b' explicitly or set it to 0/1
+            if data.method_type == 'exponential': b_value = 0.0
+            elif data.method_type == 'harmonic': b_value = 1.0
+            else: b_value = 0.5 # Default for hyperbolic if somehow missing, though fit_arps should provide it
+
+        response_params = DCAParams(
+            qi=fitted_params_dict['qi'],
+            Di=fitted_params_dict['di'],
+            b=b_value,
+            type=fitted_params_dict['method']
+        )
+
+        return DCAResponse(fitted_params=response_params)
     except ValueError as ve:
         logger.error(f"ValueError in DCA fit: {ve}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
@@ -587,124 +625,213 @@ async def predict_decline(
     current_user: UserResponse = Depends(get_current_active_user)
 ):
     """
-    Predicts future production rates using a previously fitted model (stateful for now).
-    This endpoint expects that `fit_decline_models` was called on the same `dca_analyzer` instance.
-    A better stateless design would take model parameters as input.
+    Predicts future production rates using specified Arps model parameters.
+    This endpoint is now stateless.
     """
-    # This uses the global dca_analyzer. This is NOT thread-safe for concurrent users if state is involved.
-    # For a démo, this might be fine, but for production, this state needs to be managed (e.g., per user session, or pass params)
-    if not dca_analyzer.best_model_name or request.model_name not in dca_analyzer.params:
-         # Try to use best_model if model_name is not specified or invalid, or if a specific one is requested.
-        if not dca_analyzer.best_model_name and request.model_name not in dca_analyzer.params:
-             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Model '{request.model_name}' not fitted or no best model available. Fit models first.")
-        # If a specific model is requested and not found, but a best model exists, we could opt to use best_model.
-        # For now, require the requested model to be explicitly available or rely on previously set best_model.
-        # This part of logic needs refinement for a robust API.
-        # Let's assume for now we use the `request.model_name` if provided and valid, else best_model.
-
-    # Temporary simplified logic: Use the best_model_name from the global instance if request.model_name is not set or invalid
-    # This is problematic because dca_analyzer is global.
-    # A better approach: the client sends the model parameters it wants to use for prediction.
-    # Or, the fit endpoint returns a session ID/model ID that predict can use.
-    # For now, let's make a new instance and assume params are somehow passed (not implemented in this version)
-    # This endpoint is more of a placeholder for how one might structure it.
-
-    # Re-fitting on dummy data just to use the predict_future structure (BAD for real use)
-    # This highlights the stateful issue with the current dca_analyzer.
-    # To make this work without major refactor of dca_analyzer for statelessness:
-    # We'd need to ensure dca_analyzer has been fitted appropriately before this call.
-    # This is not ideal for a public API.
-
-    # Let's assume the global dca_analyzer has been fitted by a previous call to /fit
-    # And we want to predict using a specific model from that fit or the best one.
-
-    original_best_model = dca_analyzer.best_model_name
-    if request.model_name and request.model_name in dca_analyzer.params:
-        dca_analyzer.best_model_name = request.model_name # Temporarily set for prediction
-    elif not dca_analyzer.best_model_name: # No model specified and no best model from previous fit
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No model available for prediction. Fit models first.")
-
     try:
-        predictions_df = dca_analyzer.predict_future(request.months_to_predict)
-        dca_analyzer.best_model_name = original_best_model # Reset if changed
+        # Convert params from Pydantic model to dict for forecast_production
+        params_dict = {
+            'qi': request.params.qi,
+            'di': request.params.Di,
+            'b': request.params.b,
+            'method': request.params.type # Ensure 'type' in DCAParams matches 'method' for forecast_production
+        }
+        time_horizon_np = np.array(request.time_horizon)
 
-        if predictions_df.empty:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Prediction resulted in empty data. Check model parameters or input.")
+        predicted_rates_np = dca_analyzer.forecast_production(
+            params=params_dict,
+            time=time_horizon_np
+        )
+
+        if predicted_rates_np is None or len(predicted_rates_np) == 0:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Prediction resulted in empty data.")
 
         return DCAPredictionResponse(
-            time_months=predictions_df['Time_Months'].tolist(),
-            predicted_rate=predictions_df['Predicted_Rate'].tolist(),
-            model_used=dca_analyzer.best_model_name # This will be the model used for prediction
+            time_horizon=time_horizon_np.tolist(),
+            predicted_rate=predicted_rates_np.tolist(),
+            model_used=request.params.type
         )
+    except ValueError as ve:
+        logger.error(f"ValueError in DCA predict: {ve}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
-        dca_analyzer.best_model_name = original_best_model # Reset if changed
         logger.exception(f"Error during DCA prediction: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during prediction: {str(e)}")
 
 # --- Flow Simulation Endpoints ---
-# For flow simulation, the global `res_simulator` instance will store state.
+# WARNING: Operations below use a global `res_simulator` instance.
 # This is NOT thread-safe for concurrent users modifying the same simulation setup.
-# In a real app, simulation state would need to be managed per user/session or per simulation ID.
+# Consider implementing session management or a task-based system for production.
+# A '/reset' endpoint is added as a minimal step for single-user workflow management.
 
-@app.post("/api/v1/reservoir/flowsim/setup/grid", tags=["Reservoir Engineering"])
-async def setup_simulation_grid(grid_data: SimGridRequest, current_user: UserResponse = Depends(get_current_active_user)):
+@app.post("/api/v1/reservoir/flowsim/reset", tags=["Reservoir Engineering", "Flow Simulation"])
+async def reset_flow_simulation_instance(current_user: UserResponse = Depends(get_current_active_user)):
+    """
+    Resets the global flow simulator instance to its default initial state.
+    Useful for starting a new simulation setup in a single-user or controlled environment.
+    WARNING: This operation affects a global, shared instance.
+    """
+    global res_simulator
     try:
-        res_simulator.setup_1d_grid(grid_data.nx, grid_data.dx, grid_data.area)
-        return {"message": f"1D grid setup: nx={grid_data.nx}, dx={grid_data.dx}, area={grid_data.area}"}
+        # Re-initialize with default parameters (same as on startup)
+        res_simulator = ReservoirSimulator(nx=10, ny=10, nz=1, dx=100, dy=100, dz=10)
+        logger.info(f"User '{current_user.username}' reset the global FlowSimulator instance.")
+        return {"message": "Global FlowSimulator instance has been reset to default parameters.",
+                "warning": "This operation affects a global, shared instance."}
+    except Exception as e:
+        logger.error(f"Failed to reset ReservoirSimulator (FlowSimulation): {e}", exc_info=True)
+        res_simulator = None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to reset simulator: {str(e)}")
+
+
+@app.post("/api/v1/reservoir/flowsim/setup/grid", tags=["Reservoir Engineering", "Flow Simulation"])
+async def setup_simulation_grid(grid_data: SimGridRequest, current_user: UserResponse = Depends(get_current_active_user)):
+    """
+    Sets up the grid for the global flow simulator instance.
+    WARNING: Modifies a shared global instance. Not concurrency-safe. Call /reset to start a fresh setup.
+    """
+    if res_simulator is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Flow simulator is not available. Try resetting.")
+    try:
+        res_simulator.setup_1d_grid(grid_data.nx, grid_data.dx, grid_data.area) # Example for 1D
+        return {"message": f"Grid setup: nx={grid_data.nx}, dx={grid_data.dx}, area={grid_data.area}",
+                "warning": "Stateful endpoint - not concurrency-safe."}
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error setting up simulation grid: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error setting up grid.")
 
-@app.post("/api/v1/reservoir/flowsim/setup/fluid", tags=["Reservoir Engineering"])
+
+@app.post("/api/v1/reservoir/flowsim/setup/fluid", tags=["Reservoir Engineering", "Flow Simulation"])
 async def setup_simulation_fluid_properties(props: SimFluidPropsRequest, current_user: UserResponse = Depends(get_current_active_user)):
-    res_simulator.set_fluid_properties(props.viscosity, props.compressibility, props.fvf)
-    return {"message": "Fluid properties set."}
+    """
+    Sets fluid properties for the global flow simulator instance.
+    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    """
+    if res_simulator is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Flow simulator is not available. Try resetting.")
+    try:
+        res_simulator.set_fluid_properties(props.viscosity, props.compressibility, props.fvf)
+        return {"message": "Fluid properties set.",
+                "warning": "Stateful endpoint - not concurrency-safe."}
+    except Exception as e:
+        logger.error(f"Error setting fluid properties: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error setting fluid properties.")
 
-@app.post("/api/v1/reservoir/flowsim/setup/rock", tags=["Reservoir Engineering"])
+@app.post("/api/v1/reservoir/flowsim/setup/rock", tags=["Reservoir Engineering", "Flow Simulation"])
 async def setup_simulation_rock_properties(props: SimRockPropsRequest, current_user: UserResponse = Depends(get_current_active_user)):
+    """
+    Sets rock properties for the global flow simulator instance.
+    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    """
+    if res_simulator is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Flow simulator is not available. Try resetting.")
     try:
         res_simulator.set_rock_properties(props.permeability, props.porosity)
-        return {"message": "Rock properties set."}
+        return {"message": "Rock properties set.",
+                "warning": "Stateful endpoint - not concurrency-safe."}
     except (ValueError, TypeError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error setting rock properties: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error setting rock properties.")
 
-@app.post("/api/v1/reservoir/flowsim/setup/initial", tags=["Reservoir Engineering"])
+
+@app.post("/api/v1/reservoir/flowsim/setup/initial", tags=["Reservoir Engineering", "Flow Simulation"])
 async def setup_simulation_initial_conditions(cond: SimInitialConditionsRequest, current_user: UserResponse = Depends(get_current_active_user)):
+    """
+    Sets initial conditions for the global flow simulator instance.
+    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    """
+    if res_simulator is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Flow simulator is not available. Try resetting.")
     try:
         res_simulator.set_initial_conditions(cond.initial_pressure)
-        return {"message": "Initial conditions set."}
+        return {"message": "Initial conditions set.",
+                "warning": "Stateful endpoint - not concurrency-safe."}
     except (ValueError, TypeError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error setting initial conditions: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error setting initial conditions.")
 
-@app.post("/api/v1/reservoir/flowsim/setup/boundary", tags=["Reservoir Engineering"])
+@app.post("/api/v1/reservoir/flowsim/setup/boundary", tags=["Reservoir Engineering", "Flow Simulation"])
 async def setup_simulation_boundary_conditions(bc: SimBoundaryConditionsRequest, current_user: UserResponse = Depends(get_current_active_user)):
+    """
+    Sets boundary conditions for the global flow simulator instance.
+    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    """
+    if res_simulator is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Flow simulator is not available. Try resetting.")
     try:
         res_simulator.set_boundary_conditions(bc.type_left, bc.value_left, bc.type_right, bc.value_right)
-        return {"message": "Boundary conditions set."}
+        return {"message": "Boundary conditions set.",
+                "warning": "Stateful endpoint - not concurrency-safe."}
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error setting boundary conditions: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error setting boundary conditions.")
 
-@app.post("/api/v1/reservoir/flowsim/setup/well", tags=["Reservoir Engineering"])
+@app.post("/api/v1/reservoir/flowsim/setup/well", tags=["Reservoir Engineering", "Flow Simulation"])
 async def add_simulation_well(well_data: SimWellRequest, current_user: UserResponse = Depends(get_current_active_user)):
+    """
+    Adds a well to the global flow simulator instance.
+    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    """
+    if res_simulator is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Flow simulator is not available. Try resetting.")
     try:
         res_simulator.add_well(
             name=well_data.name, location_index=well_data.location_index, well_type=well_data.well_type,
             control_type=well_data.control_type, control_value=well_data.control_value,
             rw=well_data.rw, skin=well_data.skin
         )
-        return {"message": f"Well '{well_data.name}' added."}
+        return {"message": f"Well '{well_data.name}' added.",
+                "warning": "Stateful endpoint - not concurrency-safe."}
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error adding simulation well: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error adding well.")
 
-@app.post("/api/v1/reservoir/flowsim/run", response_model=SimPressureResponse, tags=["Reservoir Engineering"]) # Simplified response for now
+
+@app.post("/api/v1/reservoir/flowsim/run", response_model=SimPressureResponse, tags=["Reservoir Engineering", "Flow Simulation"]) # Simplified response for now
 async def run_flow_simulation(params: SimRunParamsRequest, current_user: UserResponse = Depends(get_current_active_user)):
     """
-    Runs the 1D flow simulation with the current setup.
-    WARNING: Uses a global simulator instance; not suitable for concurrent users without state management.
+    Runs the 1D flow simulation using the current state of the global simulator instance.
+    WARNING: Uses a global simulator instance; not suitable for concurrent users without state management. Call /reset to start fresh.
     """
+    if res_simulator is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Flow simulator is not available. Try resetting.")
     try:
+        # Ensure necessary setup has been done, or run_simulation handles partial setup.
+        # The FlowSimulation class methods might raise errors if setup is incomplete.
         res_simulator.run_simulation(params.end_time, params.dt)
-        if res_simulator.simulation_results.get("status") == "Failed: Singular matrix":
+
+        sim_status = res_simulator.simulation_results.get("status", "Unknown")
+        if sim_status == "Failed: Singular matrix":
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Simulation failed due to singular matrix. Check parameters or boundary conditions.")
+        elif sim_status != "Completed": # Handle other non-completed statuses if defined by FlowSimulation
+             logger.warning(f"Simulation completed with status: {sim_status}")
+
+        # For simplicity, just return pressures for the first block or a summary
+        # A full pressure field response could be very large.
+        # This part needs to align with how FlowSimulation actually stores results.
+        pressures_vs_time = res_simulator.simulation_results.get('pressures_vs_time', []) # List of arrays
+        block0_pressures = [p_step[0] for p_step in pressures_vs_time if isinstance(p_step, (np.ndarray, list)) and len(p_step) > 0] if pressures_vs_time else []
+        time_array_list = res_simulator.simulation_results.get('time_array', np.array([])).tolist()
+
+
+        return SimPressureResponse(
+            time_steps=time_array_list,
+            pressure_at_block={0: block0_pressures}, # Example: pressure for block 0
+            status=sim_status
+            # warning field could be added here too if SimPressureResponse model is updated
+        )
+    except ValueError as ve: # Catch specific ValueErrors from simulator logic
+        logger.error(f"ValueError during flow simulation run: {ve}", exc_info=True)
 
         # For simplicity, just return pressures for the first block or a summary
         # A full pressure field response could be very large.
@@ -735,97 +862,154 @@ async def get_simulation_well_rates(current_user: UserResponse = Depends(get_cur
 # --- AI Prediction Endpoints ---
 # Also uses a global instance `ai_predictor`, subject to same concurrency/state issues as simulator.
 
-# @app.post("/api/v1/reservoir/prediction/train", response_model=AITrainResponse, tags=["Reservoir Engineering"])
-# async def train_ai_models(
-#     request: AIPredictionDataRequest,
-#     current_user: UserResponse = Depends(get_current_active_user)
-# ):
-#     if ai_predictor is None:
-#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
-#     try:
-#         df = pd.DataFrame(request.records)
-#         if df.empty:
-#             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for training.")
+@app.post("/api/v1/reservoir/prediction/train", response_model=AITrainResponse, tags=["Reservoir Engineering", "AI Prediction"])
+async def train_ai_models(
+    request: AIPredictionDataRequest,
+    current_user: UserResponse = Depends(get_current_active_user)
+):
+    if ai_predictor is None: # Should not happen if instantiation is successful
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AIPrediction service is not available.")
+    try:
+        df = pd.DataFrame(request.records)
+        if df.empty:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for training.")
 
-#         X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
-#             df, request.target_column, request.feature_columns
-#         )
-#         trained_models = ai_predictor.train_models(X_train, y_train)
-#         if not trained_models:
-#             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Model training failed or no models were trained.")
+        # Ensure feature_columns and target_column are valid for the df
+        if not all(col in df.columns for col in request.feature_columns):
+            missing_cols = [col for col in request.feature_columns if col not in df.columns]
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Missing feature columns in provided records: {missing_cols}")
+        if request.target_column not in df.columns:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Target column '{request.target_column}' not found in provided records.")
 
-#         return AITrainResponse(
-#             message="Models trained successfully.",
-#             trained_models=list(trained_models.keys()),
-#         )
-#     except ValueError as ve:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
-#     except Exception as e:
-#         logger.exception(f"Error during AI model training: {e}")
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during AI training: {str(e)}")
+        X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
+            df, request.target_column, request.feature_columns
+        )
+        # train_models in AIPrediction now stores trained models in self.models
+        ai_predictor.train_models(X_train, y_train, X_test, y_test)
 
-# @app.post("/api/v1/reservoir/prediction/predict", response_model=AIPredictResponse, tags=["Reservoir Engineering"])
-# async def predict_with_ai_models(
-#     request: AIPredictRequest,
-#     current_user: UserResponse = Depends(get_current_active_user)
-# ):
-#     if ai_predictor is None:
-#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
-#     try:
-#         df_features = pd.DataFrame(request.records)
-#         if df_features.empty:
-#             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for prediction.")
+        trained_model_names = list(ai_predictor.models.keys())
+        if not trained_model_names:
+            # This case might indicate an issue within train_models if it doesn't populate self.models
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Model training did not result in any models.")
 
-#         if not ai_predictor.trained_models:
-#              raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No models available. Train models first.")
+        return AITrainResponse(
+            message="Models trained successfully. Best model selected based on R2 score.",
+            trained_models=trained_model_names, # List of names of models trained (e.g., ['svr', 'xgb'])
+        )
+    except ValueError as ve:
+        logger.error(f"ValueError during AI model training: {ve}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.exception(f"Unexpected error in AI model training endpoint: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error during AI training: {str(e)}")
 
-#         predictions = ai_predictor.predict(df_features[request.feature_columns])
-#         serializable_predictions = {name: p.tolist() for name, p in predictions.items()}
-#         return AIPredictResponse(predictions=serializable_predictions)
-#     except ValueError as ve:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
-#     except Exception as e:
-#         logger.exception(f"Error during AI prediction: {e}")
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during AI prediction: {str(e)}")
+@app.post("/api/v1/reservoir/prediction/predict", response_model=AIPredictResponse, tags=["Reservoir Engineering", "AI Prediction"])
+async def predict_with_ai_models(
+    request: AIPredictRequest,
+    current_user: UserResponse = Depends(get_current_active_user)
+):
+    if ai_predictor is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AIPrediction service is not available.")
+    try:
+        df_features = pd.DataFrame(request.records)
+        if df_features.empty:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No records provided for prediction.")
 
-# @app.post("/api/v1/reservoir/prediction/save_model", tags=["Reservoir Engineering"])
-# async def save_ai_model(
-#     request: AISaveModelRequest,
-#     current_user: UserResponse = Depends(get_current_active_user)
-# ):
-#     if ai_predictor is None:
-#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
-#     model_filename = f"{request.model_name.replace(' ', '_')}_model.joblib"
-#     # Corrected to use settings.AI_MODELS_DIR
-#     full_path = os.path.join(settings.AI_MODELS_DIR, request.path, model_filename)
+        # Ensure the feature_columns provided in request match what the model was trained on (stored in ai_predictor.feature_columns)
+        if not ai_predictor.feature_columns:
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="AI model has not been trained or feature columns are not set. Load or train a model first.")
 
-#     if ".." in request.path or request.path.startswith("/"):
-#         raise HTTPException(status_code=400, detail="Invalid path specified.")
+        # The AIPrediction.predict method now takes the DataFrame and uses its stored feature_columns
+        # The request.feature_columns can be used for validation if desired, but the model internally uses its trained features.
+        # For robustness, ensure all necessary columns are present in df_features.
+        if not all(col in df_features.columns for col in ai_predictor.feature_columns):
+            missing_cols = [col for col in ai_predictor.feature_columns if col not in df_features.columns]
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Prediction data missing required feature columns: {missing_cols}")
 
-#     os.makedirs(os.path.join(settings.AI_MODELS_DIR, request.path), exist_ok=True)
+        # The predict method in AIPrediction handles selection of best model if model_name is not specified
+        # And it scales the input internally.
+        # It returns a single array of predictions from the best model (or specified model).
+        # The AIPredictResponse expects a Dict[str, List[float]]. We'll adapt.
 
-#     result_message = ai_predictor.save_model(request.model_name, full_path)
-#     if "Error" in result_message:
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result_message)
-#     return {"message": result_message, "saved_path": full_path}
+        model_to_use_name = request.model_name if request.model_name else ai_predictor.best_model
+        if not model_to_use_name or model_to_use_name not in ai_predictor.models:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No suitable model available for prediction. Train or load a model.")
 
-# @app.post("/api/v1/reservoir/prediction/load_model", tags=["Reservoir Engineering"])
-# async def load_ai_model(
-#     request: AILoadModelRequest,
-#     current_user: UserResponse = Depends(get_current_active_user)
-# ):
-#     if ai_predictor is None:
-#         raise HTTPException(status_code=503, detail="AIPrediction service is not available.")
-#     # Corrected to use settings.AI_MODELS_DIR
-#     full_path = os.path.join(settings.AI_MODELS_DIR, request.path)
+        predictions_array = ai_predictor.predict(df_features, model_name=model_to_use_name)
 
-#     if ".." in request.path or not request.path.endswith(".joblib"):
-#         raise HTTPException(status_code=400, detail="Invalid path or file type specified.")
+        # AIPredictResponse expects a dictionary of predictions.
+        # If predict returns one array, we wrap it.
+        serializable_predictions = {model_to_use_name: predictions_array.tolist()}
 
-#     success = ai_predictor.load_model(request.model_name, full_path)
-#     if not success:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Failed to load model '{request.model_name}' from {full_path}. File not found or error during loading.")
-#     return {"message": f"Model '{request.model_name}' loaded successfully from {request.path}."}
+        return AIPredictResponse(predictions=serializable_predictions)
+    except ValueError as ve:
+        logger.error(f"ValueError during AI prediction: {ve}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.exception(f"Unexpected error in AI prediction endpoint: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error during AI prediction: {str(e)}")
+
+@app.post("/api/v1/reservoir/prediction/save_model", tags=["Reservoir Engineering", "AI Prediction"])
+async def save_ai_model(
+    request: AISaveModelRequest, # Contains model_name and path (relative to AI_MODELS_DIR)
+    current_user: UserResponse = Depends(get_current_active_user)
+):
+    if ai_predictor is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AIPrediction service is not available.")
+
+    # Path in request is relative to settings.AI_MODELS_DIR
+    # AISaveModelRequest.path is the sub-path / filename.joblib
+    # The AIPrediction.save_model method expects a full path.
+
+    # Basic path validation to prevent directory traversal
+    if ".." in request.path or request.path.startswith("/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path specified. Path should be relative and not contain '..'.")
+
+    # Construct full path. settings.AI_MODELS_DIR is the base.
+    # request.path could be "my_model_dir/my_model.joblib" or just "my_model.joblib"
+    full_save_path = Path(settings.AI_MODELS_DIR) / request.path
+
+    try:
+        # The save_model method in AIPrediction now handles creating parent dirs
+        # and appending a default filename if path is a directory.
+        ai_predictor.save_model(str(full_save_path), model_name=request.model_name)
+        return {"message": f"Model '{request.model_name}' saved successfully to '{full_save_path}'.", "saved_path": str(full_save_path)}
+    except FileNotFoundError as fnfe: # e.g. model_name not found in ai_predictor.models
+        logger.error(f"Save AI Model Error: {fnfe}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(fnfe))
+    except ValueError as ve: # e.g. no best model trained
+        logger.error(f"Save AI Model Error: {ve}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.exception(f"Error during AI model saving: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Could not save model '{request.model_name}': {str(e)}")
+
+@app.post("/api/v1/reservoir/prediction/load_model", tags=["Reservoir Engineering", "AI Prediction"])
+async def load_ai_model(
+    request: AILoadModelRequest, # Contains path (relative to AI_MODELS_DIR)
+                                 # model_name in request is not used by AIPrediction.load_model; it uses name from file.
+    current_user: UserResponse = Depends(get_current_active_user)
+):
+    if ai_predictor is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AIPrediction service is not available.")
+
+    if ".." in request.path or request.path.startswith("/"): # Basic path validation
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path specified. Path should be relative and not contain '..'.")
+
+    full_load_path = Path(settings.AI_MODELS_DIR) / request.path
+
+    if not full_load_path.suffix == ".joblib":
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Path must point to a .joblib file.")
+
+    try:
+        loaded_model_name = ai_predictor.load_model(str(full_load_path))
+        return {"message": f"Model '{loaded_model_name}' loaded successfully from '{request.path}'. This is now the active model."}
+    except FileNotFoundError:
+        logger.error(f"AI model file not found at {full_load_path}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Model file not found at '{request.path}'.")
+    except Exception as e:
+        logger.exception(f"Error loading AI model from {full_load_path}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Could not load model from '{request.path}': {str(e)}")
 
 
 if __name__ == "__main__":
