@@ -1,144 +1,246 @@
-#![cfg_attr(
-    all(not(debug_assertions), target_os = "windows"),
-    windows_subsystem = "windows"
-)]
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use serde::Serialize;
-use log::{info, error}; // Added for logging
+use tauri::{Manager, api::path::{app_data_dir, resolve_resource, BaseDirectory}, command, AppHandle, Wry};
+use std::{
+    path::{Path, PathBuf},
+    process::{Command as StdCommand, Stdio, Child}, // Renamed to avoid conflict with tauri::Command
+    sync::Mutex, // For managing the backend process handle
+    io::{BufReader, BufRead, Write}, // For reading backend stdout/stderr
+    thread, // For running backend process management in a separate thread
+};
 
-// Define the status enum
-#[derive(Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")] // Ensure it matches JS/TS casing if needed
-enum ModuleStatusEnum {
-    Active,
-    Inactive,
-    Error,
-}
+// --- Global State for Backend Process ---
+// This will hold the handle to the Python backend process so we can manage it.
+struct BackendProcess(Mutex<Option<Child>>);
 
-// Define the struct for module status
-#[derive(Serialize, Clone, Debug)]
-struct ModuleStatus {
-    name: String,
-    status: ModuleStatusEnum,
-    description: String,
-}
-
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn get_version(app: tauri::AppHandle) -> String {
-    app.package_info().version.to_string()
-}
-
-#[tauri::command]
-fn get_module_statuses() -> Result<Vec<ModuleStatus>, String> {
-    info!("Fetching module statuses"); // Logging at the beginning of the function
-    // Simulate fetching data
-    // In a real application, this is where you might encounter errors (e.g., database connection, API calls)
-    // For now, we'll just wrap the existing data in Ok()
-    let statuses = vec![
-        ModuleStatus {
-            name: "Reservoir Simulation".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "Eclipse, CMG, tNavigator simulators ready".to_string(),
-        },
-        ModuleStatus {
-            name: "Production Analysis".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "Decline curve analysis available".to_string(),
-        },
-        ModuleStatus {
-            name: "Optimization".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "History matching algorithms ready".to_string(),
-        },
-        ModuleStatus {
-            name: "Static Modeling".to_string(),
-            status: ModuleStatusEnum::Inactive, // Changed one for testing
-            description: "Grid and property models loaded".to_string(),
-        },
-        ModuleStatus {
-            name: "Uncertainty Analysis".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "Monte Carlo simulation ready".to_string(),
-        },
-        ModuleStatus {
-            name: "Well Testing".to_string(),
-            status: ModuleStatusEnum::Error, // Changed one for testing
-            description: "Pressure analysis tools available".to_string(),
-        },
-        ModuleStatus {
-            name: "Economic Analysis".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "Reserves calculation ready".to_string(),
-        },
-        ModuleStatus {
-            name: "Visualization".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "3D rendering engine active".to_string(),
-        },
-        ModuleStatus {
-            name: "AI Analytics".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "Machine learning models loaded".to_string(),
-        },
-        ModuleStatus {
-            name: "Integration".to_string(),
-            status: ModuleStatusEnum::Active,
-            description: "Data connectors available".to_string(),
-        },
-    ];
-    info!("Successfully fetched {} module statuses", statuses.len()); // Logging before returning
-    Ok(statuses)
-}
-
-fn main() {
-    // Initialize the logger
-    // You can configure the log level via the RUST_LOG environment variable
-    // For example, RUST_LOG=info cargo run
-    env_logger::init();
-
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_version, get_module_statuses])
-        .run(tauri::generate_context!())
-        .unwrap_or_else(|e| {
-            error!("Failed to run Tauri application: {}", e); // Log the error if Tauri fails to run
-            // Optionally, panic or exit the application if running the app is critical
-            // std::process::exit(1);
-        });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*; // To import ModuleStatus, ModuleStatusEnum, get_module_statuses
-
-    #[test]
-    fn test_get_module_statuses_returns_data() {
-        // Initialize logger for tests, if you want to see logs during test execution
-        // let _ = env_logger::builder().is_test(true).try_init();
-
-        let result = get_module_statuses();
-        assert!(result.is_ok(), "get_module_statuses should return Ok");
-
-        let statuses = result.unwrap();
-        assert!(!statuses.is_empty(), "Should return some module statuses");
-
-        // Check if specific known modules are present to confirm data structure and content
-        assert!(statuses.iter().any(|m| m.name == "Reservoir Simulation"), "Reservoir Simulation module missing");
-        assert!(statuses.iter().any(|m| m.name == "Well Testing" && matches!(m.status, ModuleStatusEnum::Error)), "Well Testing module with error status missing or incorrect");
-        assert_eq!(statuses.len(), 10, "Expected 10 modules based on current hardcoded data");
-
-        if let Some(first_module) = statuses.get(0) {
-            assert_eq!(first_module.name, "Reservoir Simulation");
-            match first_module.status {
-                ModuleStatusEnum::Active => {} // Correct
-                _ => panic!("First module status should be Active"),
-            }
-        } else {
-            panic!("Statuses vector was empty, expected at least one module.");
-        }
+impl BackendProcess {
+    fn set(&self, child: Child) {
+        let mut process_guard = self.0.lock().unwrap();
+        *process_guard = Some(child);
     }
 
-    // Note: Testing `get_version` command directly is challenging in a unit test
-    // because it requires an `AppHandle`. This would typically be tested
-    // via integration tests or by mocking `AppHandle` if possible with a testing framework.
+    fn clear(&self) {
+        let mut process_guard = self.0.lock().unwrap();
+        *process_guard = None;
+    }
+
+    fn kill_if_running(&self) {
+        let mut process_guard = self.0.lock().unwrap();
+        if let Some(mut child) = process_guard.take() {
+            println!("Attempting to kill existing backend process: {}", child.id());
+            match child.kill() {
+                Ok(_) => {
+                    println!("Backend process {} killed successfully.", child.id());
+                    match child.wait() { // Wait for the process to exit
+                        Ok(status) => println!("Backend process {} exited with status: {}", child.id(), status),
+                        Err(e) => println!("Failed to wait for backend process {}: {}", child.id(), e),
+                    }
+                }
+                Err(e) => {
+                    println!("Failed to kill backend process {}: {}. It might have already exited.", child.id(), e);
+                    // If killing fails, it might still be running or already gone.
+                    // Put it back if we couldn't confirm it's dead, so subsequent calls might try again.
+                    // Or, assume it's gone if kill fails. For now, let's assume it's gone.
+                }
+            }
+        } else {
+            println!("No backend process was running to kill.");
+        }
+    }
+}
+
+
+// --- Tauri Commands ---
+#[command]
+fn get_platform_specific_db_path(app_handle: AppHandle) -> Result<String, String> {
+    // This command provides the path where the app *should* store its data.
+    // The actual database might be copied here from resources on first run.
+    let path = app_data_dir(&app_handle.config())
+        .ok_or_else(|| "Failed to get app data directory".to_string())?
+        .join("Petrolumen") // App-specific subdirectory
+        .join("database.db"); // The database file name
+
+    // Ensure the directory exists
+    if let Some(parent_dir) = path.parent() {
+        if !parent_dir.exists() {
+            std::fs::create_dir_all(parent_dir)
+                .map_err(|e| format!("Failed to create app data parent directory: {}", e))?;
+        }
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[command]
+fn get_resource_path(app_handle: AppHandle, resource_name: String) -> Result<String, String> {
+    resolve_resource(&app_handle.config(), app_handle.package_info(), &resource_name, None)
+        .ok_or_else(|| format!("Failed to resolve resource: {}", resource_name))
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+
+// --- Main Application Setup ---
+fn main() {
+    let context = tauri::generate_context!(); // Generates context from tauri.conf.json
+
+    tauri::Builder::default()
+        .manage(BackendProcess(Mutex::new(None))) // Add backend process handle to Tauri's state
+        .setup(|app| {
+            let app_handle = app.handle();
+            let backend_proc_state = app_handle.state::<BackendProcess>();
+
+            // --- Determine Paths ---
+            let app_data_root = app_data_dir(&app.config())
+                .expect("Failed to get app data directory for Petrolumen.");
+
+            let petrolumen_app_data_dir = app_data_root.join("Petrolumen");
+            std::fs::create_dir_all(&petrolumen_app_data_dir)
+                .expect("Failed to create Petrolumen app data directory.");
+
+            let db_path_in_app_data = petrolumen_app_data_dir.join("database.db");
+
+            // Copy bundled template database if it exists and target DB doesn't
+            // The resource path is relative to src-tauri/ or what's defined in tauri.conf.json resources
+            // Based on `tauri.conf.json` `resources: ["../../backend/database.db"]`
+            // This path means the template DB is expected at `project_root/backend/database.db`
+            // when `tauri build` is run from `project_root/petrolumen/`.
+            match app.path_resolver().resolve_resource("../../backend/database.db") {
+                Some(resource_path) if resource_path.exists() => {
+                    if !db_path_in_app_data.exists() {
+                        println!("Template database found at {:?}, copying to {:?}", resource_path, db_path_in_app_data);
+                        match std::fs::copy(&resource_path, &db_path_in_app_data) {
+                            Ok(_) => println!("Template database copied successfully."),
+                            Err(e) =>eprintln!("ERROR: Failed to copy template database: {}",e),
+                        }
+                    } else {
+                        println!("Database already exists at {:?}, not copying template.", db_path_in_app_data);
+                    }
+                }
+                _ => {
+                    println!("WARNING: Template database resource '../../backend/database.db' not found or path is incorrect. A new DB will be created by Alembic if it doesn't exist at the app_data path.");
+                }
+            }
+
+            // --- Backend Executable Path ---
+            // This path needs to point to your Python backend executable or entry script.
+            // If Python is bundled (e.g. with PyInstaller/Nuitka), this points to that binary.
+            // If running a .py script, it's `python` and the script path.
+            // For development, you might run the .py script directly.
+            // For production, this would be a bundled executable.
+
+            // Option 1: Bundled Python executable (adjust name and location)
+            // This assumes `backend_main_executable` is placed in resources by your build process.
+            // let backend_exe_name = if cfg!(windows) { "petrolumen_backend.exe" } else { "petrolumen_backend" };
+            // let backend_path = app.path_resolver()
+            //     .resolve_resource(format!("bin/{}", backend_exe_name)) // Example path in resources
+            //     .expect("Failed to resolve backend executable resource");
+
+            // Option 2: Running a Python script (more for dev or if Python is a prerequisite)
+            // This assumes `python` or `python3` is in PATH, and the script is a resource.
+            let python_executable = if cfg!(windows) { "python.exe" } else { "python3" }; // Or just "python"
+
+            // The main.py for FastAPI is now at `backend/gaia_genesis_new/main.py`
+            // If this `main.py` is a resource, its path needs to be resolved.
+            // Let's assume it's bundled as `backend_script.py` in resources for simplicity,
+            // or we use a relative path if the backend source is copied into the app bundle.
+            // The `setup.py` `entry_points` creates `petrolumen-backend` script in venv/bin.
+            // If we ship the venv or a Python distribution, we could call that.
+            // This is the trickiest part of sidecar setup.
+
+            // For now, let's assume a simple case:
+            // The backend is started by running the `main.py` script using a Python interpreter
+            // that is expected to be on the system PATH.
+            // The script itself is copied as a resource.
+            // Resource path in tauri.conf.json should be like: `../../backend/gaia_genesis_new/main.py`
+            // and perhaps `../../backend/database.py`, etc. or the whole `backend` dir.
+
+            let backend_script_resource_path = "../../backend/gaia_genesis_new/main.py";
+            let backend_main_script_path = app.path_resolver()
+                .resolve_resource(backend_script_resource_path)
+                .ok_or_else(|| format!("Backend script resource '{}' not found. Check tauri.conf.json resources.", backend_script_resource_path))
+                .unwrap(); // Expect for now
+
+            println!("Attempting to start backend script: {:?}", backend_main_script_path);
+            println!("Using Python interpreter: {}", python_executable);
+            println!("Effective DATABASE_URL for backend: {}", db_path_in_app_data.to_string_lossy());
+
+
+            // --- Start Backend Process ---
+            let mut cmd = StdCommand::new(python_executable);
+            cmd.arg(backend_main_script_path); // Pass the script path to python interpreter
+
+            // Set environment variables for the backend process
+            cmd.env("TAURI_ENV", "production"); // Signal to Python it's running in production mode
+            cmd.env("DATABASE_URL", db_path_in_app_data.to_string_lossy().to_string());
+            // If backend needs to find other files relative to itself, set PYTHONPATH or CWD.
+            // Setting CWD to where the script is, if it uses relative paths for other files:
+            if let Some(script_dir) = backend_main_script_path.parent() {
+                 cmd.current_dir(script_dir);
+                 println!("Set backend CWD to: {:?}", script_dir);
+            }
+
+
+            cmd.stdout(Stdio::piped()); // Capture stdout
+            cmd.stderr(Stdio::piped()); // Capture stderr
+
+            match cmd.spawn() {
+                Ok(child) => {
+                    println!("Backend process started successfully. PID: {}", child.id());
+                    let child_stdout = child.stdout.expect("Failed to get backend stdout");
+                    let child_stderr = child.stderr.expect("Failed to get backend stderr");
+                    let app_handle_clone_stdout = app_handle.clone();
+                    let app_handle_clone_stderr = app_handle.clone();
+
+                    // Thread to read and emit stdout
+                    thread::spawn(move || {
+                        let reader = BufReader::new(child_stdout);
+                        for line in reader.lines() {
+                            if let Ok(l) = line {
+                                println!("[Backend STDOUT]: {}", l);
+                                app_handle_clone_stdout.emit_all("backend-stdout", l.clone()).unwrap();
+                            }
+                        }
+                    });
+                    // Thread to read and emit stderr
+                    thread::spawn(move || {
+                        let reader = BufReader::new(child_stderr);
+                        for line in reader.lines() {
+                            if let Ok(l) = line {
+                                eprintln!("[Backend STDERR]: {}", l); // Use eprintln for stderr
+                                app_handle_clone_stderr.emit_all("backend-stderr", l.clone()).unwrap();
+                            }
+                        }
+                    });
+                    backend_proc_state.set(child); // Store the child process handle
+                }
+                Err(e) => {
+                    eprintln!("ERROR: Failed to start backend process: {}", e);
+                    // Emit an event to frontend about failure?
+                    app_handle.emit_all("backend-status", format!("failed: {}", e)).unwrap();
+                }
+            }
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            get_platform_specific_db_path,
+            get_resource_path
+        ])
+        .build(context)
+        .expect("Error while building Tauri application")
+        .run(|app_handle, event| match event {
+            tauri::RunEvent::ExitRequested { api, .. } => {
+                // App is about to exit, kill the backend process
+                println!("Tauri RunEvent::ExitRequested detected. Killing backend process.");
+                let backend_proc_state = app_handle.state::<BackendProcess>();
+                backend_proc_state.kill_if_running();
+                api.prevent_exit(); // Optional: if you need to do more async cleanup
+                                   // If not preventing, Tauri will exit after this handler.
+            }
+            tauri::RunEvent::Exit => {
+                 println!("Tauri RunEvent::Exit. Ensuring backend is stopped.");
+                 let backend_proc_state = app_handle.state::<BackendProcess>();
+                 backend_proc_state.kill_if_running(); // Ensure it's killed on final exit too
+            }
+            _ => {}
+        });
 }
