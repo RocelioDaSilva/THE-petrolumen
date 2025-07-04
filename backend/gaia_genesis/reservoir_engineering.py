@@ -165,85 +165,85 @@ class PVTProperties:
         z = 0.06125 * pr * np.exp(-1.2 * (1 - 1/tr)**2) / y
         return z
 
-class ReservoirSimulation:
-    """Classe para simulação numérica de reservatórios."""
-
-    def __init__(self, nx: int, ny: int, nz: int):
-        """
-        Inicializa o simulador.
-
-        Args:
-            nx: Número de blocos em x
-            ny: Número de blocos em y
-            nz: Número de blocos em z
-        """
-        self.nx = nx
-        self.ny = ny
-        self.nz = nz
-        self.grid = self._initialize_grid()
-        self.wells = {}
-        self.pvt = PVTProperties()
-
-    def _initialize_grid(self) -> Dict:
-        """Inicializa a malha do reservatório."""
-        return {
-            'porosity': np.ones((self.nx, self.ny, self.nz)) * 0.2,
-            'permeability': np.ones((self.nx, self.ny, self.nz)) * 100,
-            'pressure': np.ones((self.nx, self.ny, self.nz)) * 3000,
-            'saturation': np.ones((self.nx, self.ny, self.nz)) * 0.8
-        }
-
-    def add_well(self,
-                name: str,
-                i: int,
-                j: int,
-                k: int,
-                well_type: str,
-                rate: float = None,
-                bhp: float = None):
-        """
-        Adiciona um poço ao modelo.
-
-        Args:
-            name: Nome do poço
-            i, j, k: Índices do bloco
-            well_type: Tipo do poço ('producer' ou 'injector')
-            rate: Vazão (opcional)
-            bhp: Pressão de fundo de poço (opcional)
-        """
-        self.wells[name] = {
-            'position': (i, j, k),
-            'type': well_type,
-            'rate': rate,
-            'bhp': bhp
-        }
-
-    def run_simulation(self,
-                      timesteps: int,
-                      dt: float,
-                      simulation_type: str = 'transient'):
-        """
-        Executa a simulação.
-
-        Args:
-            timesteps: Número de passos de tempo
-            dt: Tamanho do passo de tempo
-            simulation_type: Tipo de simulação ('steady_state' ou 'transient')
-        """
-        if simulation_type == 'steady_state':
-            self._run_steady_state()
-        else:
-            self._run_transient(timesteps, dt)
-
-    def _run_steady_state(self):
-        """Executa simulação em estado estacionário."""
-        # Implementar solver para estado estacionário
-        pass
-
-    def _run_transient(self, timesteps: int, dt: float):
-        """Executa simulação transiente."""
-        # Implementar solver para estado transiente
-        pass
+# class ReservoirSimulation: # REMOVED - Incomplete and superseded
+#     """Classe para simulação numérica de reservatórios."""
+#
+#     def __init__(self, nx: int, ny: int, nz: int):
+#         """
+#         Inicializa o simulador.
+#
+#         Args:
+#             nx: Número de blocos em x
+#             ny: Número de blocos em y
+#             nz: Número de blocos em z
+#         """
+#         self.nx = nx
+#         self.ny = ny
+#         self.nz = nz
+#         self.grid = self._initialize_grid()
+#         self.wells = {}
+#         self.pvt = PVTProperties()
+#
+#     def _initialize_grid(self) -> Dict:
+#         """Inicializa a malha do reservatório."""
+#         return {
+#             'porosity': np.ones((self.nx, self.ny, self.nz)) * 0.2,
+#             'permeability': np.ones((self.nx, self.ny, self.nz)) * 100,
+#             'pressure': np.ones((self.nx, self.ny, self.nz)) * 3000,
+#             'saturation': np.ones((self.nx, self.ny, self.nz)) * 0.8
+#         }
+#
+#     def add_well(self,
+#                 name: str,
+#                 i: int,
+#                 j: int,
+#                 k: int,
+#                 well_type: str,
+#                 rate: float = None,
+#                 bhp: float = None):
+#         """
+#         Adiciona um poço ao modelo.
+#
+#         Args:
+#             name: Nome do poço
+#             i, j, k: Índices do bloco
+#             well_type: Tipo do poço ('producer' ou 'injector')
+#             rate: Vazão (opcional)
+#             bhp: Pressão de fundo de poço (opcional)
+#         """
+#         self.wells[name] = {
+#             'position': (i, j, k),
+#             'type': well_type,
+#             'rate': rate,
+#             'bhp': bhp
+#         }
+#
+#     def run_simulation(self,
+#                       timesteps: int,
+#                       dt: float,
+#                       simulation_type: str = 'transient'):
+#         """
+#         Executa a simulação.
+#
+#         Args:
+#             timesteps: Número de passos de tempo
+#             dt: Tamanho do passo de tempo
+#             simulation_type: Tipo de simulação ('steady_state' ou 'transient')
+#         """
+#         if simulation_type == 'steady_state':
+#             self._run_steady_state()
+#         else:
+#             self._run_transient(timesteps, dt)
+#
+#     def _run_steady_state(self):
+#         """Executa simulação em estado estacionário."""
+#         # Implementar solver para estado estacionário
+#         pass
+#
+#     def _run_transient(self, timesteps: int, dt: float):
+#         """Executa simulação transiente."""
+#         # Implementar solver para estado transiente
+#         pass
 
 class MaterialBalance:
     """Classe para análise de balanço de materiais."""
@@ -534,8 +534,11 @@ class DeclineAnalysis:
 class HistoryMatching:
     """Classe para ajuste de histórico."""
 
-    def __init__(self, simulation: ReservoirSimulation):
-        self.simulation = simulation
+    # def __init__(self, simulation: ReservoirSimulation): # Original depended on the removed ReservoirSimulation
+    def __init__(self, simulation_object: object): # Changed to accept a generic simulation object
+        # The user of this class will need to ensure the simulation_object
+        # has the methods and attributes that match_history expects (e.g., run_simulation, grid)
+        self.simulation = simulation_object
         self.logger = self._setup_logger()
 
     def _setup_logger(self) -> logging.Logger:
@@ -590,8 +593,11 @@ class HistoryMatching:
 class ReservoirVisualization:
     """Classe para visualização do reservatório."""
 
-    def __init__(self, simulation: ReservoirSimulation):
-        self.simulation = simulation
+    # def __init__(self, simulation: ReservoirSimulation): # Original depended on the removed ReservoirSimulation
+    def __init__(self, simulation_object: object): # Changed to accept a generic simulation object
+        # The user of this class will need to ensure the simulation_object
+        # has the necessary attributes like 'grid' with 'saturation' and 'pressure'
+        self.simulation = simulation_object
 
     def plot_saturation_map(self,
                            layer: int,
@@ -608,8 +614,26 @@ class ReservoirVisualization:
         """
         fig, ax = plt.subplots(figsize=(10, 8))
 
-        saturation = self.simulation.grid['saturation'][:, :, layer]
-        im = ax.imshow(saturation, cmap='jet')
+        # Ensure the simulation object has the expected structure
+        if not hasattr(self.simulation, 'grid') or \
+           not isinstance(self.simulation.grid, dict) or \
+           'saturation' not in self.simulation.grid or \
+           not isinstance(self.simulation.grid['saturation'], np.ndarray):
+            ax.text(0.5, 0.5, "Saturation data not available or in unexpected format.",
+                    horizontalalignment='center', verticalalignment='center')
+            return fig
+
+        saturation_data = self.simulation.grid['saturation']
+        if saturation_data.ndim == 3 and layer < saturation_data.shape[2]:
+            saturation_slice = saturation_data[:, :, layer]
+        elif saturation_data.ndim == 2: # Assuming it might be a 2D slice already
+            saturation_slice = saturation_data
+        else:
+            ax.text(0.5, 0.5, f"Saturation data has {saturation_data.ndim} dimensions or layer {layer} is out of bounds.",
+                    horizontalalignment='center', verticalalignment='center')
+            return fig
+
+        im = ax.imshow(saturation_slice, cmap='jet', origin='lower') # Added origin
         plt.colorbar(im, ax=ax, label='Saturação de Óleo')
 
         ax.set_title(f'Mapa de Saturação - Camada {layer}')
@@ -633,8 +657,25 @@ class ReservoirVisualization:
         """
         fig, ax = plt.subplots(figsize=(10, 8))
 
-        pressure = self.simulation.grid['pressure'][:, :, layer]
-        im = ax.imshow(pressure, cmap='jet')
+        if not hasattr(self.simulation, 'grid') or \
+           not isinstance(self.simulation.grid, dict) or \
+           'pressure' not in self.simulation.grid or \
+           not isinstance(self.simulation.grid['pressure'], np.ndarray):
+            ax.text(0.5, 0.5, "Pressure data not available or in unexpected format.",
+                    horizontalalignment='center', verticalalignment='center')
+            return fig
+
+        pressure_data = self.simulation.grid['pressure']
+        if pressure_data.ndim == 3 and layer < pressure_data.shape[2]:
+            pressure_slice = pressure_data[:, :, layer]
+        elif pressure_data.ndim == 2:
+            pressure_slice = pressure_data
+        else:
+            ax.text(0.5, 0.5, f"Pressure data has {pressure_data.ndim} dimensions or layer {layer} is out of bounds.",
+                    horizontalalignment='center', verticalalignment='center')
+            return fig
+
+        im = ax.imshow(pressure_slice, cmap='jet', origin='lower') # Added origin
         plt.colorbar(im, ax=ax, label='Pressão (psia)')
 
         ax.set_title(f'Mapa de Pressão - Camada {layer}')
@@ -660,18 +701,19 @@ class ReservoirVisualization:
         Returns:
             Figura do matplotlib
         """
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True) # Share x-axis
 
         # Vazão
         ax1.plot(time, rate, 'b-')
-        ax1.set_xlabel('Tempo')
-        ax1.set_ylabel('Vazão (bbl/d)')
+        ax1.set_ylabel('Vazão (bbl/d)') # Or appropriate units
         ax1.set_title(f'Performance do Poço {well_name}')
+        ax1.grid(True)
 
         # Pressão
         ax2.plot(time, pressure, 'r-')
-        ax2.set_xlabel('Tempo')
+        ax2.set_xlabel('Tempo') # Or appropriate units
         ax2.set_ylabel('Pressão (psia)')
+        ax2.grid(True)
 
         plt.tight_layout()
         return fig
