@@ -1,55 +1,48 @@
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
+import os
+import sys
 
-# this is the Alembic Config object, which provides
+# This is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# This line reads the loggers section in your alembic.ini file.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-# --- Alembic Autogenerate Setup ---
-import os
-import sys
-# Add the parent directory of 'alembic' (i.e., 'backend') to sys.path
-# This allows importing modules from gaia_genesis
+# Add the 'backend' directory to sys.path to allow importing from gaia_genesis_new
+# This assumes alembic commands are run from the project root or 'backend/' directory.
+# Adjust if your project structure or execution context is different.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from gaia_genesis.reservoir_engineering.database import Base as ReservoirBase # Use an alias if needed
-target_metadata = ReservoirBase.metadata
-
-# --- Database URL Configuration ---
-# Get DB URL from environment variable, similar to main.py
-# Fallback to a default if not set, or use alembic.ini's sqlalchemy.url
-DEFAULT_DB_URL_FOR_ALEMBIC = "sqlite:///./default_reservoir_data_for_alembic.db" # Can be same as main.py or different
-DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL_FOR_ALEMBIC)
-# It's common to set sqlalchemy.url in alembic.ini and then use:
-# main_sqlalchemy_url = config.get_main_option("sqlalchemy.url")
-# However, to use env var dynamically like in main.py:
-if DATABASE_URL:
-    config.set_main_option("sqlalchemy.url", DATABASE_URL)
-else:
-    # Ensure there's a default if env var is also not set and alembic.ini is not pre-configured
-    ini_url = config.get_main_option("sqlalchemy.url")
-    if not ini_url: # if alembic.ini also doesn't have it
-        config.set_main_option("sqlalchemy.url", DEFAULT_DB_URL_FOR_ALEMBIC)
+# Import your application's settings and Base model
+# This is where Alembic will find your SQLAlchemy models.
+try:
+    from backend.gaia_genesis_new.config import settings
+    from backend.gaia_genesis_new.core.database_models import Base
+    target_metadata = Base.metadata
+except ImportError as e:
+    sys.stderr.write(f"Error importing application modules in env.py: {e}\n")
+    sys.stderr.write("Ensure backend modules are in PYTHONPATH or alembic is run from project root.\n")
+    sys.exit(1)
 
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
+def get_db_url():
+    """
+    Returns the database URL from the application's settings.
+    This ensures Alembic uses the same database URL as the application,
+    respecting environment variables and dynamic path resolution.
+    """
+    db_path = settings.DB_PATH
+    if str(db_path).startswith("postgresql") or str(db_path).startswith("mysql"):
+        return str(db_path)
+    else: # Assume SQLite
+        # Ensure the path is absolute for SQLite
+        return f"sqlite:///{db_path.resolve()}"
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -63,12 +56,14 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = get_db_url() # Use our dynamic URL function
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True, # Compare types when generating migrations
+        compare_server_default=True # Compare server defaults
     )
 
     with context.begin_transaction():
@@ -82,15 +77,27 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Get the database URL from our settings
+    db_url = get_db_url()
+
+    # Create a configuration dictionary for engine_from_config
+    # Overwrite sqlalchemy.url from alembic.ini with our dynamic URL
+    engine_config = config.get_section(config.config_ini_section, {})
+    engine_config["sqlalchemy.url"] = db_url
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        engine_config, # Use the modified config
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+            # include_schemas=True # Uncomment if you use multiple schemas
         )
 
         with context.begin_transaction():
