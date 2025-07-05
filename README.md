@@ -53,11 +53,19 @@ PetroLúmen offers a range of functionalities, including:
 
 ## Contributing
 
-*(Placeholder: Add guidelines for contributing to the project, such as coding standards, pull request process, etc.)*
+We welcome contributions to PetroLúmen! Please follow these general guidelines:
+1.  **Fork the repository** and create a new branch for your feature or bug fix.
+2.  **Follow existing coding styles.** For Python, we aim for PEP 8 compliance. For TypeScript/React, follow common community best practices.
+3.  **Write tests** for new features and bug fixes.
+4.  **Ensure all tests pass** before submitting a pull request.
+5.  **Keep pull requests focused** on a single feature or bug fix.
+6.  **Provide clear commit messages** and a descriptive pull request title and body.
+(Further details on specific linters, code formatting tools, and detailed PR procedures can be added here as the project matures.)
 
 ## License
 
-*(Placeholder: Specify the license under which this project is distributed, e.g., MIT, Apache 2.0. If there's a `LICENSE` file, link to it.)*
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+(A `LICENSE` file containing the standard MIT License text should be added to the root of the repository.)
 
 ---
 

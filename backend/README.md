@@ -88,8 +88,14 @@ You can access the automatically generated API documentation (Swagger UI) at `ht
 
 ## Running Tests
 
-(Instructions for running tests will be added here once the test suite is finalized. Typically, it would involve `pytest`.)
+Automated tests are written using `pytest`. To run the tests:
 
 ```bash
-# Example: pytest tests/
+# Ensure your virtual environment is activated and test dependencies are installed.
+# From the `backend/` directory:
+pytest
+# Or, from the project root:
+# pytest backend/tests/
 ```
+You can also generate a coverage report if `pytest-cov` is installed:
+`pytest --cov=gaia_genesis --cov-report=html` (from `backend/` directory)
