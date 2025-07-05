@@ -22,11 +22,16 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # Import your application's settings and Base model
 # This is where Alembic will find your SQLAlchemy models.
 try:
-    from backend.gaia_genesis_new.config import settings
-    from backend.gaia_genesis_new.core.database_models import Base
+    # When env.py is run, sys.path already includes backend/ (added above).
+    # So, import directly from modules within backend/.
+    from config import settings
+    from gaia_genesis.core.database_models import Base
     target_metadata = Base.metadata
 except ImportError as e:
     sys.stderr.write(f"Error importing application modules in env.py: {e}\n")
+    # Adding more debug info
+    import sys
+    sys.stderr.write(f"Current sys.path: {sys.path}\n")
     sys.stderr.write("Ensure backend modules are in PYTHONPATH or alembic is run from project root.\n")
     sys.exit(1)
 
@@ -37,12 +42,30 @@ def get_db_url():
     This ensures Alembic uses the same database URL as the application,
     respecting environment variables and dynamic path resolution.
     """
-    db_path = settings.DB_PATH
-    if str(db_path).startswith("postgresql") or str(db_path).startswith("mysql"):
-        return str(db_path)
-    else: # Assume SQLite
-        # Ensure the path is absolute for SQLite
-        return f"sqlite:///{db_path.resolve()}"
+    db_url_str = settings.DATABASE_URL
+
+    if db_url_str.startswith("sqlite:///"):
+        db_file_part = db_url_str.split("sqlite:///", 1)[1]
+
+        # If the path starts with './', it's relative to the backend directory.
+        # Example: "sqlite:///./default_app_data.db" -> "backend/default_app_data.db"
+        if db_file_part.startswith("./"):
+            # backend_dir is the absolute path to the 'backend' directory
+            backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            # Remove './' and join with backend_dir
+            absolute_db_path = os.path.join(backend_dir, db_file_part.lstrip("./"))
+            # It's good practice to normalize the path
+            absolute_db_path = os.path.normpath(absolute_db_path)
+            return f"sqlite:///{absolute_db_path}"
+
+        # If it's "sqlite:///file.db" (no leading './' and not absolute)
+        # it implies relative to CWD. For Alembic, this means relative to where
+        # the `alembic` command is run. If run from `backend/`, this is fine.
+        # If it's already an absolute path like "sqlite:////path/to/file.db", it's also fine.
+        # No change needed for these cases, SQLAlchemy handles them.
+
+    # For non-SQLite URLs or absolute SQLite paths, return as is.
+    return db_url_str
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
