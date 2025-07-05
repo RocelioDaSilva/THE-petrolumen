@@ -6,7 +6,7 @@ import seaborn as sns
 from scipy.stats import norm
 from scipy.optimize import minimize
 from scipy.interpolate import interp1d
-import streamlit as st
+# import streamlit as st # Unused import, causing ModuleNotFoundError if not installed
 from datetime import datetime
 import logging
 from dataclasses import dataclass
@@ -53,9 +53,14 @@ class PVTProperties:
             bo = 0.972 + 0.000147 * f**1.175
             return bo
         else:  # gas
-            # Correlação de Dranchuk-Abu-Kassem para Bg
+            # Real gas law for Bg. Z-factor from Hall-Yarborough.
+            # Temperature must be in Rankine for this formula.
+            t_rankine = temperature + 459.67 # Convert °F to °R
             z = self.calculate_z_factor(pressure, temperature, gas_specific_gravity)
-            bg = 0.02827 * z * temperature / pressure
+            if np.isnan(z) or z <= 0 or pressure <= 0:
+                self.logger.warning(f"Invalid inputs for Bg calculation: Z={z}, P={pressure}, T_F={temperature}")
+                return np.nan
+            bg = 0.02827 * z * t_rankine / pressure
             return bg
 
     def calculate_viscosity(self,
@@ -95,15 +100,78 @@ class PVTProperties:
             return mu_o
         else:  # gas
             # Correlação de Lee-Gonzalez-Eakin para viscosidade do gás
-            t = temperature + 460  # temperatura em Rankine
+            t_rankine = temperature + 460  # temperatura em Rankine
             mw = gas_specific_gravity * 28.97  # peso molecular
-            rho = pressure * mw / (10.73 * t * self.calculate_z_factor(pressure, temperature, gas_specific_gravity))
 
-            k = (9.4 + 0.02 * mw) * t**1.5 / (209 + 19 * mw + t)
-            x = 3.5 + 986/t + 0.01 * mw
-            y = 2.4 - 0.2 * x
+            z_gas = self.calculate_z_factor(pressure, temperature, gas_specific_gravity)
 
-            mu_g = 1e-4 * k * np.exp(x * rho**y)
+            if np.isnan(z_gas) or z_gas <= 0:
+                 self.logger.warning(f"Invalid Z-factor ({z_gas}) for gas viscosity calculation. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}")
+                 return np.nan
+
+            # Gas density rho in lb/ft^3
+            # R = 10.73 psia.ft^3/(lb-mol.R)
+            # Ensure denominator is not zero
+            den_rho = 10.73 * t_rankine * z_gas
+            if den_rho == 0:
+                self.logger.warning(f"Zero denominator in density calculation for gas viscosity. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}, Z={z_gas}")
+                return np.nan
+
+            rho_lb_ft3 = pressure * mw / den_rho
+
+            # Convert density to g/cm^3 as Lee-Gonzalez-Eakin typically uses it
+            rho_g_cm3 = rho_lb_ft3 / 62.428
+
+            if rho_g_cm3 < 0: # Density cannot be negative
+                self.logger.warning(f"Negative gas density ({rho_g_cm3} g/cm^3) for viscosity calc. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}, Z={z_gas}")
+                return np.nan
+
+            # Lee-Gonzalez-Eakin correlation terms:
+            # K, X, Y are intermediate parameters
+            # Using t_rankine for temperature in these equations
+            k_val = (9.4 + 0.02 * mw) * (t_rankine**1.5) / (209 + 19 * mw + t_rankine)
+            x_val = 3.5 + (986 / t_rankine) + (0.01 * mw)
+            y_val = 2.4 - 0.2 * x_val
+
+            # The term rho_g_cm3**y_val can cause issues
+            # If rho_g_cm3 is zero:
+            if rho_g_cm3 == 0:
+                if y_val > 0:
+                    term_rho_pow_y = 0.0
+                elif y_val == 0:
+                    term_rho_pow_y = 1.0
+                else: # y_val < 0, 0 to a negative power is undefined/infinity
+                    self.logger.warning(f"rho_g_cm3 is zero and y_val ({y_val}) is negative in gas viscosity. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}")
+                    return np.nan # Or handle as appropriate (e.g., very large viscosity if it implies dense phase near zero density)
+            else: # rho_g_cm3 > 0 (negative handled above)
+                try:
+                    term_rho_pow_y = rho_g_cm3**y_val
+                except ValueError: # Should not happen if rho_g_cm3 is positive
+                    self.logger.warning(f"ValueError for rho_g_cm3**y_val with rho_g_cm3={rho_g_cm3}, y_val={y_val}. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}")
+                    return np.nan
+
+
+            exp_arg = x_val * term_rho_pow_y
+
+            # Check for overflow before np.exp
+            # Max typical float64 exp argument is around 709-710
+            if exp_arg > 700:
+                self.logger.warning(f"Exponent argument for gas viscosity is too large ({exp_arg}). Result will overflow. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}")
+                # Depending on context, could return np.inf or a capped large value
+                # For now, returning NaN as it indicates a likely issue with inputs or correlation applicability
+                return np.nan
+
+            try:
+                mu_g = 1e-4 * k_val * np.exp(exp_arg)
+            except OverflowError:
+                self.logger.warning(f"OverflowError during np.exp({exp_arg}) in gas viscosity. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}")
+                return np.nan
+
+
+            if np.isnan(mu_g) or np.isinf(mu_g) or mu_g < 0:
+                 self.logger.warning(f"Calculated gas viscosity is invalid: {mu_g}. P={pressure}, T_F={temperature}, Sg={gas_specific_gravity}")
+                 return np.nan # Return NaN for clearly non-physical results
+
             return mu_g
 
     def calculate_solution_gas_ratio(self,
@@ -155,14 +223,138 @@ class PVTProperties:
         tr = t / tpc
         pr = pressure / ppc
 
-        t1 = 0.06125 * pr * np.exp(-1.2 * (1 - 1/tr)**2)
-        t2 = 14.76 * tr - 9.76 * tr**2 + 4.58 * tr**3
-        t3 = 90.7 * tr - 242.2 * tr**2 + 42.4 * tr**3
-        t4 = 2.18 + 2.82 * tr
+        if tr <= 0 or tpc <= 0: # Avoid division by zero or log/exp domain errors
+            self.logger.warning(f"Invalid T_r ({tr}) or T_pc ({tpc}). Cannot calculate Z-factor.")
+            return np.nan # Or raise an error
 
-        y = t1 / (t2 + t3 + t4)
+        # Hall-Yarborough constants
+        # Y_const = (0.06125 * pr / tr) * np.exp(-1.2 * (1 - 1 / tr)**2) # This is Y in Z = Y/rho_r
+        # The term exp(-1.2 * (1 - 1/Tr)^2) is used multiple times
+        exp_term = np.exp(-1.2 * (1 - 1 / tr)**2)
 
-        z = 0.06125 * pr * np.exp(-1.2 * (1 - 1/tr)**2) / y
+        # Term Y from Z = Y / rho_r
+        # Y_val = (0.06125 * pr / tr) * exp_term
+        # Actually, the equation to solve is for rho_r (y in many texts)
+        # f(y) = - (0.06125 * Pr / Tr) * exp_term + (y + y^2 + y^3 - y^4)/(1-y)^3 - C1*y^2 + C2*y^C3 = 0
+
+        # Coefficients for the equation f(y) = 0
+        # Note: Some formulations define C1, C2, C3 slightly differently (e.g. divided by Tr terms)
+        # The form used here is consistent with many sources for f(rho_r) where rho_r is y.
+        # f(y) = -Y_const + term_y_powers - term_C1 + term_C2 = 0
+
+        # Y_const for the f(y) = 0 equation
+        Y_const = (0.06125 * pr / tr) * exp_term
+
+        # Newton-Raphson iteration to find reduced density 'y' (rho_r)
+        # Initial guess for y (reduced density rho_r)
+        # A common initial guess is based on Pr or a small value.
+        # Using 0.001 as a simple initial guess, or something more sophisticated.
+        # Let's use a slightly better one: y = 0.001 if Pr < 1.0 else 0.1 * Pr
+        y = 0.001 if pr < 3.0 else 0.2 * pr # Initial guess for reduced density rho_r
+        if y >= 1.0: # Ensure (1-y) is not zero or negative initially
+            y = 0.5
+        if y <= 0: # Ensure y is positive
+            y = 0.001
+
+        # Parameters for f(y)
+        # C1_coeff = 14.76 / tr - 9.76 / (tr**2) + 4.58 / (tr**3) # This is C1 in f(y)
+        # C2_coeff = 90.7 / tr - 242.2 / (tr**2) + 42.4 / (tr**3) # This is C2 in f(y)
+        # C3_exp = 2.18 + 2.82 / tr                             # This is C3 in f(y)
+
+        # Coefficients for f(y) = -Y + A(y) - B(y) + D(y) = 0
+        # Where:
+        # Y = (0.06125 * Pr / Tr) * exp(-1.2 * (1 - 1/Tr)^2)
+        # A(y) = (y + y^2 + y^3 - y^4) / (1-y)^3
+        # B(y) = (14.76/Tr - 9.76/Tr^2 + 4.58/Tr^3) * y^2
+        # D(y) = (90.7/Tr - 242.2/Tr^2 + 42.4/Tr^3) * y^(2.18 + 2.82/Tr)
+
+        # Renaming for clarity with common literature for Hall-Yarborough
+        # Reduced temperature Tr, Reduced pressure Pr
+        # Equation for reduced density, rho_r (here, variable 'y')
+        # f(rho_r) = - (0.06125 * Pr / Tr) * exp(-1.2*(1-1/Tr)^2) +
+        #             (rho_r + rho_r^2 + rho_r^3 - rho_r^4) / (1-rho_r)^3 -
+        #             (14.76/Tr - 9.76/Tr^2 + 4.58/Tr^3) * rho_r^2 +
+        #             (90.7/Tr - 242.2/Tr^2 + 42.4/Tr^3) * rho_r^(2.18 + 2.82/Tr) = 0
+
+        # Iteration parameters
+        max_iter = 20  # Max iterations
+        tolerance = 1e-9 # Tolerance for convergence
+
+        for _ in range(max_iter):
+            if y >= 1.0 or y <= 0: # Avoid domain error for (1-y) or y in powers
+                self.logger.warning(f"Reduced density y = {y} out of (0,1) range during iteration. Pr={pr}, Tr={tr}")
+                return np.nan # Or handle error appropriately
+
+            # Calculate terms for f(y) and f'(y)
+            # f(y) terms:
+            term_Y = -Y_const
+            term_A_num = y + y**2 + y**3 - y**4
+            term_A_den = (1 - y)**3
+            if term_A_den == 0: return np.nan # Avoid division by zero
+            term_A = term_A_num / term_A_den
+
+            term_B_coeff = (14.76/tr - 9.76/(tr**2) + 4.58/(tr**3))
+            term_B = - term_B_coeff * y**2
+
+            term_D_coeff = (90.7/tr - 242.2/(tr**2) + 42.4/(tr**3))
+            exponent_D = 2.18 + 2.82/tr
+            # Handle y=0 for y^exponent_D if exponent_D is non-integer or small
+            if y == 0 and exponent_D <= 0: return np.nan # Avoid math error
+            term_D = term_D_coeff * (y**exponent_D if y > 0 else 0)
+
+
+            f_y = term_Y + term_A + term_B + term_D
+
+            # f'(y) terms (derivative of f(y) w.r.t y):
+            # Derivative of term_A: (1 + 4y + 4y^2 - 4y^3 + y^4) / (1-y)^4
+            fp_term_A_num = 1 + 4*y + 4*y**2 - 4*y**3 + y**4
+            fp_term_A_den = (1 - y)**4
+            if fp_term_A_den == 0: return np.nan
+            fp_term_A = fp_term_A_num / fp_term_A_den
+
+            # Derivative of term_B: -2 * term_B_coeff * y
+            fp_term_B = -2 * term_B_coeff * y
+
+            # Derivative of term_D: term_D_coeff * exponent_D * y^(exponent_D - 1)
+            if y == 0 and (exponent_D -1) < 0 : # avoid 0 to negative power
+                 fp_term_D = 0 # or handle as large if exponent_D is between 0 and 1
+            elif y > 0 :
+                 fp_term_D = term_D_coeff * exponent_D * (y**(exponent_D - 1))
+            else: # y is 0 and exponent_D-1 is >=0
+                 fp_term_D = 0
+
+
+            f_prime_y = fp_term_A + fp_term_B + fp_term_D
+
+            if abs(f_prime_y) < 1e-12: # Avoid division by zero if derivative is too small
+                self.logger.warning(f"Derivative f'(y) is near zero ({f_prime_y}). Pr={pr}, Tr={tr}, y={y}")
+                return np.nan
+
+            y_new = y - f_y / f_prime_y
+
+            if abs(y_new - y) < tolerance:
+                y = y_new
+                break
+            y = y_new
+        else: # Loop finished without break (no convergence)
+            self.logger.warning(f"Hall-Yarborough Z-factor failed to converge after {max_iter} iterations. Pr={pr}, Tr={tr}, Last y={y}, Last f(y)={f_y}")
+            return np.nan # Return NaN or raise error if convergence fails
+
+        # Final check on y (rho_r)
+        if y <= 0 or y >= 1.0: # Physical range for rho_r in this form of HY is (0,1)
+             self.logger.warning(f"Converged reduced density y = {y} is outside (0,1). Pr={pr}, Tr={tr}")
+             return np.nan
+
+        # Calculate Z factor: Z = Y_const * Tr / Pr (if Y_const was defined without Pr/Tr)
+        # Or Z = (0.06125 * Pr) / (y * Tr) * exp_term
+        # With Y_const = (0.06125 * pr / tr) * exp_term, then Z = Y_const / y
+
+        z = Y_const / y # This is Z = ( (0.06125 * Pr / Tr) * exp_term ) / rho_r
+
+        # Sanity check for Z
+        if not (0 < z < 2.0): # Z factor should generally be in this range
+            self.logger.warning(f"Calculated Z-factor {z} is outside typical range (0-2). Pr={pr}, Tr={tr}, rho_r={y}")
+            # Optionally return np.nan or the calculated z
         return z
 
 # class ReservoirSimulation: # REMOVED - Incomplete and superseded

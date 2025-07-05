@@ -8,9 +8,12 @@ import sys
 # Add the backend directory to sys.path to allow imports from backend modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from gaia_genesis.reservoir_engineering.database import Base, DatabaseManager, User as DBUser
+# Corrected imports for database components
+from gaia_genesis.core.database_models import Base, User as DBUser
+from gaia_genesis.core.database_manager import DatabaseManager
 from main import app, db_manager as main_db_manager, auth_manager as main_auth_manager
-from gaia_genesis.reservoir_engineering.api import AuthManager
+# Assuming AuthManager should be imported from core if it's related to the new DB structure
+from gaia_genesis.core.auth_manager import AuthManager # Corrected path for AuthManager
 
 
 # --- Test Database Fixture ---

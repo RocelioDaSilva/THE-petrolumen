@@ -4,7 +4,7 @@ from scipy.sparse.linalg import spsolve
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from geology.mesh import Mesh
+from .geology.mesh import Mesh # Corrected to relative import
 import pyvista as pv
 
 class FlowSimulation:
