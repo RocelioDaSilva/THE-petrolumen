@@ -9,19 +9,20 @@ from dotenv import load_dotenv # For .env file
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
-from backend.gaia_genesis.core.data_uploader import DataUploader
-from backend.gaia_genesis.core.database_manager import DatabaseManager
-from backend.gaia_genesis.core.auth_manager import AuthManager
+# Imports should be relative to the backend/ directory as the top-level package.
+from gaia_genesis.core.data_uploader import DataUploader
+from gaia_genesis.core.database_manager import DatabaseManager
+from gaia_genesis.core.auth_manager import AuthManager
 # Assuming these classes are directly available in the top-level reservoir_engineering.py now
-from backend.gaia_genesis.reservoir_engineering import (
+from gaia_genesis.reservoir_engineering import (
     DeclineAnalysis, # Changed from AdvancedDeclineAnalysis
     # ReservoirSimulator, # This class might have more complex dependencies not yet resolved
     PVTProperties # PVTProperties is in reservoir_engineering.py
 )
 # For ReservoirSimulator and AIPrediction, need to confirm their new locations or if they are self-contained
 # For now, let's assume they might be in their own files at the top level of gaia_genesis
-from backend.gaia_genesis.flow_simulation import FlowSimulation as ReservoirSimulator # Class is FlowSimulation, alias for minimal changes
-from backend.gaia_genesis.prediction import AIPrediction # Import AIPrediction
+from gaia_genesis.flow_simulation import FlowSimulation as ReservoirSimulator # Class is FlowSimulation, alias for minimal changes
+from gaia_genesis.prediction import AIPrediction # Import AIPrediction
 
 
 import pandas as pd
@@ -104,29 +105,29 @@ os.makedirs(settings.AI_MODELS_DIR, exist_ok=True)
 # --- Import Custom Routers ---
 # Import for PVT calculations from gaia_genesis
 try:
-    from backend.gaia_genesis.api_v1.endpoints import pvt_calculations as gaia_pvt_router
+    from gaia_genesis.api_v1.endpoints import pvt_calculations as gaia_pvt_router
     app.include_router(gaia_pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT Calculations"])
     logger.info("Successfully included Gaia PVT calculations router.")
 except ImportError as e:
-    logger.error(f"Could not import Gaia PVT calculations router: {e}. Ensure 'backend.gaia_genesis.api_v1.endpoints.pvt_calculations' is correct and discoverable.")
+    logger.error(f"Could not import Gaia PVT calculations router: {e}. Ensure 'gaia_genesis.api_v1.endpoints.pvt_calculations' is correct and discoverable.")
 except Exception as e:
     logger.error(f"An unexpected error occurred while including Gaia PVT router: {e}")
 
 try:
-    from backend.gaia_genesis.api_v1.endpoints import reservoir_analysis_tools as gaia_reservoir_tools_router
+    from gaia_genesis.api_v1.endpoints import reservoir_analysis_tools as gaia_reservoir_tools_router
     app.include_router(gaia_reservoir_tools_router.router, prefix="/api/v1/gaia/reservoir-tools", tags=["Gaia - Reservoir Analysis Tools"])
     logger.info("Successfully included Gaia Reservoir Analysis Tools router.")
 except ImportError as e:
-    logger.error(f"Could not import Gaia Reservoir Analysis Tools router: {e}. Ensure 'backend.gaia_genesis.api_v1.endpoints.reservoir_analysis_tools' is correct.")
+    logger.error(f"Could not import Gaia Reservoir Analysis Tools router: {e}. Ensure 'gaia_genesis.api_v1.endpoints.reservoir_analysis_tools' is correct.")
 except Exception as e:
     logger.error(f"An unexpected error occurred while including Gaia Reservoir Analysis Tools router: {e}")
 
 try:
-    from backend.gaia_genesis.api_v1.endpoints import static_modeling_tools as gaia_static_modeling_router
+    from gaia_genesis.api_v1.endpoints import static_modeling_tools as gaia_static_modeling_router
     app.include_router(gaia_static_modeling_router.router, prefix="/api/v1/gaia/static-modeling", tags=["Gaia - Static Modeling Tools"])
     logger.info("Successfully included Gaia Static Modeling Tools router.")
 except ImportError as e:
-    logger.error(f"Could not import Gaia Static Modeling Tools router: {e}. Ensure 'backend.gaia_genesis.api_v1.endpoints.static_modeling_tools' is correct.")
+    logger.error(f"Could not import Gaia Static Modeling Tools router: {e}. Ensure 'gaia_genesis.api_v1.endpoints.static_modeling_tools' is correct.")
 except Exception as e:
     logger.error(f"An unexpected error occurred while including Gaia Static Modeling Tools router: {e}")
 

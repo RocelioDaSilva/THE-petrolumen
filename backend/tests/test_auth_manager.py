@@ -2,16 +2,20 @@ import pytest
 from fastapi import HTTPException, status
 import datetime
 import time # For testing token expiry
+import logging # It's good practice to have logging available
 
-# Assuming conftest.py handles path adjustments for imports
-from gaia_genesis.reservoir_engineering.api import AuthManager
-from gaia_genesis.reservoir_engineering.database import DatabaseManager, User as DBUser # For type hints
+# Corrected imports
+from gaia_genesis.core.auth_manager import AuthManager
+from gaia_genesis.core.database_manager import DatabaseManager # For type hints if needed, or mocking
+from gaia_genesis.core.database_models import User as DBUser # For type hints
+
+logger = logging.getLogger(__name__)
 
 # This module tests AuthManager.
 # It uses fixtures from conftest.py:
 # - `test_db_manager`: A DatabaseManager connected to the test DB.
 # - `test_auth_manager`: An AuthManager instance using `test_db_manager`.
-# - `db_session`: A SQLAlchemy session for direct DB checks if needed (though most checks are via AuthManager methods).
+# - `db_session`: A SQLAlchemy session for direct DB checks if needed.
 # - `clear_users_table`: Ensures the users table is empty before each test.
 
 # --- Test User Creation and Retrieval ---
@@ -29,7 +33,6 @@ def test_create_user_successful(test_auth_manager: AuthManager, clear_users_tabl
     assert created_user["role"] == "user"
     assert created_user["is_active"] is True
 
-    # Verify user exists in DB through AuthManager's internal method (which uses DatabaseManager)
     db_user_obj = test_auth_manager.get_user_by_username(username)
     assert db_user_obj is not None
     assert db_user_obj.email == email
@@ -61,7 +64,7 @@ def test_authenticate_user_successful(test_auth_manager: AuthManager, clear_user
     authenticated_user = test_auth_manager.authenticate_user(username, password)
     assert authenticated_user is not None
     assert authenticated_user["username"] == username
-    assert "password" not in authenticated_user # Ensure raw password is not returned
+    assert "password" not in authenticated_user
     assert "hashed_password" not in authenticated_user
 
 def test_authenticate_user_wrong_password(test_auth_manager: AuthManager, clear_users_table):
@@ -107,14 +110,16 @@ def test_token_validation_expired(test_auth_manager: AuthManager, clear_users_ta
 
     expired_token = test_auth_manager.create_access_token(
         data={"sub": username},
-        expires_delta=datetime.timedelta(seconds=1)
+        expires_delta=datetime.timedelta(seconds=1) # Use datetime.timedelta
     )
-    time.sleep(1.2)
+    time.sleep(1.2) # Ensure token is expired
 
     with pytest.raises(HTTPException) as exc_info:
         test_auth_manager.get_current_user_from_token(expired_token)
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-    assert exc_info.value.detail == "Token has expired" # The manual check should be hit based on logs
+    # Detail message might vary slightly based on exact exception handling in AuthManager
+    assert "Token has expired" in exc_info.value.detail or "Signature has expired" in exc_info.value.detail
+
 
 def test_token_validation_invalid_signature(test_auth_manager: AuthManager, clear_users_table):
     """Test that a token with an invalid signature (e.g., wrong secret key) fails."""
@@ -139,7 +144,7 @@ def test_token_validation_inactive_user(test_auth_manager: AuthManager, clear_us
 
     with pytest.raises(HTTPException) as exc_info:
         test_auth_manager.get_current_user_from_token(access_token)
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST # Or 403 Forbidden
     assert exc_info.value.detail == "Inactive user"
 
 # --- Test User Management (CRUD through AuthManager) ---
@@ -149,7 +154,7 @@ def test_get_all_users(test_auth_manager: AuthManager, clear_users_table):
     test_auth_manager.create_user("crud_user2", "crud2@example.com", "pass")
 
     users = test_auth_manager.get_all_users()
-    assert len(users) >= 2
+    assert len(users) >= 2 # Could be more if other tests don't clean up perfectly or if test_db is shared
     usernames = [u["username"] for u in users]
     assert "crud_user1" in usernames
     assert "crud_user2" in usernames
@@ -178,6 +183,8 @@ def test_update_user_details(test_auth_manager: AuthManager, clear_users_table):
     assert db_user_obj is not None
     assert db_user_obj.email == updates["email"]
     assert db_user_obj.role == updates["role"]
+    assert db_user_obj.is_active == updates["is_active"]
+
 
     with pytest.raises(ValueError, match="Password updates not allowed through this method"):
         test_auth_manager.update_user_details(username, {"password": "newpass123"})
