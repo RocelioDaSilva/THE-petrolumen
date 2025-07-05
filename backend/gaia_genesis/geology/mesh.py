@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial import Delaunay
 import pyvista as pv
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union # Added Union
 
 class Mesh:
     def __init__(self):

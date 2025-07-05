@@ -31,7 +31,7 @@ import numpy as np # Added import
 # This should be one of the first things to ensure .env is loaded before settings are initialized
 load_dotenv()
 
-from .config import settings # Import the settings instance
+from config import settings # Import the settings instance
 
 # Setup logging using LOG_LEVEL from settings
 # Note: basicConfig should only be called once. If other modules also call it, it might not reconfigure.
