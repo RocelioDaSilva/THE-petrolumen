@@ -39,6 +39,12 @@ export interface ButtonProps
   asChild?: boolean
 }
 
+/**
+ * A customizable button component with variants for different styles and sizes.
+ * It can also be rendered as a child component using the `asChild` prop.
+ *
+ * Based on the ShadCN UI Button.
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"

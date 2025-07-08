@@ -45,4 +45,22 @@ Conduct code reviews, especially for security-sensitive parts of the application
 ### 8. Educate Yourself
 Stay informed about common security threats and best practices in web development (e.g., OWASP Top 10).
 
+### 9. API Key Management (for external services)
+If the application integrates with external third-party services requiring API keys:
+*   **Least Privilege**: Ensure API keys only have the minimum necessary permissions required for their function.
+*   **Rotation**: Regularly rotate API keys according to the service provider's recommendations or your internal security policy.
+*   **Monitoring**: Monitor API key usage for signs of abuse or compromise, if the service provider offers such tools.
+*   **Secure Storage**: Store API keys securely using environment variables or a secrets management system (as mentioned in "Never Commit Secrets"). Do not embed them in code or configuration files directly accessible in the repository.
+
+### 10. Data Handling Procedures
+*   **Data Minimization**: Collect and retain only the data essential for the application's functionality. Avoid storing sensitive information if it's not strictly necessary.
+*   **Encryption in Transit**: All external communication carrying sensitive data (including between frontend, backend, and any external services) must use HTTPS/TLS. Internal network communication between services should also be encrypted if possible.
+*   **Encryption at Rest**: Sensitive data stored in databases or file systems should be encrypted. Leverage database-native encryption features where available and appropriate. For highly sensitive data, consider application-level encryption.
+*   **Personally Identifiable Information (PII)**:
+    *   Identify any PII the application handles.
+    *   Apply stricter handling procedures for PII, including access controls and audit logging if feasible.
+    *   Comply with relevant data privacy regulations (e.g., GDPR, CCPA) if applicable to your users.
+*   **Access Control**: Implement robust access controls to ensure that data can only be accessed by authorized users and processes.
+*   **Secure Data Disposal**: When data is no longer needed, ensure it is securely deleted and not just marked as inactive. This includes backups and archives, according to your data retention policy.
+
 This `SECURITY.md` provides basic guidance. Security is an ongoing process, not a one-time setup.

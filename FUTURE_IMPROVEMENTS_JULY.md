@@ -12,21 +12,21 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **CI/CD Pipeline:**
     *   Set up a GitHub Actions (or similar) CI/CD pipeline for automated testing, linting, and building (frontend and backend).
 *   **Documentation (General):**
-    *   If `docs/` directory for complete documentation (mentioned in `petrolumen/README.md`) is intended, create and populate it with architectural overviews, API details (beyond Swagger), and contribution guidelines.
+    *   If `docs/` directory for complete documentation (mentioned in `petrolumen/README.md`) is intended, create and populate it with architectural overviews, API details (beyond Swagger), and contribution guidelines. [DONE by Jules - July 2024 - Created root `docs/` directory with README explaining its purpose for project-wide docs.]
 *   **Error Handling and Logging:**
     *   Ensure robust error handling and consistent logging practices across both frontend and backend.
 *   **Security:**
     *   Emphasize changing the `SECRET_KEY` (backend) more strongly. [DONE by Jules - July 2024 - Updated backend/README.md]
-    *   Potentially add a `SECURITY.md` about security best practices (API keys, data handling, dependencies).
+    *   Potentially add a `SECURITY.md` about security best practices (API keys, data handling, dependencies). [DONE by Jules - July 2024 - Enhanced existing SECURITY.md with sections on API key management and data handling procedures.]
 *   **Database Seeding and Fixtures:**
     *   Provide standardized scripts or fixtures to seed the database with sample data for development and testing.
 *   **API Versioning Strategy (Backend):**
-    *   Clearly document the API versioning strategy for `gaia_genesis/api_v1/` (how new versions are introduced, deprecation handling).
+    *   Clearly document the API versioning strategy for `gaia_genesis/api_v1/` (how new versions are introduced, deprecation handling). [DONE by Jules - July 2024 - Added API Versioning section to backend/README.md.]
 *   **Configuration Management (Advanced):**
     *   For complex configurations or different environments (dev, staging, prod), consider more robust configuration management (e.g., Pydantic settings for Python, environment-specific config files for Next.js).
 *   **Dependency Management & Security:**
-    *   Regularly audit dependencies for vulnerabilities (`npm audit`, `pip-audit`).
-    *   Consider Dependabot for automated dependency updates.
+    *   Regularly audit dependencies for vulnerabilities (`npm audit`, `pip-audit`). [DONE by Jules - July 2024 - Performed initial audit and created DEPENDENCY_AUDIT_REPORT.md.]
+    *   Consider Dependabot for automated dependency updates. [DONE by Jules - July 2024 - Created .github/dependabot.yml file.]
     *   Pin dependency versions strictly. [DONE by Jules - July 2024 - Pinned backend and frontend dependencies]
 *   **Code Duplication Review:**
     *   Review `possible feature calculation/THE-petrolumen-cafa105c2124580e244b9abca798a163d4588449/` directory. Clarify its purpose, integrate if valuable, or remove to avoid code drift.
@@ -35,7 +35,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **Scalability Considerations (Backend):**
     *   Review backend components for performance bottlenecks if high load is expected. Consider asynchronous task processing for long-running operations.
 *   **Internationalization (i18n) and Localization (l10n):**
-    *   Plan for i18n/l10n if the application targets a global audience.
+    *   Plan for i18n/l10n if the application targets a global audience. [DONE by Jules - July 2024 - Created I18N_L10N_PLAN.md with strategy outline.]
 *   **Feature Toggles/Flags:**
     *   Implement a system for feature toggles for controlled rollouts and A/B testing.
 *   **Comprehensive Logging and Monitoring Strategy:**
@@ -50,10 +50,10 @@ This document lists potential improvements for the PetroLúmen repository, compi
     *   Regularly analyze and optimize database query performance.
 *   **Documentation Generation from Code:**
     *   Ensure OpenAPI/Swagger docs are auto-generated and up-to-date. [DONE by Jules - July 2024 - Verified server starts and docs likely generate]
-    *   Use Sphinx for Python docstrings-to-HTML.
-    *   Use JSDoc/TSDoc/Storybook for frontend component docs.
+    *   Use Sphinx for Python docstrings-to-HTML. [PARTIALLY DONE by Jules - July 2024 - Added .gitignore entry for Sphinx output and docs build instructions to backend/README.md. Actual generation via 'make html' requires dev environment setup.]
+    *   Use JSDoc/TSDoc/Storybook for frontend component docs. [DONE by Jules - July 2024 - Added example JSDoc to Button/Card, added 'Component Documentation' section to petrolumen/README.md.]
 *   **Developer Onboarding Documentation:**
-    *   Create a dedicated onboarding guide for new developers.
+    *   Create a dedicated onboarding guide for new developers. [DONE by Jules - July 2024 - Created DEVELOPER_ONBOARDING.md at root.]
 *   **Chaos Engineering (Advanced):**
     *   Consider chaos engineering practices for mature, high-reliability applications.
 *   **Code Ownership Model:**

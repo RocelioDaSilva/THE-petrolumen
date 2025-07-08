@@ -58,3 +58,6 @@ var/
 # Frontend build/generated artifacts
 petrolumen/out/
 petrolumen/src-tauri/gen/
+
+# Sphinx documentation output
+backend/docs_sphinx/_build/

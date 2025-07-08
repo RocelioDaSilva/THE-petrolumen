@@ -5,7 +5,14 @@ import { cn } from "@/lib/utils"
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+>
+/**
+ * A container component that groups related content and actions.
+ * It typically includes a header, content, and footer.
+ *
+ * Based on the ShadCN UI Card.
+ */
+(({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
