@@ -10,11 +10,20 @@ from typing import Dict, List, Tuple, Optional, Union, Any
 from scipy.optimize import minimize, fsolve
 import numba
 
+
 class Component:
     """Class representing a hydrocarbon component."""
 
-    def __init__(self, name: str, mw: float, tc: float, pc: float, omega: float,
-                 volume_shift: float = 0.0, parachor: float = 0.0):
+    def __init__(
+        self,
+        name: str,
+        mw: float,
+        tc: float,
+        pc: float,
+        omega: float,
+        volume_shift: float = 0.0,
+        parachor: float = 0.0,
+    ):
         """
         Initialize component.
 
@@ -42,6 +51,7 @@ class Component:
         # Binary interaction parameters
         self.kij = {}  # Dictionary of binary interaction parameters
 
+
 class EquationOfState:
     """Base class for equation of state models."""
 
@@ -65,7 +75,9 @@ class EquationOfState:
                     self.kij[i, j] = comp_i.kij[comp_j.name]
                     self.kij[j, i] = self.kij[i, j]  # Symmetry
 
-    def calculate_z_factor(self, p: float, t: float, composition: np.ndarray) -> Tuple[float, float]:
+    def calculate_z_factor(
+        self, p: float, t: float, composition: np.ndarray
+    ) -> Tuple[float, float]:
         """
         Calculate compressibility factors for vapor and liquid phases.
 
@@ -79,7 +91,9 @@ class EquationOfState:
         """
         raise NotImplementedError("Subclasses must implement this method")
 
-    def calculate_fugacity_coefficients(self, p: float, t: float, z: float, composition: np.ndarray) -> np.ndarray:
+    def calculate_fugacity_coefficients(
+        self, p: float, t: float, z: float, composition: np.ndarray
+    ) -> np.ndarray:
         """
         Calculate fugacity coefficients.
 
@@ -94,8 +108,15 @@ class EquationOfState:
         """
         raise NotImplementedError("Subclasses must implement this method")
 
-    def calculate_phase_densities(self, p: float, t: float, zv: float, zl: float,
-                                composition_v: np.ndarray, composition_l: np.ndarray) -> Tuple[float, float]:
+    def calculate_phase_densities(
+        self,
+        p: float,
+        t: float,
+        zv: float,
+        zl: float,
+        composition_v: np.ndarray,
+        composition_l: np.ndarray,
+    ) -> Tuple[float, float]:
         """
         Calculate phase densities.
 
@@ -126,6 +147,7 @@ class EquationOfState:
 
         return rho_v, rho_l
 
+
 class PengRobinsonEOS(EquationOfState):
     """Peng-Robinson equation of state."""
 
@@ -137,7 +159,9 @@ class PengRobinsonEOS(EquationOfState):
         self.omega_a = 0.45724
         self.omega_b = 0.07780
 
-    def calculate_z_factor(self, p: float, t: float, composition: np.ndarray) -> Tuple[float, float]:
+    def calculate_z_factor(
+        self, p: float, t: float, composition: np.ndarray
+    ) -> Tuple[float, float]:
         """Calculate compressibility factors for vapor and liquid phases."""
         # Calculate mixture parameters
         a_mix, b_mix = self._calculate_mixture_parameters(p, t, composition)
@@ -149,13 +173,13 @@ class PengRobinsonEOS(EquationOfState):
         R = 8.3145
 
         # Calculate coefficients for cubic equation
-        A = a_mix * p_pa / (R * t)**2
+        A = a_mix * p_pa / (R * t) ** 2
         B = b_mix * p_pa / (R * t)
 
         # Cubic equation coefficients: Z³ - (1-B)Z² + (A-3B²-2B)Z - (AB-B²-B³) = 0
         a2 = -(1 - B)
-        a1 = A - 3*B**2 - 2*B
-        a0 = -(A*B - B**2 - B**3)
+        a1 = A - 3 * B**2 - 2 * B
+        a0 = -(A * B - B**2 - B**3)
 
         # Solve cubic equation
         roots = np.roots([1, a2, a1, a0])
@@ -173,7 +197,9 @@ class PengRobinsonEOS(EquationOfState):
             z_liquid = np.min(real_roots)
             return z_vapor, z_liquid
 
-    def calculate_fugacity_coefficients(self, p: float, t: float, z: float, composition: np.ndarray) -> np.ndarray:
+    def calculate_fugacity_coefficients(
+        self, p: float, t: float, z: float, composition: np.ndarray
+    ) -> np.ndarray:
         """Calculate fugacity coefficients."""
         # Calculate mixture parameters
         a_mix, b_mix = self._calculate_mixture_parameters(p, t, composition)
@@ -185,8 +211,12 @@ class PengRobinsonEOS(EquationOfState):
         for i, comp in enumerate(self.components):
             # Calculate a_i and b_i
             Tr = t / comp.tc
-            alpha = (1 + (0.37464 + 1.54226*comp.omega - 0.26992*comp.omega**2) * (1 - np.sqrt(Tr)))**2
-            a_i[i] = self.omega_a * (R * comp.tc)**2 / comp.pc * alpha
+            alpha = (
+                1
+                + (0.37464 + 1.54226 * comp.omega - 0.26992 * comp.omega**2)
+                * (1 - np.sqrt(Tr))
+            ) ** 2
+            a_i[i] = self.omega_a * (R * comp.tc) ** 2 / comp.pc * alpha
             b_i[i] = self.omega_b * R * comp.tc / comp.pc
 
         # Calculate a_ij matrix
@@ -206,11 +236,18 @@ class PengRobinsonEOS(EquationOfState):
 
             # Calculate fugacity coefficient
             ln_phi[i] = b_i[i] / b_mix * (z - 1) - np.log(z - B)
-            ln_phi[i] += A / (2 * np.sqrt(2) * B) * (b_i[i] / b_mix - 2 * sum_a / a_mix) * np.log((z + (1 + np.sqrt(2)) * B) / (z + (1 - np.sqrt(2)) * B))
+            ln_phi[i] += (
+                A
+                / (2 * np.sqrt(2) * B)
+                * (b_i[i] / b_mix - 2 * sum_a / a_mix)
+                * np.log((z + (1 + np.sqrt(2)) * B) / (z + (1 - np.sqrt(2)) * B))
+            )
 
         return np.exp(ln_phi)
 
-    def _calculate_mixture_parameters(self, p: float, t: float, composition: np.ndarray) -> Tuple[float, float]:
+    def _calculate_mixture_parameters(
+        self, p: float, t: float, composition: np.ndarray
+    ) -> Tuple[float, float]:
         """Calculate mixture parameters a_mix and b_mix."""
         # Gas constant (J/mol/K)
         R = 8.3145
@@ -226,8 +263,12 @@ class PengRobinsonEOS(EquationOfState):
         for i, comp in enumerate(self.components):
             # Calculate a_i and b_i
             Tr = t / comp.tc
-            alpha = (1 + (0.37464 + 1.54226*comp.omega - 0.26992*comp.omega**2) * (1 - np.sqrt(Tr)))**2
-            a_i[i] = self.omega_a * (R * comp.tc)**2 / comp.pc * alpha
+            alpha = (
+                1
+                + (0.37464 + 1.54226 * comp.omega - 0.26992 * comp.omega**2)
+                * (1 - np.sqrt(Tr))
+            ) ** 2
+            a_i[i] = self.omega_a * (R * comp.tc) ** 2 / comp.pc * alpha
             b_i[i] = self.omega_b * R * comp.tc / comp.pc
 
             # Add to b_mix
@@ -236,9 +277,15 @@ class PengRobinsonEOS(EquationOfState):
         # Calculate a_mix
         for i in range(self.n_components):
             for j in range(self.n_components):
-                a_mix += composition[i] * composition[j] * np.sqrt(a_i[i] * a_i[j]) * (1 - self.kij[i, j])
+                a_mix += (
+                    composition[i]
+                    * composition[j]
+                    * np.sqrt(a_i[i] * a_i[j])
+                    * (1 - self.kij[i, j])
+                )
 
         return a_mix, b_mix
+
 
 class FlashCalculation:
     """Class for performing flash calculations."""
@@ -254,7 +301,9 @@ class FlashCalculation:
         self.tolerance = 1e-8
         self.max_iterations = 100
 
-    def perform_flash(self, p: float, t: float, overall_composition: np.ndarray) -> Dict:
+    def perform_flash(
+        self, p: float, t: float, overall_composition: np.ndarray
+    ) -> Dict:
         """
         Perform flash calculation.
 
@@ -271,7 +320,12 @@ class FlashCalculation:
 
         # Check for trivial cases
         if np.all(z < self.tolerance):
-            return {'phase': 'none', 'vapor_fraction': 0.0, 'vapor_composition': z, 'liquid_composition': z}
+            return {
+                "phase": "none",
+                "vapor_fraction": 0.0,
+                "vapor_composition": z,
+                "liquid_composition": z,
+            }
 
         # Calculate K-values
         k_values = self._estimate_k_values(p, t, z)
@@ -289,7 +343,9 @@ class FlashCalculation:
         liquid_composition = np.zeros_like(z)
 
         for i in range(len(z)):
-            vapor_composition[i] = z[i] * k_values[i] / (1 + vapor_fraction * (k_values[i] - 1))
+            vapor_composition[i] = (
+                z[i] * k_values[i] / (1 + vapor_fraction * (k_values[i] - 1))
+            )
             liquid_composition[i] = z[i] / (1 + vapor_fraction * (k_values[i] - 1))
 
         # Normalize phase compositions
@@ -301,26 +357,27 @@ class FlashCalculation:
 
         # Calculate phase densities
         rho_vapor, rho_liquid = self.eos.calculate_phase_densities(
-            p, t, z_vapor, z_liquid, vapor_composition, liquid_composition)
+            p, t, z_vapor, z_liquid, vapor_composition, liquid_composition
+        )
 
         # Determine phase state
         if vapor_fraction < self.tolerance:
-            phase = 'liquid'
+            phase = "liquid"
         elif vapor_fraction > 1 - self.tolerance:
-            phase = 'vapor'
+            phase = "vapor"
         else:
-            phase = 'two-phase'
+            phase = "two-phase"
 
         return {
-            'phase': phase,
-            'vapor_fraction': vapor_fraction,
-            'vapor_composition': vapor_composition,
-            'liquid_composition': liquid_composition,
-            'z_vapor': z_vapor,
-            'z_liquid': z_liquid,
-            'rho_vapor': rho_vapor,
-            'rho_liquid': rho_liquid,
-            'k_values': k_values
+            "phase": phase,
+            "vapor_fraction": vapor_fraction,
+            "vapor_composition": vapor_composition,
+            "liquid_composition": liquid_composition,
+            "z_vapor": z_vapor,
+            "z_liquid": z_liquid,
+            "rho_vapor": rho_vapor,
+            "rho_liquid": rho_liquid,
+            "k_values": k_values,
         }
 
     def _estimate_k_values(self, p: float, t: float, z: np.ndarray) -> np.ndarray:
@@ -343,7 +400,9 @@ class FlashCalculation:
 
         for i, comp in enumerate(self.eos.components):
             # Wilson correlation
-            k_values[i] = (comp.pc / p) * np.exp(5.37 * (1 + comp.omega) * (1 - comp.tc / t))
+            k_values[i] = (comp.pc / p) * np.exp(
+                5.37 * (1 + comp.omega) * (1 - comp.tc / t)
+            )
 
         return k_values
 
@@ -359,8 +418,17 @@ class FlashCalculation:
             Tuple of (vapor_fraction, converged)
         """
         # Find bounds for vapor fraction
-        beta_min = max(0, max((k_values*z - 1) / (k_values - 1) for i, k in enumerate(k_values) if k < 1))
-        beta_max = min(1, min((1 - z) / (1 - k_values) for i, k in enumerate(k_values) if k > 1))
+        beta_min = max(
+            0,
+            max(
+                (k_values * z - 1) / (k_values - 1)
+                for i, k in enumerate(k_values)
+                if k < 1
+            ),
+        )
+        beta_max = min(
+            1, min((1 - z) / (1 - k_values) for i, k in enumerate(k_values) if k > 1)
+        )
 
         if beta_min >= beta_max:
             # Single phase
@@ -381,7 +449,7 @@ class FlashCalculation:
                 return beta, True
 
             # Calculate derivative
-            df = -np.sum(z * (k_values - 1)**2 / (1 + beta * (k_values - 1))**2)
+            df = -np.sum(z * (k_values - 1) ** 2 / (1 + beta * (k_values - 1)) ** 2)
 
             # Newton update
             delta_beta = -f / df
@@ -403,10 +471,11 @@ class FlashCalculation:
 
         return beta, False
 
+
 class CompositionalModel:
     """Compositional model for reservoir simulation."""
 
-    def __init__(self, components: List[Component], eos_type: str = 'PR'):
+    def __init__(self, components: List[Component], eos_type: str = "PR"):
         """
         Initialize compositional model.
 
@@ -418,7 +487,7 @@ class CompositionalModel:
         self.n_components = len(components)
 
         # Initialize EOS
-        if eos_type == 'PR':
+        if eos_type == "PR":
             self.eos = PengRobinsonEOS(components)
         else:
             raise ValueError(f"Unsupported EOS type: {eos_type}")
@@ -444,7 +513,9 @@ class CompositionalModel:
         """
         return self.flash.perform_flash(p, t, composition)
 
-    def calculate_phase_properties(self, p: float, t: float, flash_results: Dict) -> Dict:
+    def calculate_phase_properties(
+        self, p: float, t: float, flash_results: Dict
+    ) -> Dict:
         """
         Calculate phase properties.
 
@@ -457,47 +528,42 @@ class CompositionalModel:
             Dictionary of phase properties
         """
         # Extract phase compositions
-        y = flash_results['vapor_composition']
-        x = flash_results['liquid_composition']
+        y = flash_results["vapor_composition"]
+        x = flash_results["liquid_composition"]
 
         # Calculate molecular weights
         mw_vapor = np.sum(y * self.molecular_weights)
         mw_liquid = np.sum(x * self.molecular_weights)
 
         # Calculate phase densities
-        rho_vapor = flash_results['rho_vapor']
-        rho_liquid = flash_results['rho_liquid']
+        rho_vapor = flash_results["rho_vapor"]
+        rho_liquid = flash_results["rho_liquid"]
 
         # Calculate phase viscosities (simplified correlations)
         mu_vapor = self._calculate_gas_viscosity(p, t, y)
         mu_liquid = self._calculate_liquid_viscosity(p, t, x)
 
         return {
-            'molecular_weight': {
-                'vapor': mw_vapor,
-                'liquid': mw_liquid
+            "molecular_weight": {"vapor": mw_vapor, "liquid": mw_liquid},
+            "density": {"vapor": rho_vapor, "liquid": rho_liquid},
+            "viscosity": {"vapor": mu_vapor, "liquid": mu_liquid},
+            "compressibility": {
+                "vapor": flash_results["z_vapor"],
+                "liquid": flash_results["z_liquid"],
             },
-            'density': {
-                'vapor': rho_vapor,
-                'liquid': rho_liquid
-            },
-            'viscosity': {
-                'vapor': mu_vapor,
-                'liquid': mu_liquid
-            },
-            'compressibility': {
-                'vapor': flash_results['z_vapor'],
-                'liquid': flash_results['z_liquid']
-            }
         }
 
-    def _calculate_gas_viscosity(self, p: float, t: float, composition: np.ndarray) -> float:
+    def _calculate_gas_viscosity(
+        self, p: float, t: float, composition: np.ndarray
+    ) -> float:
         """Calculate gas viscosity using simplified correlation."""
         # This is a placeholder - in a real simulator, this would use
         # a more sophisticated model like the Lohrenz-Bray-Clark correlation
         return 0.02  # cP
 
-    def _calculate_liquid_viscosity(self, p: float, t: float, composition: np.ndarray) -> float:
+    def _calculate_liquid_viscosity(
+        self, p: float, t: float, composition: np.ndarray
+    ) -> float:
         """Calculate liquid viscosity using simplified correlation."""
         # This is a placeholder - in a real simulator, this would use
         # a more sophisticated model

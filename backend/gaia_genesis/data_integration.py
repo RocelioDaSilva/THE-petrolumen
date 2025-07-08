@@ -10,6 +10,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
+
 class DataIntegration:
     def __init__(self):
         """Inicializa o integrador de dados."""
@@ -27,16 +28,16 @@ class DataIntegration:
             file_path: Caminho do arquivo
             data_type: Tipo de dado ('grid', 'wells', 'seismic', 'maps')
         """
-        if data_type == 'grid':
+        if data_type == "grid":
             # Importar malha GRDECL
             self._import_grdectl(file_path)
-        elif data_type == 'wells':
+        elif data_type == "wells":
             # Importar dados de poços
             self._import_well_data(file_path)
-        elif data_type == 'seismic':
+        elif data_type == "seismic":
             # Importar dados sísmicos
             self._import_seismic_data(file_path)
-        elif data_type == 'maps':
+        elif data_type == "maps":
             # Importar mapas
             self._import_maps(file_path)
 
@@ -48,13 +49,13 @@ class DataIntegration:
             file_path: Caminho do arquivo
             data_type: Tipo de dado ('grid', 'restart', 'summary')
         """
-        if data_type == 'grid':
+        if data_type == "grid":
             # Importar malha GRDECL
             self._import_grdectl(file_path)
-        elif data_type == 'restart':
+        elif data_type == "restart":
             # Importar arquivo de restart
             self._import_restart_file(file_path)
-        elif data_type == 'summary':
+        elif data_type == "summary":
             # Importar arquivo de sumário
             self._import_summary_file(file_path)
 
@@ -67,11 +68,11 @@ class DataIntegration:
             data_type: Tipo de dado ('grid', 'restart', 'summary')
         """
         # Similar ao Eclipse, mas com formatos específicos do tNavigator
-        if data_type == 'grid':
+        if data_type == "grid":
             self._import_tnavigator_grid(file_path)
-        elif data_type == 'restart':
+        elif data_type == "restart":
             self._import_tnavigator_restart(file_path)
-        elif data_type == 'summary':
+        elif data_type == "summary":
             self._import_tnavigator_summary(file_path)
 
     def import_sgems_data(self, file_path: str):
@@ -82,14 +83,14 @@ class DataIntegration:
             file_path: Caminho do arquivo
         """
         # Importar arquivo S-GeMS
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             data = json.load(f)
 
         # Processar dados
-        if 'grid' in data:
-            self.grid_data = self._process_sgems_grid(data['grid'])
-        if 'properties' in data:
-            self._process_sgems_properties(data['properties'])
+        if "grid" in data:
+            self.grid_data = self._process_sgems_grid(data["grid"])
+        if "properties" in data:
+            self._process_sgems_properties(data["properties"])
 
     def import_phdwin_data(self, file_path: str):
         """
@@ -119,7 +120,7 @@ class DataIntegration:
         df = las.df()
 
         # Adicionar profundidade
-        df['DEPTH'] = las.depth
+        df["DEPTH"] = las.depth
 
         # Armazenar dados
         self.well_logs[well_name] = df
@@ -132,16 +133,12 @@ class DataIntegration:
             file_path: Caminho do arquivo
         """
         # Abrir arquivo SEG-Y
-        with segyio.open(file_path, 'r') as f:
+        with segyio.open(file_path, "r") as f:
             # Ler dados
             data = f.trace.raw[:]
 
             # Armazenar dados
-            self.seismic_data = {
-                'data': data,
-                'header': f.header,
-                'bin_header': f.bin
-            }
+            self.seismic_data = {"data": data, "header": f.header, "bin_header": f.bin}
 
     def import_grdectl_file(self, file_path: str):
         """
@@ -160,13 +157,13 @@ class DataIntegration:
             data_type: Tipo de dado
             file_path: Caminho do arquivo de saída
         """
-        if data_type == 'grid':
+        if data_type == "grid":
             self._export_grdectl(file_path)
-        elif data_type == 'wells':
+        elif data_type == "wells":
             self._export_well_data(file_path)
-        elif data_type == 'seismic':
+        elif data_type == "seismic":
             self._export_seismic_data(file_path)
-        elif data_type == 'maps':
+        elif data_type == "maps":
             self._export_maps(file_path)
 
     def export_to_eclipse(self, data_type: str, file_path: str):
@@ -177,11 +174,11 @@ class DataIntegration:
             data_type: Tipo de dado
             file_path: Caminho do arquivo de saída
         """
-        if data_type == 'grid':
+        if data_type == "grid":
             self._export_grdectl(file_path)
-        elif data_type == 'restart':
+        elif data_type == "restart":
             self._export_restart_file(file_path)
-        elif data_type == 'summary':
+        elif data_type == "summary":
             self._export_summary_file(file_path)
 
     def export_to_tnavigator(self, data_type: str, file_path: str):
@@ -192,11 +189,11 @@ class DataIntegration:
             data_type: Tipo de dado
             file_path: Caminho do arquivo de saída
         """
-        if data_type == 'grid':
+        if data_type == "grid":
             self._export_tnavigator_grid(file_path)
-        elif data_type == 'restart':
+        elif data_type == "restart":
             self._export_tnavigator_restart(file_path)
-        elif data_type == 'summary':
+        elif data_type == "summary":
             self._export_tnavigator_summary(file_path)
 
     def export_to_sgems(self, file_path: str):
@@ -207,11 +204,11 @@ class DataIntegration:
             file_path: Caminho do arquivo de saída
         """
         data = {
-            'grid': self._export_sgems_grid(),
-            'properties': self._export_sgems_properties()
+            "grid": self._export_sgems_grid(),
+            "properties": self._export_sgems_properties(),
         }
 
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             json.dump(data, f)
 
     def export_to_phdwin(self, file_path: str):
@@ -240,11 +237,11 @@ class DataIntegration:
 
             # Adicionar dados
             for col in df.columns:
-                if col != 'DEPTH':
+                if col != "DEPTH":
                     las.add_curve(col, df[col].values)
 
             # Adicionar profundidade
-            las.depth = df['DEPTH'].values
+            las.depth = df["DEPTH"].values
 
             # Salvar arquivo
             las.write(file_path)
@@ -258,9 +255,9 @@ class DataIntegration:
         """
         if self.seismic_data is not None:
             # Criar arquivo SEG-Y
-            with segyio.open(file_path, 'w', self.seismic_data['header']) as f:
+            with segyio.open(file_path, "w", self.seismic_data["header"]) as f:
                 # Escrever dados
-                f.trace[:] = self.seismic_data['data']
+                f.trace[:] = self.seismic_data["data"]
 
     def export_to_grdectl(self, file_path: str):
         """
@@ -271,7 +268,9 @@ class DataIntegration:
         """
         self._export_grdectl(file_path)
 
-    def visualize_seismic_data(self, inline: Optional[int] = None, xline: Optional[int] = None):
+    def visualize_seismic_data(
+        self, inline: Optional[int] = None, xline: Optional[int] = None
+    ):
         """
         Visualiza dados sísmicos.
 
@@ -286,25 +285,28 @@ class DataIntegration:
 
         if inline is not None:
             # Visualizar seção inline
-            ax.imshow(self.seismic_data['data'][inline, :, :].T,
-                     aspect='auto', cmap='seismic')
-            ax.set_title(f'Inline {inline}')
-            ax.set_xlabel('Crossline')
-            ax.set_ylabel('Time')
+            ax.imshow(
+                self.seismic_data["data"][inline, :, :].T, aspect="auto", cmap="seismic"
+            )
+            ax.set_title(f"Inline {inline}")
+            ax.set_xlabel("Crossline")
+            ax.set_ylabel("Time")
         elif xline is not None:
             # Visualizar seção crossline
-            ax.imshow(self.seismic_data['data'][:, xline, :].T,
-                     aspect='auto', cmap='seismic')
-            ax.set_title(f'Crossline {xline}')
-            ax.set_xlabel('Inline')
-            ax.set_ylabel('Time')
+            ax.imshow(
+                self.seismic_data["data"][:, xline, :].T, aspect="auto", cmap="seismic"
+            )
+            ax.set_title(f"Crossline {xline}")
+            ax.set_xlabel("Inline")
+            ax.set_ylabel("Time")
         else:
             # Visualizar time slice
-            ax.imshow(self.seismic_data['data'][:, :, 0].T,
-                     aspect='auto', cmap='seismic')
-            ax.set_title('Time Slice')
-            ax.set_xlabel('Inline')
-            ax.set_ylabel('Crossline')
+            ax.imshow(
+                self.seismic_data["data"][:, :, 0].T, aspect="auto", cmap="seismic"
+            )
+            ax.set_title("Time Slice")
+            ax.set_xlabel("Inline")
+            ax.set_ylabel("Crossline")
 
         plt.colorbar(ax.images[0], ax=ax)
         return fig
@@ -322,13 +324,13 @@ class DataIntegration:
 
         df = self.well_logs[well_name]
 
-        fig, axes = plt.subplots(1, len(logs), figsize=(4*len(logs), 8))
+        fig, axes = plt.subplots(1, len(logs), figsize=(4 * len(logs), 8))
         if len(logs) == 1:
             axes = [axes]
 
         for ax, log in zip(axes, logs):
             if log in df.columns:
-                ax.plot(df[log], df['DEPTH'])
+                ax.plot(df[log], df["DEPTH"])
                 ax.set_title(log)
                 ax.invert_yaxis()
                 ax.grid(True)
@@ -348,7 +350,7 @@ class DataIntegration:
 
         fig, ax = plt.subplots(figsize=(10, 8))
 
-        im = ax.imshow(self.maps[map_name], cmap='viridis')
+        im = ax.imshow(self.maps[map_name], cmap="viridis")
         plt.colorbar(im, ax=ax)
         ax.set_title(map_name)
 

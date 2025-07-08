@@ -4,11 +4,12 @@ from scipy.sparse.linalg import spsolve
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from .geology.mesh import Mesh # Corrected to relative import
+from .geology.mesh import Mesh  # Corrected to relative import
 import pyvista as pv
 
+
 class FlowSimulation:
-    def __init__(self, mesh_type='structured', **kwargs):
+    def __init__(self, mesh_type="structured", **kwargs):
         """
         Inicializa o simulador de fluxo.
 
@@ -20,7 +21,7 @@ class FlowSimulation:
         """
         # Criar malha
         self.mesh = Mesh()
-        if mesh_type == 'structured':
+        if mesh_type == "structured":
             self.mesh.create_structured_mesh(**kwargs)
         else:
             self.mesh.create_unstructured_mesh(**kwargs)
@@ -34,9 +35,9 @@ class FlowSimulation:
         self.pressure = np.ones(len(self.mesh.cells)) * 3000  # psia
         self.temperature = np.ones(len(self.mesh.cells)) * 180  # °F
         self.saturation = {
-            'oil': np.ones(len(self.mesh.cells)) * 0.7,
-            'water': np.ones(len(self.mesh.cells)) * 0.3,
-            'gas': np.zeros(len(self.mesh.cells))
+            "oil": np.ones(len(self.mesh.cells)) * 0.7,
+            "water": np.ones(len(self.mesh.cells)) * 0.3,
+            "gas": np.zeros(len(self.mesh.cells)),
         }
 
         # Inicializar propriedades PVT
@@ -48,52 +49,48 @@ class FlowSimulation:
         # Inicializar propriedades térmicas
         self.rock_heat_capacity = 0.2  # Btu/lb-°F
         self.rock_density = 165  # lb/ft³
-        self.fluid_heat_capacity = {
-            'oil': 0.5,
-            'water': 1.0,
-            'gas': 0.5
-        }
+        self.fluid_heat_capacity = {"oil": 0.5, "water": 1.0, "gas": 0.5}
 
         # Inicializar propriedades de interação entre fases
         self.interfacial_tension = {
-            'oil_water': 30.0,  # dynes/cm
-            'oil_gas': 20.0,
-            'water_gas': 50.0
+            "oil_water": 30.0,  # dynes/cm
+            "oil_gas": 20.0,
+            "water_gas": 50.0,
         }
         self.contact_angle = {
-            'oil_water': 30.0,  # graus
-            'oil_gas': 0.0,
-            'water_gas': 0.0
+            "oil_water": 30.0,  # graus
+            "oil_gas": 0.0,
+            "water_gas": 0.0,
         }
         self.capillary_pressure = None
         self.relative_permeability = None
 
         # Inicializar propriedades de empuxo
         self.drive_mechanisms = {
-            'gas_cap': False,
-            'aquifer': False,
-            'solution_gas': False
+            "gas_cap": False,
+            "aquifer": False,
+            "solution_gas": False,
         }
         self.gas_cap_properties = {
-            'initial_pressure': 3000,  # psia
-            'initial_gas_saturation': 0.8,
-            'gas_oil_contact': None,  # profundidade do contato gás-óleo
-            'gas_cap_volume': None    # volume do cap de gás
+            "initial_pressure": 3000,  # psia
+            "initial_gas_saturation": 0.8,
+            "gas_oil_contact": None,  # profundidade do contato gás-óleo
+            "gas_cap_volume": None,  # volume do cap de gás
         }
         self.aquifer_properties = {
-            'type': 'pot',  # pot, fetkovich, carter-tracy
-            'initial_pressure': 3000,  # psia
-            'water_oil_contact': None,  # profundidade do contato água-óleo
-            'aquifer_volume': None,    # volume do aquífero
-            'aquifer_compressibility': 3e-6,  # 1/psi
-            'water_compressibility': 3e-6,    # 1/psi
-            'aquifer_porosity': 0.2,
-            'aquifer_permeability': 100  # md
+            "type": "pot",  # pot, fetkovich, carter-tracy
+            "initial_pressure": 3000,  # psia
+            "water_oil_contact": None,  # profundidade do contato água-óleo
+            "aquifer_volume": None,  # volume do aquífero
+            "aquifer_compressibility": 3e-6,  # 1/psi
+            "water_compressibility": 3e-6,  # 1/psi
+            "aquifer_porosity": 0.2,
+            "aquifer_permeability": 100,  # md
         }
         self.solution_gas_properties = {
-            'initial_gas_oil_ratio': 500,  # scf/STB
-            'bubble_point_pressure': 2500,  # psia
-            'solution_gas_oil_ratio': None  # função de pressão
+            "initial_gas_oil_ratio": 500,  # scf/STB
+            "bubble_point_pressure": 2500,  # psia
+            "solution_gas_oil_ratio": None,  # função de pressão
         }
 
     def set_reservoir_properties(self, porosity, permeability, depth):
@@ -116,7 +113,9 @@ class FlowSimulation:
         """Define composição para simulação composicional."""
         self.composition = composition
 
-    def set_phase_interaction_properties(self, interfacial_tension=None, contact_angle=None):
+    def set_phase_interaction_properties(
+        self, interfacial_tension=None, contact_angle=None
+    ):
         """Define propriedades de interação entre fases."""
         if interfacial_tension:
             self.interfacial_tension.update(interfacial_tension)
@@ -133,17 +132,17 @@ class FlowSimulation:
         pc = {}
 
         # Óleo-Água
-        sw = saturation['water']
+        sw = saturation["water"]
         sw_norm = (sw - 0.2) / (1 - 0.2 - 0.2)  # Normalizar saturação
-        pc['oil_water'] = pce * (sw_norm ** (-1/lambda_bc))
+        pc["oil_water"] = pce * (sw_norm ** (-1 / lambda_bc))
 
         # Óleo-Gás
-        sg = saturation['gas']
+        sg = saturation["gas"]
         sg_norm = (sg - 0.05) / (1 - 0.2 - 0.05)  # Normalizar saturação
-        pc['oil_gas'] = pce * (sg_norm ** (-1/lambda_bc))
+        pc["oil_gas"] = pce * (sg_norm ** (-1 / lambda_bc))
 
         # Água-Gás
-        pc['water_gas'] = pc['oil_water'] + pc['oil_gas']
+        pc["water_gas"] = pc["oil_water"] + pc["oil_gas"]
 
         return pc
 
@@ -161,27 +160,27 @@ class FlowSimulation:
         kr_base = {}
 
         # Água
-        sw = saturation['water']
+        sw = saturation["water"]
         sw_norm = (sw - swc) / (1 - swc - sor)
-        kr_base['water'] = np.where(sw > swc, sw_norm**n_w, 0)
+        kr_base["water"] = np.where(sw > swc, sw_norm**n_w, 0)
 
         # Gás
-        sg = saturation['gas']
+        sg = saturation["gas"]
         sg_norm = (sg - sgc) / (1 - swc - sor - sgc)
-        kr_base['gas'] = np.where(sg > sgc, sg_norm**n_g, 0)
+        kr_base["gas"] = np.where(sg > sgc, sg_norm**n_g, 0)
 
         # Óleo (Stone II)
-        so = saturation['oil']
+        so = saturation["oil"]
         so_norm = (so - sor) / (1 - swc - sor)
-        kr_base['oil'] = np.where(so > sor, so_norm**n_o, 0)
+        kr_base["oil"] = np.where(so > sor, so_norm**n_o, 0)
 
         # Aplicar correção de Stone II
         kr = {}
-        kr['water'] = kr_base['water']
-        kr['gas'] = kr_base['gas']
+        kr["water"] = kr_base["water"]
+        kr["gas"] = kr_base["gas"]
 
         # Correção para óleo
-        kr['oil'] = kr_base['oil'] * (1 - kr_base['water']) * (1 - kr_base['gas'])
+        kr["oil"] = kr_base["oil"] * (1 - kr_base["water"]) * (1 - kr_base["gas"])
 
         return kr
 
@@ -221,9 +220,9 @@ class FlowSimulation:
 
         # Interpolar propriedades
         pvt = {}
-        for prop in ['Bo', 'Bg', 'Bw', 'Rs', 'Rsw', 'muo', 'mug', 'muw']:
+        for prop in ["Bo", "Bg", "Bw", "Rs", "Rsw", "muo", "mug", "muw"]:
             if prop in self.pvt_data.columns:
-                f = interp1d(self.pvt_data['pressure'], self.pvt_data[prop])
+                f = interp1d(self.pvt_data["pressure"], self.pvt_data[prop])
                 pvt[prop] = f(pressure)
 
         return pvt
@@ -241,18 +240,14 @@ class FlowSimulation:
         """Calcula propriedades térmicas."""
         # Calcular condutividade térmica
         k_rock = 1.5  # Btu/ft-dia-°F
-        k_fluid = {
-            'oil': 0.1,
-            'water': 0.3,
-            'gas': 0.05
-        }
+        k_fluid = {"oil": 0.1, "water": 0.3, "gas": 0.05}
 
         # Calcular capacidade térmica
         cp = {
-            'rock': self.rock_heat_capacity * self.rock_density,
-            'oil': self.fluid_heat_capacity['oil'] * 50,  # lb/ft³
-            'water': self.fluid_heat_capacity['water'] * 62.4,
-            'gas': self.fluid_heat_capacity['gas'] * 0.1
+            "rock": self.rock_heat_capacity * self.rock_density,
+            "oil": self.fluid_heat_capacity["oil"] * 50,  # lb/ft³
+            "water": self.fluid_heat_capacity["water"] * 62.4,
+            "gas": self.fluid_heat_capacity["gas"] * 0.1,
         }
 
         return k_rock, k_fluid, cp
@@ -284,21 +279,21 @@ class FlowSimulation:
         if mechanism in self.drive_mechanisms:
             self.drive_mechanisms[mechanism] = True
             if properties:
-                if mechanism == 'gas_cap':
+                if mechanism == "gas_cap":
                     self.gas_cap_properties.update(properties)
-                elif mechanism == 'aquifer':
+                elif mechanism == "aquifer":
                     self.aquifer_properties.update(properties)
-                elif mechanism == 'solution_gas':
+                elif mechanism == "solution_gas":
                     self.solution_gas_properties.update(properties)
 
     def calculate_gas_cap_drive(self, pressure, saturation):
         """Calcula efeito do empuxo por cap de gás."""
-        if not self.drive_mechanisms['gas_cap']:
+        if not self.drive_mechanisms["gas_cap"]:
             return 0
 
         # Calcular pressão no cap de gás
-        goc_depth = self.gas_cap_properties['gas_oil_contact']
-        goc_pressure = self.gas_cap_properties['initial_pressure']
+        goc_depth = self.gas_cap_properties["gas_oil_contact"]
+        goc_pressure = self.gas_cap_properties["initial_pressure"]
 
         # Calcular expansão do gás
         z_initial = self.calculate_z_factor(goc_pressure, self.temperature)
@@ -308,31 +303,32 @@ class FlowSimulation:
         gas_expansion = (z_initial / z_current) * (pressure / goc_pressure)
 
         # Calcular influxo de gás
-        gas_influx = self.gas_cap_properties['gas_cap_volume'] * (gas_expansion - 1)
+        gas_influx = self.gas_cap_properties["gas_cap_volume"] * (gas_expansion - 1)
 
         return gas_influx
 
     def calculate_aquifer_drive(self, pressure, time):
         """Calcula efeito do empuxo por aquífero."""
-        if not self.drive_mechanisms['aquifer']:
+        if not self.drive_mechanisms["aquifer"]:
             return 0
 
-        aquifer_type = self.aquifer_properties['type']
+        aquifer_type = self.aquifer_properties["type"]
 
-        if aquifer_type == 'pot':
+        if aquifer_type == "pot":
             # Modelo de aquífero pot
-            c_t = (self.aquifer_properties['aquifer_compressibility'] +
-                  self.aquifer_properties['water_compressibility'])
-            dp = self.aquifer_properties['initial_pressure'] - pressure
-            water_influx = (self.aquifer_properties['aquifer_volume'] *
-                          c_t * dp)
+            c_t = (
+                self.aquifer_properties["aquifer_compressibility"]
+                + self.aquifer_properties["water_compressibility"]
+            )
+            dp = self.aquifer_properties["initial_pressure"] - pressure
+            water_influx = self.aquifer_properties["aquifer_volume"] * c_t * dp
 
-        elif aquifer_type == 'fetkovich':
+        elif aquifer_type == "fetkovich":
             # Modelo de aquífero de Fetkovich
             # Implementar modelo de Fetkovich
             pass
 
-        elif aquifer_type == 'carter-tracy':
+        elif aquifer_type == "carter-tracy":
             # Modelo de aquífero de Carter-Tracy
             # Implementar modelo de Carter-Tracy
             pass
@@ -341,19 +337,19 @@ class FlowSimulation:
 
     def calculate_solution_gas_drive(self, pressure, saturation):
         """Calcula efeito do empuxo por gás em solução."""
-        if not self.drive_mechanisms['solution_gas']:
+        if not self.drive_mechanisms["solution_gas"]:
             return 0
 
         # Calcular razão gás-óleo em solução
-        if pressure >= self.solution_gas_properties['bubble_point_pressure']:
-            rs = self.solution_gas_properties['initial_gas_oil_ratio']
+        if pressure >= self.solution_gas_properties["bubble_point_pressure"]:
+            rs = self.solution_gas_properties["initial_gas_oil_ratio"]
         else:
             # Interpolar Rs da tabela PVT
-            rs = self.interpolate_pvt_property('Rs', pressure)
+            rs = self.interpolate_pvt_property("Rs", pressure)
 
         # Calcular gás liberado
-        rs_initial = self.solution_gas_properties['initial_gas_oil_ratio']
-        gas_liberated = (rs_initial - rs) * saturation['oil']
+        rs_initial = self.solution_gas_properties["initial_gas_oil_ratio"]
+        gas_liberated = (rs_initial - rs) * saturation["oil"]
 
         return gas_liberated
 
@@ -369,8 +365,7 @@ class FlowSimulation:
             return None
 
         if property_name in self.pvt_data.columns:
-            f = interp1d(self.pvt_data['pressure'],
-                        self.pvt_data[property_name])
+            f = interp1d(self.pvt_data["pressure"], self.pvt_data[property_name])
             return f(pressure)
         return None
 
@@ -383,15 +378,11 @@ class FlowSimulation:
             n_steps (int): Número de passos
         """
         results = {
-            'time': [],
-            'pressure': [],
-            'saturation': {'oil': [], 'water': [], 'gas': []},
-            'production': {'oil': [], 'water': [], 'gas': []},
-            'drive_mechanisms': {
-                'gas_cap': [],
-                'aquifer': [],
-                'solution_gas': []
-            }
+            "time": [],
+            "pressure": [],
+            "saturation": {"oil": [], "water": [], "gas": []},
+            "production": {"oil": [], "water": [], "gas": []},
+            "drive_mechanisms": {"gas_cap": [], "aquifer": [], "solution_gas": []},
         }
 
         for step in range(n_steps):
@@ -416,18 +407,20 @@ class FlowSimulation:
             # Calcular efeitos de empuxo
             gas_cap_drive = self.calculate_gas_cap_drive(self.pressure, self.saturation)
             aquifer_drive = self.calculate_aquifer_drive(self.pressure, current_time)
-            solution_gas_drive = self.calculate_solution_gas_drive(self.pressure, self.saturation)
+            solution_gas_drive = self.calculate_solution_gas_drive(
+                self.pressure, self.saturation
+            )
 
             # Atualizar saturação considerando empuxo
             self.update_phase_saturation(velocity, dt)
 
             # Aplicar efeitos de empuxo
-            if self.drive_mechanisms['gas_cap']:
-                self.saturation['gas'] += gas_cap_drive
-            if self.drive_mechanisms['aquifer']:
-                self.saturation['water'] += aquifer_drive
-            if self.drive_mechanisms['solution_gas']:
-                self.saturation['gas'] += solution_gas_drive
+            if self.drive_mechanisms["gas_cap"]:
+                self.saturation["gas"] += gas_cap_drive
+            if self.drive_mechanisms["aquifer"]:
+                self.saturation["water"] += aquifer_drive
+            if self.drive_mechanisms["solution_gas"]:
+                self.saturation["gas"] += solution_gas_drive
 
             # Normalizar saturações
             total_sat = sum(self.saturation.values())
@@ -438,16 +431,16 @@ class FlowSimulation:
             production = self.calculate_production(kr, pvt)
 
             # Atualizar resultados
-            results['time'].append(current_time)
-            results['pressure'].append(self.pressure.copy())
-            for phase in ['oil', 'water', 'gas']:
-                results['saturation'][phase].append(self.saturation[phase].copy())
-                results['production'][phase].append(production[phase])
+            results["time"].append(current_time)
+            results["pressure"].append(self.pressure.copy())
+            for phase in ["oil", "water", "gas"]:
+                results["saturation"][phase].append(self.saturation[phase].copy())
+                results["production"][phase].append(production[phase])
 
             # Atualizar resultados de empuxo
-            results['drive_mechanisms']['gas_cap'].append(gas_cap_drive)
-            results['drive_mechanisms']['aquifer'].append(aquifer_drive)
-            results['drive_mechanisms']['solution_gas'].append(solution_gas_drive)
+            results["drive_mechanisms"]["gas_cap"].append(gas_cap_drive)
+            results["drive_mechanisms"]["aquifer"].append(aquifer_drive)
+            results["drive_mechanisms"]["solution_gas"].append(solution_gas_drive)
 
         return results
 
@@ -460,12 +453,12 @@ class FlowSimulation:
             n_steps (int): Número de passos
         """
         results = {
-            'time': [],
-            'pressure': [],
-            'temperature': [],
-            'saturation': {'oil': [], 'water': [], 'gas': []},
-            'composition': [],
-            'production': {'oil': [], 'water': [], 'gas': []}
+            "time": [],
+            "pressure": [],
+            "temperature": [],
+            "saturation": {"oil": [], "water": [], "gas": []},
+            "composition": [],
+            "production": {"oil": [], "water": [], "gas": []},
         }
 
         for step in range(n_steps):
@@ -476,10 +469,14 @@ class FlowSimulation:
             kr = self.calculate_relative_permeability(self.saturation)
 
             # Calcular propriedades composicionais
-            pvt = self.calculate_compositional_properties(self.pressure, self.temperature)
+            pvt = self.calculate_compositional_properties(
+                self.pressure, self.temperature
+            )
 
             # Calcular transferência de massa entre fases
-            phase_transfer = self.calculate_phase_transfer(self.pressure, self.temperature, self.composition)
+            phase_transfer = self.calculate_phase_transfer(
+                self.pressure, self.temperature, self.composition
+            )
 
             # Calcular mobilidade
             mobility = self.calculate_phase_mobility(kr, pvt)
@@ -498,14 +495,14 @@ class FlowSimulation:
             production = self.calculate_compositional_production(pvt)
 
             # Atualizar resultados
-            results['time'].append(step * dt)
-            results['pressure'].append(self.pressure.copy())
-            results['temperature'].append(self.temperature.copy())
-            for phase in ['oil', 'water', 'gas']:
-                results['saturation'][phase].append(self.saturation[phase].copy())
-            results['composition'].append(self.composition.copy())
-            for phase in ['oil', 'water', 'gas']:
-                results['production'][phase].append(production[phase])
+            results["time"].append(step * dt)
+            results["pressure"].append(self.pressure.copy())
+            results["temperature"].append(self.temperature.copy())
+            for phase in ["oil", "water", "gas"]:
+                results["saturation"][phase].append(self.saturation[phase].copy())
+            results["composition"].append(self.composition.copy())
+            for phase in ["oil", "water", "gas"]:
+                results["production"][phase].append(production[phase])
 
         return results
 
@@ -518,11 +515,11 @@ class FlowSimulation:
             n_steps (int): Número de passos
         """
         results = {
-            'time': [],
-            'pressure': [],
-            'temperature': [],
-            'saturation': {'oil': [], 'water': [], 'gas': []},
-            'production': {'oil': [], 'water': [], 'gas': []}
+            "time": [],
+            "pressure": [],
+            "temperature": [],
+            "saturation": {"oil": [], "water": [], "gas": []},
+            "production": {"oil": [], "water": [], "gas": []},
         }
 
         for step in range(n_steps):
@@ -533,7 +530,9 @@ class FlowSimulation:
             kr = self.calculate_relative_permeability(self.saturation)
 
             # Calcular propriedades térmicas
-            k_rock, k_fluid, cp = self.calculate_thermal_properties(self.pressure, self.temperature)
+            k_rock, k_fluid, cp = self.calculate_thermal_properties(
+                self.pressure, self.temperature
+            )
 
             # Calcular propriedades PVT
             pvt = self.calculate_pvt_properties(self.pressure, self.temperature)
@@ -555,12 +554,12 @@ class FlowSimulation:
             production = self.calculate_thermal_production(pvt)
 
             # Atualizar resultados
-            results['time'].append(step * dt)
-            results['pressure'].append(self.pressure.copy())
-            results['temperature'].append(self.temperature.copy())
-            for phase in ['oil', 'water', 'gas']:
-                results['saturation'][phase].append(self.saturation[phase].copy())
-                results['production'][phase].append(production[phase])
+            results["time"].append(step * dt)
+            results["pressure"].append(self.pressure.copy())
+            results["temperature"].append(self.temperature.copy())
+            for phase in ["oil", "water", "gas"]:
+                results["saturation"][phase].append(self.saturation[phase].copy())
+                results["production"][phase].append(production[phase])
 
         return results
 
@@ -569,46 +568,49 @@ class FlowSimulation:
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
 
         # Pressão
-        axes[0,0].plot(results['time'], [np.mean(p) for p in results['pressure']])
-        axes[0,0].set_title('Pressão Média')
-        axes[0,0].set_xlabel('Tempo')
-        axes[0,0].set_ylabel('Pressão (psia)')
+        axes[0, 0].plot(results["time"], [np.mean(p) for p in results["pressure"]])
+        axes[0, 0].set_title("Pressão Média")
+        axes[0, 0].set_xlabel("Tempo")
+        axes[0, 0].set_ylabel("Pressão (psia)")
 
         # Saturação
-        for phase in ['oil', 'water', 'gas']:
-            axes[0,1].plot(results['time'],
-                          [np.mean(s) for s in results['saturation'][phase]],
-                          label=phase)
-        axes[0,1].set_title('Saturação Média')
-        axes[0,1].set_xlabel('Tempo')
-        axes[0,1].set_ylabel('Saturação')
-        axes[0,1].legend()
+        for phase in ["oil", "water", "gas"]:
+            axes[0, 1].plot(
+                results["time"],
+                [np.mean(s) for s in results["saturation"][phase]],
+                label=phase,
+            )
+        axes[0, 1].set_title("Saturação Média")
+        axes[0, 1].set_xlabel("Tempo")
+        axes[0, 1].set_ylabel("Saturação")
+        axes[0, 1].legend()
 
         # Produção
-        for phase in ['oil', 'water', 'gas']:
-            axes[1,0].plot(results['time'], results['production'][phase],
-                          label=phase)
-        axes[1,0].set_title('Produção')
-        axes[1,0].set_xlabel('Tempo')
-        axes[1,0].set_ylabel('Taxa de Produção')
-        axes[1,0].legend()
+        for phase in ["oil", "water", "gas"]:
+            axes[1, 0].plot(results["time"], results["production"][phase], label=phase)
+        axes[1, 0].set_title("Produção")
+        axes[1, 0].set_xlabel("Tempo")
+        axes[1, 0].set_ylabel("Taxa de Produção")
+        axes[1, 0].legend()
 
         # Mecanismos de Empuxo
-        for mechanism in ['gas_cap', 'aquifer', 'solution_gas']:
+        for mechanism in ["gas_cap", "aquifer", "solution_gas"]:
             if self.drive_mechanisms[mechanism]:
-                axes[1,1].plot(results['time'],
-                             results['drive_mechanisms'][mechanism],
-                             label=mechanism)
-        axes[1,1].set_title('Mecanismos de Empuxo')
-        axes[1,1].set_xlabel('Tempo')
-        axes[1,1].set_ylabel('Contribuição')
-        axes[1,1].legend()
+                axes[1, 1].plot(
+                    results["time"],
+                    results["drive_mechanisms"][mechanism],
+                    label=mechanism,
+                )
+        axes[1, 1].set_title("Mecanismos de Empuxo")
+        axes[1, 1].set_xlabel("Tempo")
+        axes[1, 1].set_ylabel("Contribuição")
+        axes[1, 1].legend()
 
         # Distribuição de pressão
         grid = self.mesh.to_pyvista()
-        grid.cell_data['pressure'] = results['pressure'][-1]
+        grid.cell_data["pressure"] = results["pressure"][-1]
         plotter = pv.Plotter()
-        plotter.add_mesh(grid, scalars='pressure', show_edges=True)
+        plotter.add_mesh(grid, scalars="pressure", show_edges=True)
         plotter.show()
 
         plt.tight_layout()

@@ -1,8 +1,7 @@
-import os
-from pathlib import Path # Ensure Path is imported
+from pathlib import Path  # Ensure Path is imported
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-import logging # Use standard logging
+from sqlalchemy.orm import sessionmaker
+import logging  # Use standard logging
 
 # Imports from local packages (assuming backend/ is in PYTHONPATH)
 from config import settings
@@ -24,6 +23,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base for declarative models is in gaia_genesis.core.database_models
 # It's not directly used here but good to note.
 
+
 def initialize_database_schema():
     """
     Initializes the database schema using Alembic.
@@ -40,7 +40,10 @@ def initialize_database_schema():
         alembic_ini_path = Path(__file__).resolve().parent / "alembic.ini"
 
         if not alembic_ini_path.exists():
-            logger.error(f"Alembic config file not found at {alembic_ini_path}. Cannot run migrations.")
+            logger.error(
+                f"Alembic config file not found at {alembic_ini_path}. "
+                "Cannot run migrations."
+            )
             # Potentially raise an error or exit if migrations are critical for startup
             return
 
@@ -48,12 +51,13 @@ def initialize_database_schema():
         alembic_cfg = Config(str(alembic_ini_path))
 
         # Override sqlalchemy.url from alembic.ini with the one from our settings,
-        # ensuring it's correctly resolved (especially for SQLite absolute paths from env.py logic)
-        # The get_db_url() in env.py should handle this, but explicitly setting it here
-        # for the Config object ensures this script uses the right DB if used standalone.
-        # However, `command.upgrade` using this `alembic_cfg` will trigger `env.py` which
-        # itself calls `get_db_url()`. So, this explicit set_main_option here might be redundant
-        # if env.py is robust, but doesn't hurt.
+        # ensuring it's correctly resolved (especially for SQLite absolute paths from
+        # env.py logic). The get_db_url() in env.py should handle this, but
+        # explicitly setting it here for the Config object ensures this script uses
+        # the right DB if used standalone. However, `command.upgrade` using this
+        # `alembic_cfg` will trigger `env.py` which itself calls `get_db_url()`.
+        # So, this explicit set_main_option here might be redundant if env.py is
+        # robust, but doesn't hurt.
         alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
 
         logger.info("Applying Alembic migrations to 'head'...")
@@ -63,7 +67,11 @@ def initialize_database_schema():
     except ImportError:
         logger.error("Alembic is not installed or not found. Cannot run migrations.")
     except Exception as e:
-        logger.error(f"An error occurred during database schema initialization: {e}", exc_info=True)
+        logger.error(
+            f"An error occurred during database schema initialization: {e}",
+            exc_info=True,
+        )
+
 
 # Dependency for FastAPI to get database session
 def get_db():
@@ -73,12 +81,14 @@ def get_db():
     finally:
         db.close()
 
+
 # Example of how this might be called at startup in main.py:
 # from .database import initialize_database_schema
 # initialize_database_schema()
-# However, the refined `backend/gaia_genesis_new/config.py` already ensures DB path and dir.
-# The `run_migrations()` in the previous version of `database.py` (if that's what you mean)
-# is now better handled by `initialize_database_schema` being explicitly called at startup.
+# However, the refined `backend/gaia_genesis_new/config.py` already ensures DB path
+# and dir. The `run_migrations()` in the previous version of `database.py` (if that's
+# what you mean) is now better handled by `initialize_database_schema` being
+# explicitly called at startup.
 
 # For the purpose of this file, its main roles are:
 # 1. Set up `engine` and `SessionLocal` based on `settings`.
@@ -92,5 +102,3 @@ def get_db():
 # The previous `initialize_database()` that was run on import is now effectively
 # replaced by the logic in `settings = Settings()` for path creation, and this
 # `initialize_database_schema()` for running migrations.
-
-from pathlib import Path # Ensure Path is imported if used above. This was missing.

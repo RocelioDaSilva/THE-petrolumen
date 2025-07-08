@@ -10,40 +10,46 @@ from fastapi import status
 # - `test_user_password`, `test_admin_password`: For login attempts.
 # - `clear_users_table`: Ensures clean state for user creation/login tests.
 
+
 # --- Test Authentication Flow (/api/v1/auth/token) ---
-def test_login_for_access_token_success(client: TestClient, test_user, test_user_password, clear_users_table):
+def test_login_for_access_token_success(
+    client: TestClient, test_user, test_user_password, clear_users_table
+):
     """Test successful login and token retrieval."""
     # test_user fixture (which uses test_auth_manager) creates the user in the test DB.
-    login_data = {
-        "username": test_user["username"],
-        "password": test_user_password
-    }
+    login_data = {"username": test_user["username"], "password": test_user_password}
     response = client.post("/api/v1/auth/token", data=login_data)
     assert response.status_code == status.HTTP_200_OK
     token_data = response.json()
     assert "access_token" in token_data
     assert token_data["token_type"] == "bearer"
 
-def test_login_for_access_token_wrong_password(client: TestClient, test_user, clear_users_table):
+
+def test_login_for_access_token_wrong_password(
+    client: TestClient, test_user, clear_users_table
+):
     """Test login with wrong password."""
     login_data = {
         "username": test_user["username"],
-        "password": "thisIsTheWrongPassword"
+        "password": "thisIsTheWrongPassword",
     }
     response = client.post("/api/v1/auth/token", data=login_data)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Incorrect username or password"
 
-def test_login_for_access_token_non_existent_user(client: TestClient, clear_users_table):
+
+def test_login_for_access_token_non_existent_user(
+    client: TestClient, clear_users_table
+):
     """Test login for a user that does not exist."""
-    login_data = {
-        "username": "nosuchuser@example.com",
-        "password": "anypassword"
-    }
+    login_data = {"username": "nosuchuser@example.com", "password": "anypassword"}
     response = client.post("/api/v1/auth/token", data=login_data)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-def test_login_for_access_token_inactive_user(client: TestClient, test_auth_manager, test_user_password, clear_users_table):
+
+def test_login_for_access_token_inactive_user(
+    client: TestClient, test_auth_manager, test_user_password, clear_users_table
+):
     """Test login for an inactive user."""
     inactive_username = "inactive_login@example.com"
     # Create an inactive user directly using auth_manager for this specific test case
@@ -51,17 +57,17 @@ def test_login_for_access_token_inactive_user(client: TestClient, test_auth_mana
         username=inactive_username,
         email=inactive_username,
         password=test_user_password,
-        is_active=False
+        is_active=False,
     )
-    login_data = {
-        "username": inactive_username,
-        "password": test_user_password
-    }
+    login_data = {"username": inactive_username, "password": test_user_password}
     response = client.post("/api/v1/auth/token", data=login_data)
     # The authenticate_user method in AuthManager should return None for inactive users,
     # leading to a 401 from the /token endpoint.
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["detail"] == "Incorrect username or password" # Or a more specific "User is inactive" if authenticate_user provides that distinction to the endpoint
+    assert (
+        response.json()["detail"] == "Incorrect username or password"
+    )  # Or a more specific "User is inactive" if authenticate_user provides that distinction to the endpoint
+
 
 # --- Test /api/v1/users/me ---
 def test_read_users_me_success(client: TestClient, user_auth_headers, test_user):
@@ -76,23 +82,32 @@ def test_read_users_me_success(client: TestClient, user_auth_headers, test_user)
     assert "password" not in user_me_data
     assert "hashed_password" not in user_me_data
 
+
 def test_read_users_me_unauthenticated(client: TestClient):
     """Test fetching /users/me without authentication."""
     response = client.get("/api/v1/users/me")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Not authenticated"
 
-def test_read_users_me_inactive_user_with_valid_token(client: TestClient, test_auth_manager, test_user_password): # SENSITIVE_VALUE_DO_NOT_LOG (test_user_password)
+
+def test_read_users_me_inactive_user_with_valid_token(
+    client: TestClient, test_auth_manager, test_user_password
+):  # SENSITIVE_VALUE_DO_NOT_LOG (test_user_password)
     """
     Test /users/me with a valid token for a user who has since been made inactive.
     get_current_active_user dependency should catch this.
     """
     username = "now_inactive@example.com"
-    user = test_auth_manager.create_user(username, username, test_user_password, is_active=True)
+    user = test_auth_manager.create_user(
+        username, username, test_user_password, is_active=True
+    )
     assert user is not None
 
     # Get a token while user is active
-    token_response = client.post("/api/v1/auth/token", data={"username": username, "password": test_user_password})
+    token_response = client.post(
+        "/api/v1/auth/token",
+        data={"username": username, "password": test_user_password},
+    )
     assert token_response.status_code == status.HTTP_200_OK
     active_token = token_response.json()["access_token"]
 
@@ -100,7 +115,9 @@ def test_read_users_me_inactive_user_with_valid_token(client: TestClient, test_a
     test_auth_manager.update_user_details(username, {"is_active": False})
 
     # Attempt to use the token
-    response = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {active_token}"})
+    response = client.get(
+        "/api/v1/users/me", headers={"Authorization": f"Bearer {active_token}"}
+    )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     # Based on current AuthManager.get_current_user_from_token and main.get_current_active_user,
     # an inactive user found via token should raise HTTP 400 "Inactive user" from get_current_user_from_token,
@@ -115,7 +132,10 @@ def test_read_users_me_inactive_user_with_valid_token(client: TestClient, test_a
     # Let's verify this behavior.
     # The `get_current_active_user` itself doesn't have a separate "disabled" check anymore,
     # as `auth_manager.get_current_user_from_token` handles the `is_active` check.
-    assert response.json()["detail"] == "Inactive user" # This comes from AuthManager through the dependency
+    assert (
+        response.json()["detail"] == "Inactive user"
+    )  # This comes from AuthManager through the dependency
+
 
 # This module covers endpoints that require valid authentication but are not admin-specific.
 # - /api/v1/auth/token: Tested for success, wrong password, non-existent user, inactive user.
