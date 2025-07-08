@@ -47,7 +47,7 @@ import numpy as np  # Added import
 load_dotenv()
 
 from config import settings  # Import the settings instance
-from gaia_genesis.core.data_uploader import DataUploader # E402: Moved here
+from gaia_genesis.core.data_uploader import DataUploader  # E402: Moved here
 
 
 # Setup logging using LOG_LEVEL from settings
@@ -71,20 +71,23 @@ app = FastAPI(
 # Warnings for default keys can be handled by checking settings.SECRET_KEY against
 # a known insecure default, or by simply ensuring a strong default in config.py and
 # requiring .env override for production.
-if (
-    settings.SECRET_KEY
-    == "a_very_secret_key_that_must_be_changed_in_production_and_is_very_long_and_random_123!@#"
-):  # Check against the default in config.py
+# Check if the SECRET_KEY is the default placeholder from config.py
+# This ensures the warning is accurate and tied to the actual default value.
+DEFAULT_PLACEHOLDER_SECRET_KEY = "!!!DEFAULT_PLACEHOLDER_SECRET_KEY_CHANGE_ME!!!"
+if settings.SECRET_KEY == DEFAULT_PLACEHOLDER_SECRET_KEY:
     logger.warning(
-        "SECURITY WARNING: Using default JWT SECRET_KEY. Set a strong SECRET_KEY "
-        "in your .env file or environment for production."
+        "SECURITY WARNING: Using default placeholder JWT SECRET_KEY. "
+        "This is INSECURE and MUST be changed for production. "
+        "Set a strong, random SECRET_KEY in your .env file or environment variables."
     )
-if (
-    settings.DATABASE_URL == "sqlite:///./default_app_data.db"
-):  # Check against the default in config.py
+
+# Check for default database URL (this warning is less critical but good for awareness)
+DEFAULT_DATABASE_URL = "sqlite:///./default_app_data.db" # As defined in config.py
+if settings.DATABASE_URL == DEFAULT_DATABASE_URL:
     logger.info(
         f"Using default DATABASE_URL: {settings.DATABASE_URL}. "
-        "Configure DATABASE_URL for other databases."
+        "For production, configure a robust database (e.g., PostgreSQL) via .env "
+        "or environment variables."
     )
 
 

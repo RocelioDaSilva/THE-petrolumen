@@ -263,9 +263,9 @@ class ThermalModel:
 
         for i in range(self.n_cells):
             porosity = porosity_arr[i]
-            effective_heat_capacity[i] = (1 - porosity) * self.rock_density[
-                i
-            ] * self.rock_heat_capacity[i]
+            effective_heat_capacity[i] = (
+                (1 - porosity) * self.rock_density[i] * self.rock_heat_capacity[i]
+            )
             for phase in ["oil", "water", "gas"]:
                 if phase in saturation and i < len(saturation[phase]):  # Check bounds
                     phase_density = 50.0  # Placeholder

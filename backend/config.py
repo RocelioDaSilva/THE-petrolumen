@@ -13,10 +13,10 @@ class Settings(BaseSettings):
     # ASYNC_DATABASE_URL: Optional[str] = None
 
     # --- Security / JWT Settings ---
-    # Changed in production and must be long
-    SECRET_KEY: str = (
-        "a_very_secret_key_that_must_be_changed_in_production_and_is_long"
-    )
+    # IMPORTANT: This is a default placeholder and MUST be changed in production.
+    # Generate a strong, random key and set it via .env file or environment variable.
+    # Example: openssl rand -hex 32
+    SECRET_KEY: str = "!!!DEFAULT_PLACEHOLDER_SECRET_KEY_CHANGE_ME!!!"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_ALGORITHM: str = "HS256"
 
