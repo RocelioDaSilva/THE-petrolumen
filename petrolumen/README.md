@@ -347,7 +347,7 @@ simulator.add_well(
 )
 
 simulator.add_well(
-    name="INJ-01", 
+    name="INJ-01",
     trajectory=[(15, 12, 0), (15, 12, 8)]
 )
 simulator.convert_well_type("INJ-01", "injector")
@@ -423,4 +423,4 @@ A documentação completa está disponível em [docs/](docs/).
 
 ## Licença
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes. 
+Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.

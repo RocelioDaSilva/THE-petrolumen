@@ -1,14 +1,17 @@
 import numpy as np
 import pandas as pd
+
 # from scipy.optimize import differential_evolution, minimize # Unused
 # from sklearn.metrics import mean_squared_error # Unused
 import matplotlib.pyplot as plt
+
 # import seaborn as sns # Unused
-from typing import Dict # List, Tuple, Optional are unused
+from typing import Dict  # List, Tuple, Optional are unused
 from SALib.sample import saltelli
 from SALib.analyze import sobol
+
 # import streamlit as st # Unused
-import json # For export_results
+import json  # For export_results
 
 
 class UncertaintyAnalysis:
@@ -269,9 +272,7 @@ class UncertaintyAnalysis:
             for k, v in self.sensitivity_results.items():
                 export_data[f"sensitivity_{k}_values"] = v.get("values", [])
                 export_data[f"sensitivity_{k}_errors"] = v.get("errors", [])
-                export_data[f"sensitivity_{k}_sensitivity"] = v.get(
-                    "sensitivity", None
-                )
+                export_data[f"sensitivity_{k}_sensitivity"] = v.get("sensitivity", None)
 
         if self.optimization_results:
             export_data["optimization_runs"] = [

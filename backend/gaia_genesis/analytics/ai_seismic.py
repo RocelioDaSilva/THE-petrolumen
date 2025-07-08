@@ -1,7 +1,7 @@
 import numpy as np
-import pandas as pd # Added import for pandas
+import pandas as pd  # Added import for pandas
 import tensorflow as tf
-from typing import Dict, List, Optional # Removed Tuple
+from typing import Dict, List, Optional  # Removed Tuple
 import segyio
 from sklearn.preprocessing import StandardScaler
 from scipy.signal import hilbert

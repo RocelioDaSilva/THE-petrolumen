@@ -12,12 +12,18 @@ if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
 # Corrected imports for database components
-from gaia_genesis.core.database_models import Base, User as DBUser # noqa: E402
-from gaia_genesis.core.database_manager import DatabaseManager # noqa: E402
-from main import app, db_manager as main_db_manager, auth_manager as main_auth_manager # noqa: E402
+from gaia_genesis.core.database_models import Base, User as DBUser  # noqa: E402
+from gaia_genesis.core.database_manager import DatabaseManager  # noqa: E402
+from main import (
+    app,
+    db_manager as main_db_manager,
+    auth_manager as main_auth_manager,
+)  # noqa: E402
 
 # Assuming AuthManager should be imported from core if it's related to the new DB structure
-from gaia_genesis.core.auth_manager import AuthManager as CoreAuthManager # noqa: E402; Renamed to avoid conflict if main.auth_manager is different
+from gaia_genesis.core.auth_manager import (
+    AuthManager as CoreAuthManager,
+)  # noqa: E402; Renamed to avoid conflict if main.auth_manager is different
 
 
 # --- Test Database Fixture ---

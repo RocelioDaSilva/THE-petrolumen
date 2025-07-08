@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Any # Union removed
+from typing import Dict, List, Tuple, Optional, Any  # Union removed
 import matplotlib.pyplot as plt
+
 # import seaborn as sns # Unused
 from datetime import datetime
 import os
@@ -9,13 +10,16 @@ import json
 import yaml
 from pathlib import Path
 import logging
+
 # from watchdog.observers import Observer # F811: redefinition of unused 'Observer'
-from watchdog.events import FileSystemEventHandler # F401: imported but unused
+from watchdog.events import FileSystemEventHandler  # F401: imported but unused
 import schedule
+
 # import time # Unused
 from pptx import Presentation
-from pptx.util import Inches # Pt unused
+from pptx.util import Inches  # Pt unused
 from docx import Document
+
 # from docx.shared import Inches as DocxInches # Unused
 # from docx.enum.text import WD_ALIGN_PARAGRAPH # Unused
 # import jinja2 # F811: redefinition of unused 'jinja2'
@@ -462,7 +466,7 @@ class WorkflowAutomation:
                             on_new_file_callback(event.src_path)
                             break  # Process once per event
 
-        _LocalMonitorHandler.logger_instance_ref = self.logger # Pass logger to handler
+        _LocalMonitorHandler.logger_instance_ref = self.logger  # Pass logger to handler
 
         # Ensure watchdog is available
         try:

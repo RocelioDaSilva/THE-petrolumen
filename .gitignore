@@ -54,3 +54,7 @@ var/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Frontend build/generated artifacts
+petrolumen/out/
+petrolumen/src-tauri/gen/

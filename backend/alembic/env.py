@@ -31,12 +31,12 @@ try:
 except ImportError as e:
     sys.stderr.write(f"Error importing application modules in env.py: {e}\n")
     # Adding more debug info
-        # import sys # sys is already imported at the top
+    # import sys # sys is already imported at the top
 
     sys.stderr.write(f"Current sys.path: {sys.path}\n")
     sys.stderr.write(
-            "Ensure backend modules are in PYTHONPATH or alembic is run from "
-            "project root.\n"
+        "Ensure backend modules are in PYTHONPATH or alembic is run from "
+        "project root.\n"
     )
     sys.exit(1)
 

@@ -1,4 +1,11 @@
 [flake8]
 max-line-length = 88
-ignore = E203, W503
+# E203: whitespace before ':' (often handled by Black)
+# W503: line break before binary operator (Black prefers after)
+# E501: line too long (Black handles line length; set to a higher value if necessary or ignore if Black manages it)
+ignore = E203, W503, E501
 max-complexity = 12
+# extend-exclude = alembic/versions/ # Optionally exclude generated migration files
+# per-file-ignores =
+#     __init__.py:F401
+#     tests/*:F401,F841
