@@ -108,3 +108,48 @@ pytest
 ```
 You can also generate a coverage report if `pytest-cov` is installed:
 `pytest --cov=gaia_genesis --cov-report=html` (from `backend/` directory)
+
+## API Versioning
+
+The PetroLúmen backend API employs a path-based versioning strategy. Current stable API endpoints are located under the `/api/v1/` path prefix.
+
+### Current Version: v1
+All endpoints for the first stable version of the API are grouped under `/api/v1/`. For example, `http://localhost:8000/api/v1/users` or `http://localhost:8000/api/v1/wells`.
+
+### Introducing Future API Versions (e.g., v2)
+When introducing breaking changes to the API, a new version should be introduced by incrementing the version number in the URL path. For example, a new version (v2) would have its endpoints under `/api/v2/`.
+
+**Key Principles for New Versions:**
+
+1.  **Clear Path:** New versions must use a distinct path prefix (e.g., `/api/v2/`, `/api/v3/`).
+2.  **Coexistence:** Older versions of the API (e.g., `/api/v1/`) should be maintained for a reasonable period alongside newer versions to allow clients to migrate gradually.
+3.  **Breaking Changes:** Only introduce new API versions for changes that are not backward-compatible. For backward-compatible changes (e.g., adding new optional fields to a response, adding new endpoints), these can typically be incorporated into the existing latest stable API version.
+4.  **Documentation:** Each API version must be clearly documented (e.g., via Swagger/OpenAPI docs specific to that version, or clearly delineated sections).
+5.  **Deprecation Strategy:**
+    *   When a new API version (e.g., v2) supersedes an older one (e.g., v1), a clear deprecation timeline for the old version should be communicated to API consumers.
+    *   This includes announcing the deprecation, setting a sunset date (when the old version will be turned off), and providing migration guides.
+    *   Consider using a custom `X-API-Version-Deprecated` header or similar in responses from deprecated API versions to warn clients.
+6.  **Code Organization:** In the backend codebase, new API versions should ideally be organized in separate modules or packages (e.g., `gaia_genesis/api_v2/`) to maintain clarity and separation from older versions.
+
+This approach ensures that clients can rely on a stable API version while allowing for future evolution and improvements.
+
+## Building Documentation (Sphinx)
+
+The backend documentation is built using Sphinx. The Sphinx configuration is located in `backend/docs_sphinx/`.
+
+**Prerequisites:**
+*   Ensure you have activated your Python virtual environment for the backend (`source venv/bin/activate` or `venv\Scripts\activate`).
+*   All dependencies from `requirements.txt` must be installed (`pip install -r requirements.txt`), which includes Sphinx and the theme.
+
+**To build the HTML documentation:**
+1.  Navigate to the Sphinx documentation directory:
+    ```bash
+    cd docs_sphinx
+    ```
+2.  Run the make command to build the HTML version:
+    ```bash
+    make html
+    ```
+3.  The generated HTML documentation will be available in `backend/docs_sphinx/_build/html/`. You can open `index.html` in that directory in a web browser to view the docs.
+
+The build output directory (`_build/`) is ignored by Git.

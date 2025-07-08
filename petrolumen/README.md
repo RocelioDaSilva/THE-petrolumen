@@ -424,3 +424,43 @@ A documentação completa está disponível em [docs/](docs/).
 ## Licença
 
 Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+---
+
+## Component Documentation
+
+To ensure clarity and maintainability of our frontend components, please follow these documentation practices:
+
+### JSDoc/TSDoc Comments
+
+*   All React components, especially those in `components/ui/` and shared components within `app/components/`, should have JSDoc/TSDoc comment blocks.
+*   The comment block should provide a clear description of the component's purpose and general usage.
+*   For components that accept props, their `Props` interface/type should be clearly defined. If not immediately obvious, complex or important props can be described using TSDoc annotations within the interface. Example:
+    ```typescript
+    export interface MyComponentProps {
+      /** The title to display in the component. */
+      title: string;
+      /** Optional callback function for when the component is clicked. */
+      onClick?: () => void;
+      variant: "primary" | "secondary";
+    }
+
+    /**
+     * MyComponent is a versatile component that displays a title and can be clicked.
+     * It supports primary and secondary visual variants.
+     */
+    const MyComponent: React.FC<MyComponentProps> = ({ title, onClick, variant }) => {
+      // ... component logic
+    };
+    ```
+*   See `petrolumen/components/ui/button.tsx` and `petrolumen/components/ui/card.tsx` for examples.
+
+### Storybook (Future Enhancement)
+
+While not yet implemented, we plan to integrate [Storybook](https://storybook.js.org/) for developing and showcasing UI components in isolation. This will provide an interactive component library, making it easier to visualize different component states and props.
+
+**Guidelines for Storybook (when implemented):**
+*   Each UI component in `components/ui/` should have a corresponding Storybook story.
+*   Stories should demonstrate various states and prop combinations of the component.
+
+By consistently documenting our components, we can improve collaboration, ease onboarding for new developers, and make the codebase more understandable.
