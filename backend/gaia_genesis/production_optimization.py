@@ -1,11 +1,14 @@
 import numpy as np
 import pandas as pd
-from scipy.optimize import differential_evolution, minimize
-from sklearn.metrics import mean_squared_error
+from scipy.optimize import differential_evolution  # Removed minimize
+
+# from sklearn.metrics import mean_squared_error # Unused, r2_score was not imported
 import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import Dict, List, Tuple, Optional
-import streamlit as st
+
+# import seaborn as sns # Unused
+from typing import Dict, List, Optional  # Removed Tuple, Callable was not imported
+
+# import streamlit as st # Unused
 
 
 class ProductionOptimization:
@@ -111,7 +114,7 @@ class ProductionOptimization:
             # Calcular métricas
             metrics = self._calculate_scenario_metrics(forecast)
 
-            results[f"scenario_{i+1}"] = {"forecast": forecast, "metrics": metrics}
+            results[f"scenario_{i +1}"] = {"forecast": forecast, "metrics": metrics}
 
         self.scenario_results = results
         return results

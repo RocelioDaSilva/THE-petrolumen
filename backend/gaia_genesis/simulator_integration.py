@@ -7,7 +7,7 @@ thermal modeling, compositional modeling, and advanced well management.
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Union, Any
+from typing import Dict, Tuple  # Removed List, Optional, Union, Any
 import time
 import logging
 from pathlib import Path
@@ -81,9 +81,9 @@ class SimulatorIntegration:
 
         # Initialize specialized modules based on simulation type
         if hasattr(self.simulator, "simulation_type"):
-            from .commercial_simulator import (
-                SimulationType,
-            )  # Assuming SimulationType is an Enum in commercial_simulator
+            # from .commercial_simulator import ( # SimulationType F401 unused
+            #     SimulationType,
+            # )  # Assuming SimulationType is an Enum in commercial_simulator
 
             # This part needs careful handling if SimulationType is not directly accessible
             # or if self.simulator.simulation_type is a string.
@@ -272,7 +272,7 @@ class SimulatorIntegration:
 
         for step in range(timesteps):
             self.logger.info(
-                f"Timestep {step+1}/{timesteps}, simulation time: {current_time:.2f} days"
+                f"Timestep {step +1}/{timesteps}, simulation time: {current_time:.2f} days"
             )
 
             # Run basic flow simulation

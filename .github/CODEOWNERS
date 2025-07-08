@@ -1,0 +1,6 @@
+# This file designates code owners for different parts of the repository.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# For now, assign all files to a general placeholder.
+# Replace with specific teams or usernames as needed.
+* @everyone

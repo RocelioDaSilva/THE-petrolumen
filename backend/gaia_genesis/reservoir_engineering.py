@@ -1,17 +1,20 @@
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
+
+# import pandas as pd # Unused
+from typing import Dict, Tuple, Optional  # Removed List, Union, Any
 import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.stats import norm
-from scipy.optimize import minimize
-from scipy.interpolate import interp1d
+
+# import seaborn as sns # Unused
+# from scipy.stats import norm # Unused
+from scipy.optimize import minimize  # minimize is used
+
+# from scipy.interpolate import interp1d # Unused
 
 # import streamlit as st # Unused import, causing ModuleNotFoundError if not installed
-from datetime import datetime
+import datetime  # noqa: F401 # Used as module, but flake8 flags it.
 import logging
-from dataclasses import dataclass
-from enum import Enum
+from dataclasses import dataclass  # noqa: F401 # Used by @dataclass
+from enum import Enum  # noqa: F401 # Used by ReserveCategory
 
 
 class PVTProperties:
@@ -404,85 +407,21 @@ class PVTProperties:
         return z
 
 
-# class ReservoirSimulation: # REMOVED - Incomplete and superseded
-#     """Classe para simulação numérica de reservatórios."""
-#
-#     def __init__(self, nx: int, ny: int, nz: int):
-#         """
-#         Inicializa o simulador.
-#
-#         Args:
-#             nx: Número de blocos em x
-#             ny: Número de blocos em y
-#             nz: Número de blocos em z
-#         """
-#         self.nx = nx
-#         self.ny = ny
-#         self.nz = nz
-#         self.grid = self._initialize_grid()
-#         self.wells = {}
-#         self.pvt = PVTProperties()
-#
-#     def _initialize_grid(self) -> Dict:
-#         """Inicializa a malha do reservatório."""
-#         return {
-#             'porosity': np.ones((self.nx, self.ny, self.nz)) * 0.2,
-#             'permeability': np.ones((self.nx, self.ny, self.nz)) * 100,
-#             'pressure': np.ones((self.nx, self.ny, self.nz)) * 3000,
-#             'saturation': np.ones((self.nx, self.ny, self.nz)) * 0.8
-#         }
-#
-#     def add_well(self,
-#                 name: str,
-#                 i: int,
-#                 j: int,
-#                 k: int,
-#                 well_type: str,
-#                 rate: float = None,
-#                 bhp: float = None):
-#         """
-#         Adiciona um poço ao modelo.
-#
-#         Args:
-#             name: Nome do poço
-#             i, j, k: Índices do bloco
-#             well_type: Tipo do poço ('producer' ou 'injector')
-#             rate: Vazão (opcional)
-#             bhp: Pressão de fundo de poço (opcional)
-#         """
-#         self.wells[name] = {
-#             'position': (i, j, k),
-#             'type': well_type,
-#             'rate': rate,
-#             'bhp': bhp
-#         }
-#
-#     def run_simulation(self,
-#                       timesteps: int,
-#                       dt: float,
-#                       simulation_type: str = 'transient'):
-#         """
-#         Executa a simulação.
-#
-#         Args:
-#             timesteps: Número de passos de tempo
-#             dt: Tamanho do passo de tempo
-#             simulation_type: Tipo de simulação ('steady_state' ou 'transient')
-#         """
-#         if simulation_type == 'steady_state':
-#             self._run_steady_state()
-#         else:
-#             self._run_transient(timesteps, dt)
-#
-#     def _run_steady_state(self):
-#         """Executa simulação em estado estacionário."""
-#         # Implementar solver para estado estacionário
-#         pass
-#
-#     def _run_transient(self, timesteps: int, dt: float):
-#         """Executa simulação transiente."""
-#         # Implementar solver para estado transiente
-#         pass
+class ReserveCategory(Enum):  # noqa: F401
+    PROVED = "P1"
+    PROBABLE = "P2"
+    POSSIBLE = "P3"
+
+
+@dataclass  # noqa: F401
+class ReservesEstimate:
+    category: ReserveCategory
+    oil_volume: float  # em bbl
+    gas_volume: float  # em mscf
+    confidence_level: float  # probabilidade de sucesso
+    recovery_factor: float
+    net_present_value: float
+    date: datetime.datetime  # Changed to datetime.datetime
 
 
 class MaterialBalance:

@@ -10,7 +10,7 @@ This module provides advanced simulation capabilities including:
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict  # Removed List, Tuple, Optional, Union
 
 # from scipy.sparse import diags, csr_matrix # Not used currently
 # from scipy.sparse.linalg import spsolve # Not used currently
@@ -129,15 +129,17 @@ class AdvancedSimulation:
         sigma = self.fracture_props.get("shape_factor", 12.0)
 
         # Transfer coefficients
-        transfer = {}
+        calculated_transfer = (
+            {}
+        )  # Renamed to avoid confusion if 'transfer' was intended for something else
         for phase in ["oil", "water", "gas"]:
             if phase in self.flow_sim.saturation and phase in self.matrix["saturation"]:
                 # Simplified transfer function
-                transfer[phase] = sigma * (
+                calculated_transfer[phase] = sigma * (  # Storing in new dict
                     self.matrix["saturation"][phase] - self.flow_sim.saturation[phase]
                 )
 
-        return transfer
+        return calculated_transfer  # Returning the calculated values
 
     def update_thermal_properties(self, temperature_field):
         """

@@ -6,9 +6,10 @@ including equation of state calculations, phase behavior, and component tracking
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Union, Any
-from scipy.optimize import minimize, fsolve
-import numba
+from typing import Dict, List, Tuple  # Removed Optional, Union, Any
+
+# from scipy.optimize import minimize, fsolve # Removed unused import
+# import numba # Removed unused import
 
 
 class Component:
@@ -139,11 +140,11 @@ class EquationOfState:
         p_pa = p * 1e5
 
         # Gas constant (J/mol/K)
-        R = 8.3145
+        R_const = 8.3145
 
         # Calculate densities
-        rho_v = p_pa * mw_v / (zv * R * t) / 1000  # kg/m³
-        rho_l = p_pa * mw_l / (zl * R * t) / 1000  # kg/m³
+        rho_v = p_pa * mw_v / (zv * R_const * t) / 1000  # kg/m³
+        rho_l = p_pa * mw_l / (zl * R_const * t) / 1000  # kg/m³
 
         return rho_v, rho_l
 
@@ -170,11 +171,11 @@ class PengRobinsonEOS(EquationOfState):
         p_pa = p * 1e5
 
         # Gas constant (J/mol/K)
-        R = 8.3145
+        R_const = 8.3145
 
         # Calculate coefficients for cubic equation
-        A = a_mix * p_pa / (R * t) ** 2
-        B = b_mix * p_pa / (R * t)
+        A = a_mix * p_pa / (R_const * t) ** 2
+        B = b_mix * p_pa / (R_const * t)
 
         # Cubic equation coefficients: Z³ - (1-B)Z² + (A-3B²-2B)Z - (AB-B²-B³) = 0
         a2 = -(1 - B)
@@ -201,6 +202,8 @@ class PengRobinsonEOS(EquationOfState):
         self, p: float, t: float, z: float, composition: np.ndarray
     ) -> np.ndarray:
         """Calculate fugacity coefficients."""
+        R_const = 8.3145  # Define R_const at the beginning of the method scope
+
         # Calculate mixture parameters
         a_mix, b_mix = self._calculate_mixture_parameters(p, t, composition)
 
@@ -216,8 +219,11 @@ class PengRobinsonEOS(EquationOfState):
                 + (0.37464 + 1.54226 * comp.omega - 0.26992 * comp.omega**2)
                 * (1 - np.sqrt(Tr))
             ) ** 2
-            a_i[i] = self.omega_a * (R * comp.tc) ** 2 / comp.pc * alpha
-            b_i[i] = self.omega_b * R * comp.tc / comp.pc
+            # R_const was defined at the start of this method.
+            a_i[i] = (
+                self.omega_a * (R_const * comp.tc) ** 2 / comp.pc * alpha
+            )  # noqa: F821
+            b_i[i] = self.omega_b * R_const * comp.tc / comp.pc  # noqa: F821
 
         # Calculate a_ij matrix
         a_ij = np.zeros((self.n_components, self.n_components))
@@ -228,20 +234,46 @@ class PengRobinsonEOS(EquationOfState):
         # Calculate fugacity coefficients
         ln_phi = np.zeros(self.n_components)
 
+        # R_const is now defined at the top of the method.
+        # Gas constant (J/mol/K) - needs to be defined in this scope
+        # R_const = 8.3145 # Removed redundant definition
+        # Convert pressure to Pa for A and B calculation
+        p_pa = p * 1e5
+
+        # Calculate A and B for the mixture (similar to calculate_z_factor)
+        # a_mix, b_mix are already available from _calculate_mixture_parameters call
+        A_param = a_mix * p_pa / (R_const * t) ** 2
+        B_param = b_mix * p_pa / (R_const * t)
+
         for i in range(self.n_components):
             # Calculate sum terms
             sum_a = 0
             for j in range(self.n_components):
-                sum_a += composition[j] * a_ij[i, j]
+                sum_a += (
+                    composition[j] * a_ij[i, j]
+                )  # a_ij is correctly calculated above
 
-            # Calculate fugacity coefficient
-            ln_phi[i] = b_i[i] / b_mix * (z - 1) - np.log(z - B)
-            ln_phi[i] += (
-                A
-                / (2 * np.sqrt(2) * B)
-                * (b_i[i] / b_mix - 2 * sum_a / a_mix)
-                * np.log((z + (1 + np.sqrt(2)) * B) / (z + (1 - np.sqrt(2)) * B))
-            )
+            # Calculate fugacity coefficient using A_param and B_param
+            term1 = b_i[i] / b_mix * (z - 1)
+            term2 = -np.log(z - B_param)  # Use B_param
+
+            # Check for B_param being close to zero to avoid division by zero
+            if abs(B_param) < 1e-9:  # or some small epsilon
+                term3 = (
+                    0  # or handle appropriately, this part of equation might simplify
+                )
+            else:
+                term3 = (
+                    A_param  # Use A_param
+                    / (2 * np.sqrt(2) * B_param)  # Use B_param
+                    * (b_i[i] / b_mix - 2 * sum_a / a_mix)
+                    * np.log(
+                        (z + (1 + np.sqrt(2)) * B_param)
+                        / (z + (1 - np.sqrt(2)) * B_param)
+                    )  # Use B_param
+                )
+
+            ln_phi[i] = term1 + term2 + term3
 
         return np.exp(ln_phi)
 
@@ -250,7 +282,7 @@ class PengRobinsonEOS(EquationOfState):
     ) -> Tuple[float, float]:
         """Calculate mixture parameters a_mix and b_mix."""
         # Gas constant (J/mol/K)
-        R = 8.3145
+        R_const = 8.3145
 
         # Initialize mixture parameters
         a_mix = 0.0
@@ -268,8 +300,8 @@ class PengRobinsonEOS(EquationOfState):
                 + (0.37464 + 1.54226 * comp.omega - 0.26992 * comp.omega**2)
                 * (1 - np.sqrt(Tr))
             ) ** 2
-            a_i[i] = self.omega_a * (R * comp.tc) ** 2 / comp.pc * alpha
-            b_i[i] = self.omega_b * R * comp.tc / comp.pc
+            a_i[i] = self.omega_a * (R_const * comp.tc) ** 2 / comp.pc * alpha
+            b_i[i] = self.omega_b * R_const * comp.tc / comp.pc
 
             # Add to b_mix
             b_mix += composition[i] * b_i[i]

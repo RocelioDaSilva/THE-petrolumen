@@ -1,14 +1,17 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List  # Removed Any, Tuple, Optional, Union
 import matplotlib.pyplot as plt
-import seaborn as sns
+
+# import seaborn as sns # Unused
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+# from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor # Unused
 from sklearn.model_selection import train_test_split
-import tensorflow as tf
+
+# import tensorflow as tf # Unused
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import (
     Dense,
@@ -16,16 +19,17 @@ from tensorflow.keras.layers import (
     MaxPooling2D,
     Flatten,
     Dropout,
-    Input,
+    # Input as KerasInput, # Aliased Keras Input - F401 Unused
     LSTM,
     GRU,
 )
 from tensorflow.keras.applications import ResNet50
 import plotly.express as px
-import plotly.graph_objects as go
+
+# import plotly.graph_objects as go # Unused
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output  # Dash Input remains as Input
 
 
 class DataAnalytics:
@@ -110,6 +114,13 @@ class DataAnalytics:
             base_model = ResNet50(
                 weights="imagenet", include_top=False, input_shape=X.shape[1:]
             )
+            # Assuming base_model.input is compatible with KerasInput if it was used to construct the model
+            # If base_model itself was constructed using tensorflow.keras.layers.Input,
+            # its `base_model.input` would already be a Keras tensor.
+            # The Model class constructor `inputs` argument takes these tensors.
+            # So, no change needed here if base_model.input is the correct Keras tensor.
+            # If `Input` was meant to be used to create a new input tensor for the `Model`,
+            # then `KerasInput(...)` would be used. But here it's `base_model.input`.
 
             x = base_model.output
             x = Flatten()(x)
@@ -117,7 +128,9 @@ class DataAnalytics:
             x = Dropout(0.5)(x)
             predictions = Dense(len(np.unique(y)), activation="softmax")(x)
 
-            model = Model(inputs=base_model.input, outputs=predictions)
+            model = Model(
+                inputs=base_model.input, outputs=predictions
+            )  # Using base_model.input
 
         # Compilar e treinar
         model.compile(

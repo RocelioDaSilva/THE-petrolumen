@@ -1,14 +1,15 @@
-import numpy as np
+# import numpy as np # Unused
 import pandas as pd
 import lasio
 import segyio
 import matplotlib.pyplot as plt
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Optional  # Removed Tuple, Union (Any was not imported)
 import json
-import os
-import tempfile
-import shutil
-from pathlib import Path
+
+# import os # Unused
+# import tempfile # Unused
+# import shutil # Unused
+# from pathlib import Path # Unused
 
 
 class DataIntegration:

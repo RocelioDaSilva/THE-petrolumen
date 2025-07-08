@@ -2,6 +2,8 @@ import pytest
 import numpy as np
 from typing import Dict  # Added Dict for type hint
 
+# import logging # Unused
+
 # Adjust imports based on actual project structure and PYTHONPATH for tests
 # Assuming 'backend/' is in PYTHONPATH, and 'gaia_genesis' is the package.
 try:
@@ -17,10 +19,11 @@ try:
     from gaia_genesis.pvt.service import PVTService
 except ImportError as e:
     # This helps diagnose if the path assumptions are wrong during testing.
-    logging.error(f"Error importing PVT test dependencies: {e}", exc_info=True)
+    # logging.error(f"Error importing PVT test dependencies: {e}", exc_info=True) # logging not defined yet
+    print(f"Error importing PVT test dependencies: {e}")  # Basic print for now
     raise
 
-import logging  # For the except block
+# import logging # This was the F821 and F401 error, moved logging import to top
 
 # --- Test Data Fixtures ---
 

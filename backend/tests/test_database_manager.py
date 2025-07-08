@@ -1,13 +1,17 @@
 import pytest
 import datetime
-from typing import List
+
+# from typing import List # Unused
 import logging  # It's good practice to have logging available
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session  # Added import for Session
 
 # Corrected imports
 from gaia_genesis.core.database_manager import DatabaseManager
-from gaia_genesis.core.database_models import Well, ProductionData, User as DBUser
+
+# Removed DBUser from this import as it's unused in this file
+from gaia_genesis.core.database_models import Well, ProductionData
 
 logger = logging.getLogger(__name__)
 

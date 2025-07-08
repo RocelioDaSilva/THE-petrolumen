@@ -50,9 +50,9 @@ class Mesh:
             for j_idx in range(ny):  # y-direction cells
                 for i_idx in range(nx):  # x-direction cells
                     # Index of the first vertex of the cell (i,j,k)
-                    v000 = (
-                        i_idx * (ny + 1) * (nz + 1) + j_idx * (nz + 1) + k_idx
-                    )  # This indexing seems off
+                    # v000 = ( # F841: Unused
+                    #     i_idx * (ny + 1) * (nz + 1) + j_idx * (nz + 1) + k_idx
+                    # )  # This indexing seems off
 
                     # Corrected indexing for IJ (Cartesian style) meshgrid output
                     # (i,j,k) -> (i,j,k)
@@ -69,16 +69,21 @@ class Mesh:
                     # vertices.shape = ((nx+1)*(ny+1)*(nz+1), 3)
                     # Vertex (i,j,k) is at flat_index = k + (nz+1)*j + (nz+1)*(ny+1)*i
 
-                    idx = lambda i, j, k: k + (nz + 1) * j + (nz + 1) * (ny + 1) * i
+                    def idx_func(
+                        i_param, j_param, k_param
+                    ):  # Renamed params to avoid conflict
+                        return (
+                            k_param + (nz + 1) * j_param + (nz + 1) * (ny + 1) * i_param
+                        )
 
-                    v0 = idx(i_idx, j_idx, k_idx)
-                    v1 = idx(i_idx + 1, j_idx, k_idx)
-                    v2 = idx(i_idx, j_idx + 1, k_idx)
-                    v3 = idx(i_idx + 1, j_idx + 1, k_idx)
-                    v4 = idx(i_idx, j_idx, k_idx + 1)
-                    v5 = idx(i_idx + 1, j_idx, k_idx + 1)
-                    v6 = idx(i_idx, j_idx + 1, k_idx + 1)
-                    v7 = idx(i_idx + 1, j_idx + 1, k_idx + 1)
+                    v0 = idx_func(i_idx, j_idx, k_idx)
+                    v1 = idx_func(i_idx + 1, j_idx, k_idx)
+                    v2 = idx_func(i_idx, j_idx + 1, k_idx)
+                    v3 = idx_func(i_idx + 1, j_idx + 1, k_idx)
+                    v4 = idx_func(i_idx, j_idx, k_idx + 1)
+                    v5 = idx_func(i_idx + 1, j_idx, k_idx + 1)
+                    v6 = idx_func(i_idx, j_idx + 1, k_idx + 1)
+                    v7 = idx_func(i_idx + 1, j_idx + 1, k_idx + 1)
 
                     # PyVista convention for HEXAHEDRON cell connectivity:
                     # List of 8 vertex indices.

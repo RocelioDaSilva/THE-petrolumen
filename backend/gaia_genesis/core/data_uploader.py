@@ -2,9 +2,12 @@ from typing import List, Tuple, Dict, Optional, Any
 import pandas as pd
 import io
 import logging
+import datetime
+from sqlalchemy.exc import SQLAlchemyError
 
 # Import DatabaseManager from the new core location
 from .database_manager import DatabaseManager
+from .database_models import Well  # Assuming Well is in database_models
 
 logger = logging.getLogger(__name__)
 

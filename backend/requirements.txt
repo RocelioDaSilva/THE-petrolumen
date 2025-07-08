@@ -102,5 +102,5 @@ wheel==0.45.1
 xgboost==3.0.2
 
 # Sphinx for documentation
-sphinx
-sphinx-rtd-theme
+sphinx==8.2.3
+sphinx-rtd-theme==3.0.2

@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional  # Removed Tuple
 import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.stats import norm
-import streamlit as st
+
+# import seaborn as sns # Unused
+# from scipy.stats import norm # Unused, t is not imported here either
+# import streamlit as st # Unused
 from datetime import datetime
 import logging
 from dataclasses import dataclass
@@ -400,7 +401,7 @@ class ReservesEvaluation:
 
         # Cenários
         for i, scenario in enumerate(scenarios):
-            results[f"scenario_{i+1}"] = self.calculate_economic_metrics(**scenario)
+            results[f"scenario_{i +1}"] = self.calculate_economic_metrics(**scenario)
 
         return results
 
@@ -547,9 +548,9 @@ class ReservesEvaluation:
         for category, estimate in reserves.items():
             report.append(
                 f"{category.value:<10} "
-                f"{estimate.oil_volume/1e6:>15.2f} "
-                f"{estimate.gas_volume/1e3:>15.2f} "
-                f"{estimate.net_present_value/1e6:>15.2f}"
+                f"{estimate.oil_volume /1e6:>15.2f} "
+                f"{estimate.gas_volume /1e3:>15.2f} "
+                f"{estimate.net_present_value /1e6:>15.2f}"
             )
 
         # Salvar relatório

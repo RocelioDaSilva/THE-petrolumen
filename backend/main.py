@@ -14,7 +14,6 @@ from typing import Dict, List, Any, Tuple, Optional
 from pydantic import BaseModel, EmailStr
 import logging
 import os  # For environment variables
-from dotenv import load_dotenv  # For .env file
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
@@ -42,12 +41,12 @@ from gaia_genesis.prediction import AIPrediction  # Import AIPrediction
 import pandas as pd
 import numpy as np  # Added import
 
+from config import settings  # Import the settings instance # Moved up
+from gaia_genesis.core.data_uploader import DataUploader  # Moved up
+
 # Load environment variables from .env file
 # This should be one of the first things to ensure .env is loaded before settings are initialized
-load_dotenv()
-
-from config import settings  # Import the settings instance
-from gaia_genesis.core.data_uploader import DataUploader  # E402: Moved here
+# load_dotenv() # Removed, pydantic-settings in config.py should handle .env loading
 
 
 # Setup logging using LOG_LEVEL from settings
@@ -82,7 +81,7 @@ if settings.SECRET_KEY == DEFAULT_PLACEHOLDER_SECRET_KEY:
     )
 
 # Check for default database URL (this warning is less critical but good for awareness)
-DEFAULT_DATABASE_URL = "sqlite:///./default_app_data.db" # As defined in config.py
+DEFAULT_DATABASE_URL = "sqlite:///./default_app_data.db"  # As defined in config.py
 if settings.DATABASE_URL == DEFAULT_DATABASE_URL:
     logger.info(
         f"Using default DATABASE_URL: {settings.DATABASE_URL}. "
@@ -720,7 +719,9 @@ async def get_well_data_preview(
     )
     preview_df = data_uploader.get_data_preview(well_name, n_rows)
     if preview_df is None:  # Well not found
-        raise HTTPException(status_code=404, detail=f"Well '{well_name}' not found.")
+        raise HTTPException(
+            status_code=404, detail="Well '{}' not found.".format(well_name)
+        )
     if (
         preview_df.empty
         and data_uploader.db_manager.get_well_by_name(well_name) is not None
@@ -749,7 +750,9 @@ async def get_well_data_statistics(
     )
     stats = data_uploader.get_well_statistics(well_name)
     if stats is None:  # Well not found
-        raise HTTPException(status_code=404, detail=f"Well '{well_name}' not found.")
+        raise HTTPException(
+            status_code=404, detail="Well '{}' not found.".format(well_name)
+        )
     # If stats exist but show 0 rows (well exists, no data), it's still a valid response
     return JSONResponse(content={"well_name": well_name, "statistics": stats})
 
@@ -783,7 +786,7 @@ async def admin_delete_well(
     if not well:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Well '{well_name}' not found.",
+            detail="Well '{}' not found.".format(well_name),
         )
 
     session = data_uploader.db_manager.get_session()

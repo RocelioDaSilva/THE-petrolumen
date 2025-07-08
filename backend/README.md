@@ -45,7 +45,16 @@ The application uses environment variables for configuration, such as database c
 2.  Open the `.env` file in a text editor and modify the variables as needed:
     *   `DATABASE_URL`: Specifies the connection string for the database. By default, it's set up for a local SQLite database (`sqlite:///./default_app_data.db`). You can change this to use PostgreSQL or another supported database.
         *   Example for PostgreSQL: `postgresql://user:password@host:port/database_name`
-    *   `SECRET_KEY`: A secret key used for security purposes, particularly for JWT token generation. **Change this to a strong, unique random string for production.**
+    *   `SECRET_KEY`: A secret key used for security purposes, particularly for JWT token generation.
+
+        > **SECURITY WARNING:** The default `SECRET_KEY` in `.env.example` and `config.py` is a placeholder and **MUST NOT** be used in a production environment. Using the default key poses a significant security risk, as it could allow attackers to forge authentication tokens or gain unauthorized access.
+        >
+        > **Action Required:** Generate a strong, unique random string for your `SECRET_KEY`. You can generate one using tools like OpenSSL:
+        > ```bash
+        > openssl rand -hex 32
+        > ```
+        > Copy the generated string into your `.env` file for the `SECRET_KEY` variable.
+
     *   Other variables related to logging, API versions, etc., can also be configured here.
 
 ### 4. Set Up the Database (Alembic Migrations)

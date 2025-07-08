@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, differential_evolution
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error  # Removed r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Dict, List, Callable, Tuple, Optional
-import streamlit as st
+from typing import Dict, Callable, Tuple, Optional  # Removed List
+
+# import streamlit as st # Unused
 
 
 class HistoryMatching:
