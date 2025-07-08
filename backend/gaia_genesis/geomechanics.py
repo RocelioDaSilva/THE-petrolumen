@@ -11,8 +11,11 @@ from scipy.sparse import csr_matrix, lil_matrix
 from scipy.sparse.linalg import spsolve
 import numba
 
+
 class GeomechanicalModel:
-    def __init__(self, grid_dims: Tuple[int, int, int], properties: Dict[str, np.ndarray]):
+    def __init__(
+        self, grid_dims: Tuple[int, int, int], properties: Dict[str, np.ndarray]
+    ):
         """
         Initialize geomechanical model.
 
@@ -26,49 +29,51 @@ class GeomechanicalModel:
 
         # Initialize stress and strain tensors
         self.stress = {
-            'xx': np.zeros(self.n_cells),
-            'yy': np.zeros(self.n_cells),
-            'zz': np.zeros(self.n_cells),
-            'xy': np.zeros(self.n_cells),
-            'yz': np.zeros(self.n_cells),
-            'xz': np.zeros(self.n_cells)
+            "xx": np.zeros(self.n_cells),
+            "yy": np.zeros(self.n_cells),
+            "zz": np.zeros(self.n_cells),
+            "xy": np.zeros(self.n_cells),
+            "yz": np.zeros(self.n_cells),
+            "xz": np.zeros(self.n_cells),
         }
 
         self.strain = {
-            'xx': np.zeros(self.n_cells),
-            'yy': np.zeros(self.n_cells),
-            'zz': np.zeros(self.n_cells),
-            'xy': np.zeros(self.n_cells),
-            'yz': np.zeros(self.n_cells),
-            'xz': np.zeros(self.n_cells)
+            "xx": np.zeros(self.n_cells),
+            "yy": np.zeros(self.n_cells),
+            "zz": np.zeros(self.n_cells),
+            "xy": np.zeros(self.n_cells),
+            "yz": np.zeros(self.n_cells),
+            "xz": np.zeros(self.n_cells),
         }
 
         self.displacement = {
-            'x': np.zeros(self.n_cells),
-            'y': np.zeros(self.n_cells),
-            'z': np.zeros(self.n_cells)
+            "x": np.zeros(self.n_cells),
+            "y": np.zeros(self.n_cells),
+            "z": np.zeros(self.n_cells),
         }
 
         # Initialize failure criteria
-        self.failure_criterion = 'mohr_coulomb'  # 'mohr_coulomb', 'drucker_prager', 'hoek_brown'
+        self.failure_criterion = (
+            "mohr_coulomb"  # 'mohr_coulomb', 'drucker_prager', 'hoek_brown'
+        )
         self.failure_flag = np.zeros(self.n_cells, dtype=bool)
 
         # Initialize boundary conditions
         self.boundary_conditions = {
-            'type': 'fixed_stress',  # 'fixed_stress', 'fixed_strain', 'fixed_displacement'
-            'values': {
-                'top': {'xx': 0.0, 'yy': 0.0, 'zz': 0.0},
-                'bottom': {'xx': 0.0, 'yy': 0.0, 'zz': 0.0},
-                'left': {'xx': 0.0, 'yy': 0.0, 'zz': 0.0},
-                'right': {'xx': 0.0, 'yy': 0.0, 'zz': 0.0},
-                'front': {'xx': 0.0, 'yy': 0.0, 'zz': 0.0},
-                'back': {'xx': 0.0, 'yy': 0.0, 'zz': 0.0}
-            }
+            "type": "fixed_stress",  # 'fixed_stress', 'fixed_strain', 'fixed_displacement'
+            "values": {
+                "top": {"xx": 0.0, "yy": 0.0, "zz": 0.0},
+                "bottom": {"xx": 0.0, "yy": 0.0, "zz": 0.0},
+                "left": {"xx": 0.0, "yy": 0.0, "zz": 0.0},
+                "right": {"xx": 0.0, "yy": 0.0, "zz": 0.0},
+                "front": {"xx": 0.0, "yy": 0.0, "zz": 0.0},
+                "back": {"xx": 0.0, "yy": 0.0, "zz": 0.0},
+            },
         }
 
         # Initialize coupling parameters
-        self.coupling_method = 'one_way'  # 'one_way', 'iterative', 'fully_coupled'
-        self.biot_coefficient = properties.get('biot_coefficient', 1.0)
+        self.coupling_method = "one_way"  # 'one_way', 'iterative', 'fully_coupled'
+        self.biot_coefficient = properties.get("biot_coefficient", 1.0)
         self.convergence_tolerance = 1e-5
         self.max_iterations = 20
 
@@ -81,15 +86,17 @@ class GeomechanicalModel:
             depth: Depth array for each cell (ft)
         """
         # Calculate initial stress based on depth
-        for component in ['xx', 'yy', 'zz']:
+        for component in ["xx", "yy", "zz"]:
             if component in stress_gradient:
                 self.stress[component] = depth * stress_gradient[component]
 
         # Default values for shear components
-        for component in ['xy', 'yz', 'xz']:
+        for component in ["xy", "yz", "xz"]:
             self.stress[component] = np.zeros_like(depth)
 
-    def update_stress_from_pressure(self, pressure: np.ndarray, pressure_prev: np.ndarray):
+    def update_stress_from_pressure(
+        self, pressure: np.ndarray, pressure_prev: np.ndarray
+    ):
         """
         Update stress state based on pressure changes.
 
@@ -101,7 +108,7 @@ class GeomechanicalModel:
         delta_p = pressure - pressure_prev
 
         # Update total stress using Biot's coefficient
-        for component in ['xx', 'yy', 'zz']:
+        for component in ["xx", "yy", "zz"]:
             self.stress[component] -= self.biot_coefficient * delta_p
 
     def solve_mechanics(self, pressure: np.ndarray, grid_geometry: Dict):
@@ -113,8 +120,8 @@ class GeomechanicalModel:
             grid_geometry: Grid geometry information
         """
         # Extract properties
-        E = self.properties.get('youngs_modulus', np.ones(self.n_cells) * 1e6)  # psi
-        nu = self.properties.get('poissons_ratio', np.ones(self.n_cells) * 0.25)
+        E = self.properties.get("youngs_modulus", np.ones(self.n_cells) * 1e6)  # psi
+        nu = self.properties.get("poissons_ratio", np.ones(self.n_cells) * 0.25)
 
         # Assemble stiffness matrix and load vector
         K, f = self._assemble_system(pressure, grid_geometry)
@@ -126,9 +133,9 @@ class GeomechanicalModel:
         u = spsolve(K, f)
 
         # Extract displacement components
-        self.displacement['x'] = u[0::3]
-        self.displacement['y'] = u[1::3]
-        self.displacement['z'] = u[2::3]
+        self.displacement["x"] = u[0::3]
+        self.displacement["y"] = u[1::3]
+        self.displacement["z"] = u[2::3]
 
         # Calculate strains and stresses
         self._calculate_strain_stress(grid_geometry)
@@ -158,9 +165,9 @@ class GeomechanicalModel:
         # Apply pressure as body force
         for i in range(self.n_cells):
             # Apply pressure to load vector
-            f[3*i] = -self.biot_coefficient * pressure[i]  # x-component
-            f[3*i+1] = -self.biot_coefficient * pressure[i]  # y-component
-            f[3*i+2] = -self.biot_coefficient * pressure[i]  # z-component
+            f[3 * i] = -self.biot_coefficient * pressure[i]  # x-component
+            f[3 * i + 1] = -self.biot_coefficient * pressure[i]  # y-component
+            f[3 * i + 2] = -self.biot_coefficient * pressure[i]  # z-component
 
         # Convert to CSR format for efficient solving
         K = K.tocsr()
@@ -179,9 +186,9 @@ class GeomechanicalModel:
 
     def _check_failure(self):
         """Check failure criteria."""
-        if self.failure_criterion == 'mohr_coulomb':
+        if self.failure_criterion == "mohr_coulomb":
             self._check_mohr_coulomb_failure()
-        elif self.failure_criterion == 'drucker_prager':
+        elif self.failure_criterion == "drucker_prager":
             self._check_drucker_prager_failure()
 
     def _check_mohr_coulomb_failure(self):
@@ -190,11 +197,17 @@ class GeomechanicalModel:
         s1, s2, s3 = self._calculate_principal_stresses()
 
         # Get cohesion and friction angle
-        c = self.properties.get('cohesion', np.ones(self.n_cells) * 1000.0)  # psi
-        phi = np.radians(self.properties.get('friction_angle', np.ones(self.n_cells) * 30.0))
+        c = self.properties.get("cohesion", np.ones(self.n_cells) * 1000.0)  # psi
+        phi = np.radians(
+            self.properties.get("friction_angle", np.ones(self.n_cells) * 30.0)
+        )
 
         # Calculate failure criterion
-        f_mc = s1 - s3 * (1 + np.sin(phi)) / (1 - np.sin(phi)) - 2 * c * np.cos(phi) / (1 - np.sin(phi))
+        f_mc = (
+            s1
+            - s3 * (1 + np.sin(phi)) / (1 - np.sin(phi))
+            - 2 * c * np.cos(phi) / (1 - np.sin(phi))
+        )
 
         # Update failure flag
         self.failure_flag = f_mc > 0
@@ -208,12 +221,14 @@ class GeomechanicalModel:
         p = (s1 + s2 + s3) / 3.0
 
         # Calculate deviatoric stress
-        J2 = ((s1-s2)**2 + (s2-s3)**2 + (s3-s1)**2) / 6.0
+        J2 = ((s1 - s2) ** 2 + (s2 - s3) ** 2 + (s3 - s1) ** 2) / 6.0
         q = np.sqrt(3 * J2)
 
         # Get cohesion and friction angle
-        c = self.properties.get('cohesion', np.ones(self.n_cells) * 1000.0)  # psi
-        phi = np.radians(self.properties.get('friction_angle', np.ones(self.n_cells) * 30.0))
+        c = self.properties.get("cohesion", np.ones(self.n_cells) * 1000.0)  # psi
+        phi = np.radians(
+            self.properties.get("friction_angle", np.ones(self.n_cells) * 30.0)
+        )
 
         # Calculate Drucker-Prager parameters
         alpha = 2 * np.sin(phi) / (np.sqrt(3) * (3 - np.sin(phi)))
@@ -234,11 +249,13 @@ class GeomechanicalModel:
 
         for i in range(self.n_cells):
             # Create stress tensor
-            stress_tensor = np.array([
-                [self.stress['xx'][i], self.stress['xy'][i], self.stress['xz'][i]],
-                [self.stress['xy'][i], self.stress['yy'][i], self.stress['yz'][i]],
-                [self.stress['xz'][i], self.stress['yz'][i], self.stress['zz'][i]]
-            ])
+            stress_tensor = np.array(
+                [
+                    [self.stress["xx"][i], self.stress["xy"][i], self.stress["xz"][i]],
+                    [self.stress["xy"][i], self.stress["yy"][i], self.stress["yz"][i]],
+                    [self.stress["xz"][i], self.stress["yz"][i], self.stress["zz"][i]],
+                ]
+            )
 
             # Calculate eigenvalues (principal stresses)
             eigenvalues = np.linalg.eigvalsh(stress_tensor)
@@ -252,7 +269,9 @@ class GeomechanicalModel:
 
         return s1, s2, s3
 
-    def update_porosity_permeability(self, initial_porosity: np.ndarray, initial_permeability: np.ndarray):
+    def update_porosity_permeability(
+        self, initial_porosity: np.ndarray, initial_permeability: np.ndarray
+    ):
         """
         Update porosity and permeability based on geomechanical effects.
 
@@ -264,26 +283,31 @@ class GeomechanicalModel:
             Tuple of (updated_porosity, updated_permeability)
         """
         # Calculate volumetric strain
-        vol_strain = self.strain['xx'] + self.strain['yy'] + self.strain['zz']
+        vol_strain = self.strain["xx"] + self.strain["yy"] + self.strain["zz"]
 
         # Update porosity using volumetric strain
         updated_porosity = initial_porosity * (1.0 + vol_strain)
 
         # Apply porosity limits
-        min_porosity = self.properties.get('min_porosity', 0.01)
-        max_porosity = self.properties.get('max_porosity', 0.5)
+        min_porosity = self.properties.get("min_porosity", 0.01)
+        max_porosity = self.properties.get("max_porosity", 0.5)
         updated_porosity = np.clip(updated_porosity, min_porosity, max_porosity)
 
         # Update permeability using Kozeny-Carman relation
-        m = self.properties.get('permeability_exponent', 3.0)
-        updated_permeability = initial_permeability * ((updated_porosity / initial_porosity) ** m)
+        m = self.properties.get("permeability_exponent", 3.0)
+        updated_permeability = initial_permeability * (
+            (updated_porosity / initial_porosity) ** m
+        )
 
         # Apply permeability limits
-        min_permeability = self.properties.get('min_permeability', 0.01)
-        max_permeability = self.properties.get('max_permeability', 10000.0)
-        updated_permeability = np.clip(updated_permeability, min_permeability, max_permeability)
+        min_permeability = self.properties.get("min_permeability", 0.01)
+        max_permeability = self.properties.get("max_permeability", 10000.0)
+        updated_permeability = np.clip(
+            updated_permeability, min_permeability, max_permeability
+        )
 
         return updated_porosity, updated_permeability
+
 
 class FractureModel:
     """Model for natural and hydraulic fractures."""
@@ -309,7 +333,9 @@ class FractureModel:
         self.hf_cells = []  # Cells containing hydraulic fractures
         self.hf_properties = {}  # Properties of hydraulic fractures
 
-    def add_natural_fractures(self, cells: List[int], properties: Dict[str, np.ndarray]):
+    def add_natural_fractures(
+        self, cells: List[int], properties: Dict[str, np.ndarray]
+    ):
         """
         Add natural fractures to specified cells.
 
@@ -318,14 +344,31 @@ class FractureModel:
             properties: Dictionary of fracture properties
         """
         for i, cell in enumerate(cells):
-            self.fracture_aperture[cell] = properties.get('aperture', np.zeros(len(cells)))[i]
-            self.fracture_permeability[cell] = properties.get('permeability', np.zeros(len(cells)))[i]
-            self.fracture_porosity[cell] = properties.get('porosity', np.zeros(len(cells)))[i]
-            self.fracture_orientation[cell] = properties.get('orientation', np.zeros((len(cells), 3)))[i]
-            self.fracture_density[cell] = properties.get('density', np.zeros(len(cells)))[i]
+            self.fracture_aperture[cell] = properties.get(
+                "aperture", np.zeros(len(cells))
+            )[i]
+            self.fracture_permeability[cell] = properties.get(
+                "permeability", np.zeros(len(cells))
+            )[i]
+            self.fracture_porosity[cell] = properties.get(
+                "porosity", np.zeros(len(cells))
+            )[i]
+            self.fracture_orientation[cell] = properties.get(
+                "orientation", np.zeros((len(cells), 3))
+            )[i]
+            self.fracture_density[cell] = properties.get(
+                "density", np.zeros(len(cells))
+            )[i]
 
-    def add_hydraulic_fracture(self, origin: Tuple[int, int, int], half_length: float, height: float,
-                              width: float, orientation: str, properties: Dict):
+    def add_hydraulic_fracture(
+        self,
+        origin: Tuple[int, int, int],
+        half_length: float,
+        height: float,
+        width: float,
+        orientation: str,
+        properties: Dict,
+    ):
         """
         Add a hydraulic fracture.
 
@@ -347,14 +390,16 @@ class FractureModel:
 
         # Store properties
         self.hf_properties[hf_id] = {
-            'origin': origin,
-            'half_length': half_length,
-            'height': height,
-            'width': width,
-            'orientation': orientation,
-            'permeability': properties.get('permeability', 1e5),  # md
-            'porosity': properties.get('porosity', 0.5),
-            'conductivity': properties.get('conductivity', width * properties.get('permeability', 1e5))  # md-ft
+            "origin": origin,
+            "half_length": half_length,
+            "height": height,
+            "width": width,
+            "orientation": orientation,
+            "permeability": properties.get("permeability", 1e5),  # md
+            "porosity": properties.get("porosity", 0.5),
+            "conductivity": properties.get(
+                "conductivity", width * properties.get("permeability", 1e5)
+            ),  # md-ft
         }
 
         # Mark cells intersected by the fracture
@@ -382,13 +427,15 @@ class FractureModel:
 
         # Add contribution from natural fractures
         # Using cubic law: k_f = aperture^2 / 12
-        fracture_contrib = (self.fracture_aperture * 1e-3)**2 / 12 * 1e15 * self.fracture_density
+        fracture_contrib = (
+            (self.fracture_aperture * 1e-3) ** 2 / 12 * 1e15 * self.fracture_density
+        )
         effective_permeability += fracture_contrib
 
         # Add contribution from hydraulic fractures
         # This is a simplified approach - in reality, this would be more complex
         for hf_id, cells in enumerate(self.hf_cells):
             hf_props = self.hf_properties[hf_id]
-            effective_permeability[cells] += hf_props['permeability']
+            effective_permeability[cells] += hf_props["permeability"]
 
         return effective_permeability

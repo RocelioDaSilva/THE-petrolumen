@@ -10,6 +10,7 @@ from typing import Dict, List, Tuple, Optional, Union
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
 class ReservoirAnalysis:
     def __init__(self):
         """Inicializa o analisador de reservatórios."""
@@ -18,10 +19,13 @@ class ReservoirAnalysis:
         self.scaler = MinMaxScaler()
         self.history = None
 
-    def prepare_production_data(self, df: pd.DataFrame,
-                              target_column: str,
-                              sequence_length: int = 30,
-                              train_split: float = 0.8) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def prepare_production_data(
+        self,
+        df: pd.DataFrame,
+        target_column: str,
+        sequence_length: int = 30,
+        train_split: float = 0.8,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Prepara dados de produção para o modelo LSTM.
 
@@ -40,7 +44,7 @@ class ReservoirAnalysis:
         # Criar sequências
         X, y = [], []
         for i in range(len(scaled_data) - sequence_length):
-            X.append(scaled_data[i:(i + sequence_length)])
+            X.append(scaled_data[i : (i + sequence_length)])
             y.append(scaled_data[i + sequence_length])
 
         X = np.array(X)
@@ -60,20 +64,32 @@ class ReservoirAnalysis:
         Args:
             sequence_length: Tamanho da sequência para LSTM
         """
-        model = Sequential([
-            LSTM(50, activation='relu', input_shape=(sequence_length, 1), return_sequences=True),
-            Dropout(0.2),
-            LSTM(50, activation='relu'),
-            Dropout(0.2),
-            Dense(1)
-        ])
+        model = Sequential(
+            [
+                LSTM(
+                    50,
+                    activation="relu",
+                    input_shape=(sequence_length, 1),
+                    return_sequences=True,
+                ),
+                Dropout(0.2),
+                LSTM(50, activation="relu"),
+                Dropout(0.2),
+                Dense(1),
+            ]
+        )
 
-        model.compile(optimizer='adam', loss='mse')
+        model.compile(optimizer="adam", loss="mse")
         self.production_model = model
 
-    def train_production_model(self, X_train: np.ndarray, y_train: np.ndarray,
-                             epochs: int = 100, batch_size: int = 32,
-                             validation_split: float = 0.1):
+    def train_production_model(
+        self,
+        X_train: np.ndarray,
+        y_train: np.ndarray,
+        epochs: int = 100,
+        batch_size: int = 32,
+        validation_split: float = 0.1,
+    ):
         """
         Treina modelo LSTM para previsão de produção.
 
@@ -85,11 +101,12 @@ class ReservoirAnalysis:
             validation_split: Proporção de dados para validação
         """
         self.history = self.production_model.fit(
-            X_train, y_train,
+            X_train,
+            y_train,
             epochs=epochs,
             batch_size=batch_size,
             validation_split=validation_split,
-            verbose=1
+            verbose=1,
         )
 
     def predict_production(self, X: np.ndarray) -> np.ndarray:
@@ -123,11 +140,11 @@ class ReservoirAnalysis:
             raise ValueError("Modelo ainda não foi treinado")
 
         plt.figure(figsize=(10, 6))
-        plt.plot(self.history.history['loss'], label='Treino')
-        plt.plot(self.history.history['val_loss'], label='Validação')
-        plt.title('Histórico de Treinamento')
-        plt.xlabel('Época')
-        plt.ylabel('Erro Quadrático Médio')
+        plt.plot(self.history.history["loss"], label="Treino")
+        plt.plot(self.history.history["val_loss"], label="Validação")
+        plt.title("Histórico de Treinamento")
+        plt.xlabel("Época")
+        plt.ylabel("Erro Quadrático Médio")
         plt.legend()
         plt.grid(True)
         return plt.gcf()
@@ -148,19 +165,20 @@ class ReservoirAnalysis:
         clusters = kmeans.fit_predict(scaled_features)
 
         # Adicionar clusters ao DataFrame
-        features['Cluster'] = clusters
+        features["Cluster"] = clusters
 
         # Calcular estatísticas por cluster
-        cluster_stats = features.groupby('Cluster').agg({
-            'Production': ['mean', 'std', 'min', 'max'],
-            'Pressure': ['mean', 'std'],
-            'Temperature': ['mean', 'std']
-        })
+        cluster_stats = features.groupby("Cluster").agg(
+            {
+                "Production": ["mean", "std", "min", "max"],
+                "Pressure": ["mean", "std"],
+                "Temperature": ["mean", "std"],
+            }
+        )
 
         return features, cluster_stats
 
-    def plot_reservoir_clusters(self, features: pd.DataFrame,
-                              x_col: str, y_col: str):
+    def plot_reservoir_clusters(self, features: pd.DataFrame, x_col: str, y_col: str):
         """
         Plota clusters de reservatórios.
 
@@ -170,19 +188,20 @@ class ReservoirAnalysis:
             y_col: Coluna para eixo y
         """
         plt.figure(figsize=(10, 8))
-        sns.scatterplot(data=features, x=x_col, y=y_col,
-                       hue='Cluster', palette='deep')
-        plt.title('Classificação de Reservatórios')
+        sns.scatterplot(data=features, x=x_col, y=y_col, hue="Cluster", palette="deep")
+        plt.title("Classificação de Reservatórios")
         plt.xlabel(x_col)
         plt.ylabel(y_col)
         plt.grid(True)
         return plt.gcf()
 
-    def diagnose_underutilized_reservoirs(self,
-                                        production_data: pd.DataFrame,
-                                        pressure_data: pd.DataFrame,
-                                        threshold_pressure: float = 0.7,
-                                        threshold_production: float = 0.3):
+    def diagnose_underutilized_reservoirs(
+        self,
+        production_data: pd.DataFrame,
+        pressure_data: pd.DataFrame,
+        threshold_pressure: float = 0.7,
+        threshold_production: float = 0.3,
+    ):
         """
         Diagnostica reservatórios subutilizados.
 
@@ -196,32 +215,45 @@ class ReservoirAnalysis:
             DataFrame com diagnóstico
         """
         # Calcular métricas
-        initial_pressure = pressure_data['Pressure'].iloc[0]
-        max_production = production_data['Production'].max()
+        initial_pressure = pressure_data["Pressure"].iloc[0]
+        max_production = production_data["Production"].max()
 
         # Identificar reservatórios subutilizados
         underutilized = pd.DataFrame()
-        underutilized['Current_Pressure'] = pressure_data['Pressure'].iloc[-1]
-        underutilized['Pressure_Ratio'] = underutilized['Current_Pressure'] / initial_pressure
-        underutilized['Current_Production'] = production_data['Production'].iloc[-1]
-        underutilized['Production_Ratio'] = underutilized['Current_Production'] / max_production
+        underutilized["Current_Pressure"] = pressure_data["Pressure"].iloc[-1]
+        underutilized["Pressure_Ratio"] = (
+            underutilized["Current_Pressure"] / initial_pressure
+        )
+        underutilized["Current_Production"] = production_data["Production"].iloc[-1]
+        underutilized["Production_Ratio"] = (
+            underutilized["Current_Production"] / max_production
+        )
 
         # Classificar reservatórios
-        underutilized['Status'] = 'Normal'
-        underutilized.loc[underutilized['Pressure_Ratio'] < threshold_pressure, 'Status'] = 'Pressão Baixa'
-        underutilized.loc[underutilized['Production_Ratio'] < threshold_production, 'Status'] = 'Produção Baixa'
-        underutilized.loc[(underutilized['Pressure_Ratio'] < threshold_pressure) &
-                         (underutilized['Production_Ratio'] < threshold_production),
-                         'Status'] = 'Subutilizado'
+        underutilized["Status"] = "Normal"
+        underutilized.loc[
+            underutilized["Pressure_Ratio"] < threshold_pressure, "Status"
+        ] = "Pressão Baixa"
+        underutilized.loc[
+            underutilized["Production_Ratio"] < threshold_production, "Status"
+        ] = "Produção Baixa"
+        underutilized.loc[
+            (underutilized["Pressure_Ratio"] < threshold_pressure)
+            & (underutilized["Production_Ratio"] < threshold_production),
+            "Status",
+        ] = "Subutilizado"
 
         # Adicionar recomendações
-        underutilized['Recommendation'] = 'Manter operação'
-        underutilized.loc[underutilized['Status'] == 'Pressão Baixa',
-                         'Recommendation'] = 'Considerar injeção de água/gás'
-        underutilized.loc[underutilized['Status'] == 'Produção Baixa',
-                         'Recommendation'] = 'Otimizar operação de poços'
-        underutilized.loc[underutilized['Status'] == 'Subutilizado',
-                         'Recommendation'] = 'Revisar estratégia de desenvolvimento'
+        underutilized["Recommendation"] = "Manter operação"
+        underutilized.loc[
+            underutilized["Status"] == "Pressão Baixa", "Recommendation"
+        ] = "Considerar injeção de água/gás"
+        underutilized.loc[
+            underutilized["Status"] == "Produção Baixa", "Recommendation"
+        ] = "Otimizar operação de poços"
+        underutilized.loc[
+            underutilized["Status"] == "Subutilizado", "Recommendation"
+        ] = "Revisar estratégia de desenvolvimento"
 
         return underutilized
 
@@ -235,35 +267,59 @@ class ReservoirAnalysis:
         plt.figure(figsize=(12, 8))
 
         # Plotar pressão vs produção
-        plt.scatter(diagnosis['Pressure_Ratio'],
-                   diagnosis['Production_Ratio'],
-                   c=diagnosis['Status'].map({
-                       'Normal': 'green',
-                       'Pressão Baixa': 'yellow',
-                       'Produção Baixa': 'orange',
-                       'Subutilizado': 'red'
-                   }))
+        plt.scatter(
+            diagnosis["Pressure_Ratio"],
+            diagnosis["Production_Ratio"],
+            c=diagnosis["Status"].map(
+                {
+                    "Normal": "green",
+                    "Pressão Baixa": "yellow",
+                    "Produção Baixa": "orange",
+                    "Subutilizado": "red",
+                }
+            ),
+        )
 
         # Adicionar linhas de limiar
-        plt.axvline(x=0.7, color='gray', linestyle='--', alpha=0.5)
-        plt.axhline(y=0.3, color='gray', linestyle='--', alpha=0.5)
+        plt.axvline(x=0.7, color="gray", linestyle="--", alpha=0.5)
+        plt.axhline(y=0.3, color="gray", linestyle="--", alpha=0.5)
 
-        plt.title('Diagnóstico de Reservatórios')
-        plt.xlabel('Razão de Pressão')
-        plt.ylabel('Razão de Produção')
+        plt.title("Diagnóstico de Reservatórios")
+        plt.xlabel("Razão de Pressão")
+        plt.ylabel("Razão de Produção")
         plt.grid(True)
 
         # Adicionar legenda
         from matplotlib.lines import Line2D
+
         legend_elements = [
-            Line2D([0], [0], marker='o', color='w',
-                  markerfacecolor='green', label='Normal'),
-            Line2D([0], [0], marker='o', color='w',
-                  markerfacecolor='yellow', label='Pressão Baixa'),
-            Line2D([0], [0], marker='o', color='w',
-                  markerfacecolor='orange', label='Produção Baixa'),
-            Line2D([0], [0], marker='o', color='w',
-                  markerfacecolor='red', label='Subutilizado')
+            Line2D(
+                [0], [0], marker="o", color="w", markerfacecolor="green", label="Normal"
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="yellow",
+                label="Pressão Baixa",
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="orange",
+                label="Produção Baixa",
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="red",
+                label="Subutilizado",
+            ),
         ]
         plt.legend(handles=legend_elements)
 

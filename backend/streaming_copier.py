@@ -4,10 +4,12 @@ import sys
 import psutil  # Added for memory monitoring
 from pathlib import Path
 
+
 def log_message(message):
     """Ensure messages are immediately flushed"""
     print(message, file=sys.stderr)
     sys.stderr.flush()
+
 
 def copy_directory(src_root, dest_root):
     """Streaming file copier for huge directories"""
@@ -44,8 +46,8 @@ def copy_directory(src_root, dest_root):
                     mem = psutil.virtual_memory()
                     log_message(
                         f"Copied {count} files | "
-                        f"Mem: {mem.used/(1024*1024):.1f}MB used/"
-                        f"{mem.total/(1024*1024):.1f}MB total"
+                        f"Mem: {mem.used / (1024 * 1024):.1f}MB used/"
+                        f"{mem.total / (1024 * 1024):.1f}MB total"
                     )
 
             except Exception as e:
@@ -56,12 +58,13 @@ def copy_directory(src_root, dest_root):
                     log_message(f"Attempting retry for: {src_path}")
                     shutil.copy2(src_path, dest_path)
                     log_message(f"RETRY SUCCESS: {src_path}")
-                    count += 1 # Count as success if retry works
-                    errors -= 1 # Decrement error count
+                    count += 1  # Count as success if retry works
+                    errors -= 1  # Decrement error count
                 except Exception as e2:
                     log_message(f"RETRY FAILED: {src_path} → {dest_path}: {str(e2)}")
 
     return count, errors
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
@@ -74,33 +77,35 @@ if __name__ == "__main__":
     log_message(f"Starting copy: {src} → {dest}")
     total_files, total_errors = copy_directory(src, dest)
     success_rate = 0.0
-    if total_files + total_errors > 0: # Avoid division by zero if no files processed at all
-        # Calculate success rate based on files successfully copied out of total attempts
-        # If a file failed even after retry, it contributes to (total_files + total_errors)
-        # but not to total_files.
+    if (
+        total_files + total_errors > 0
+    ):  # Avoid division by zero if no files processed at all
+        # Calculate success rate based on files successfully copied out of total
+        # attempts. If a file failed even after retry, it contributes to
+        # (total_files + total_errors) but not to total_files.
         # Initial total_files counts only successful copies (including retries).
         # total_errors counts files that failed even after retry.
         # So, total attempts = initial_successful_copies + final_errors
         # No, total_files already includes retried successes.
-        # So, total_processed_or_attempted = total_files (successes) + total_errors (final failures)
+        # So, total_processed_or_attempted = total_files (successes) +
+        # total_errors (final failures)
 
         # If total_files is 0 and total_errors is > 0, success_rate is 0.
         # If total_files is > 0, then calculate rate.
         if total_files == 0 and total_errors > 0:
-             success_rate = 0.0
-        elif total_files > 0 : # This implicitly means total_files + total_errors > 0
-             success_rate = (total_files / (total_files + total_errors)) * 100
-        else: # total_files == 0 and total_errors == 0 (no files found/processed)
-             success_rate = 100.0 # Or arguably undefined, but 100% success on 0 files is fine.
-
+            success_rate = 0.0
+        elif total_files > 0:  # This implicitly means total_files + total_errors > 0
+            success_rate = (total_files / (total_files + total_errors)) * 100
+        else:  # total_files == 0 and total_errors == 0 (no files found/processed)
+            # Or arguably undefined, but 100% success on 0 files is fine.
+            success_rate = 100.0
 
     log_message(
-        f"\nCompleted! {total_files} files copied | "
-        f"{total_errors} errors | "
+        f"\nCompleted! {total_files} files copied | {total_errors} errors | "
         f"Success rate: {success_rate:.2f}%"
     )
 
-    if total_errors > 0 :
+    if total_errors > 0:
         sys.exit(1)
     else:
         sys.exit(0)

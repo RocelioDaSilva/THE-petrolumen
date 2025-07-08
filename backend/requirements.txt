@@ -51,3 +51,7 @@ python-multipart
 pytest
 httpx # Required by fastapi.testclient for TestClient
 email-validator # Required by pydantic for EmailStr validation
+
+# Formatting and Linting
+black
+flake8

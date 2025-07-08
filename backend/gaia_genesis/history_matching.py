@@ -7,6 +7,7 @@ import seaborn as sns
 from typing import Dict, List, Callable, Tuple, Optional
 import streamlit as st
 
+
 class HistoryMatching:
     def __init__(self):
         """Inicializa o objeto de ajuste de histórico."""
@@ -19,10 +20,13 @@ class HistoryMatching:
         self.optimization_results = None
         self.sensitivity_results = None
 
-    def load_historical_data(self, data: pd.DataFrame,
-                           time_col: str,
-                           pressure_col: str,
-                           production_cols: Dict[str, str]):
+    def load_historical_data(
+        self,
+        data: pd.DataFrame,
+        time_col: str,
+        pressure_col: str,
+        production_cols: Dict[str, str],
+    ):
         """
         Carrega dados históricos.
 
@@ -34,14 +38,20 @@ class HistoryMatching:
                            {'oil': 'oil_col', 'water': 'water_col', 'gas': 'gas_col'}
         """
         self.historical_data = {
-            'time': data[time_col].values,
-            'pressure': data[pressure_col].values,
-            'production': {phase: data[col].values
-                         for phase, col in production_cols.items()}
+            "time": data[time_col].values,
+            "pressure": data[pressure_col].values,
+            "production": {
+                phase: data[col].values for phase, col in production_cols.items()
+            },
         }
 
-    def add_parameter(self, name: str, initial_value: float,
-                     bounds: Tuple[float, float], description: str = ""):
+    def add_parameter(
+        self,
+        name: str,
+        initial_value: float,
+        bounds: Tuple[float, float],
+        description: str = "",
+    ):
         """
         Adiciona parâmetro para ajuste.
 
@@ -52,9 +62,9 @@ class HistoryMatching:
             description: Descrição do parâmetro
         """
         self.parameters[name] = {
-            'value': initial_value,
-            'bounds': bounds,
-            'description': description
+            "value": initial_value,
+            "bounds": bounds,
+            "description": description,
         }
         self.parameter_bounds[name] = bounds
 
@@ -67,8 +77,11 @@ class HistoryMatching:
         """
         self.objective_function = func
 
-    def calculate_error(self, simulated: Dict[str, np.ndarray],
-                       weights: Optional[Dict[str, float]] = None) -> float:
+    def calculate_error(
+        self,
+        simulated: Dict[str, np.ndarray],
+        weights: Optional[Dict[str, float]] = None,
+    ) -> float:
         """
         Calcula erro entre dados simulados e históricos.
 
@@ -80,33 +93,35 @@ class HistoryMatching:
             Erro total ponderado
         """
         if weights is None:
-            weights = {'pressure': 1.0, 'oil': 1.0, 'water': 1.0, 'gas': 1.0}
+            weights = {"pressure": 1.0, "oil": 1.0, "water": 1.0, "gas": 1.0}
 
         total_error = 0.0
 
         # Erro de pressão
-        if 'pressure' in simulated:
+        if "pressure" in simulated:
             pressure_error = mean_squared_error(
-                self.historical_data['pressure'],
-                simulated['pressure']
+                self.historical_data["pressure"], simulated["pressure"]
             )
-            total_error += weights['pressure'] * pressure_error
+            total_error += weights["pressure"] * pressure_error
 
         # Erro de produção
-        for phase in ['oil', 'water', 'gas']:
-            if phase in simulated and phase in self.historical_data['production']:
+        for phase in ["oil", "water", "gas"]:
+            if phase in simulated and phase in self.historical_data["production"]:
                 production_error = mean_squared_error(
-                    self.historical_data['production'][phase],
-                    simulated['production'][phase]
+                    self.historical_data["production"][phase],
+                    simulated["production"][phase],
                 )
                 total_error += weights[phase] * production_error
 
         return total_error
 
-    def run_optimization(self, method: str = 'differential_evolution',
-                        max_iterations: int = 100,
-                        population_size: int = 20,
-                        weights: Optional[Dict[str, float]] = None):
+    def run_optimization(
+        self,
+        method: str = "differential_evolution",
+        max_iterations: int = 100,
+        population_size: int = 20,
+        weights: Optional[Dict[str, float]] = None,
+    ):
         """
         Executa otimização para ajuste de parâmetros.
 
@@ -119,14 +134,14 @@ class HistoryMatching:
         self.optimization_method = method
 
         # Preparar parâmetros iniciais e limites
-        initial_params = np.array([p['value'] for p in self.parameters.values()])
-        bounds = [p['bounds'] for p in self.parameters.values()]
+        initial_params = np.array([p["value"] for p in self.parameters.values()])
+        bounds = [p["bounds"] for p in self.parameters.values()]
 
         # Definir função objetivo
         def objective(x):
             # Atualizar parâmetros
             for i, (name, _) in enumerate(self.parameters.items()):
-                self.parameters[name]['value'] = x[i]
+                self.parameters[name]["value"] = x[i]
 
             # Executar simulação com novos parâmetros
             simulated = self.run_simulation()
@@ -135,7 +150,7 @@ class HistoryMatching:
             return self.calculate_error(simulated, weights)
 
         # Executar otimização
-        if method == 'differential_evolution':
+        if method == "differential_evolution":
             result = differential_evolution(
                 objective,
                 bounds=bounds,
@@ -143,28 +158,28 @@ class HistoryMatching:
                 popsize=population_size,
                 mutation=(0.5, 1.0),
                 recombination=0.7,
-                seed=42
+                seed=42,
             )
         else:  # nelder-mead
             result = minimize(
                 objective,
                 x0=initial_params,
-                method='Nelder-Mead',
+                method="Nelder-Mead",
                 bounds=bounds,
-                options={'maxiter': max_iterations}
+                options={"maxiter": max_iterations},
             )
 
         self.optimization_results = {
-            'success': result.success,
-            'message': result.message,
-            'fun': result.fun,
-            'x': result.x,
-            'nit': result.niter if method == 'differential_evolution' else result.nit
+            "success": result.success,
+            "message": result.message,
+            "fun": result.fun,
+            "x": result.x,
+            "nit": result.niter if method == "differential_evolution" else result.nit,
         }
 
         # Atualizar parâmetros com valores otimizados
         for i, (name, _) in enumerate(self.parameters.items()):
-            self.parameters[name]['value'] = result.x[i]
+            self.parameters[name]["value"] = result.x[i]
 
     def run_sensitivity_analysis(self, n_samples: int = 100) -> Dict:
         """
@@ -180,13 +195,13 @@ class HistoryMatching:
 
         for name, param in self.parameters.items():
             # Gerar amostras
-            values = np.linspace(param['bounds'][0], param['bounds'][1], n_samples)
+            values = np.linspace(param["bounds"][0], param["bounds"][1], n_samples)
             errors = []
 
             # Calcular erro para cada valor
             for value in values:
                 # Atualizar parâmetro
-                self.parameters[name]['value'] = value
+                self.parameters[name]["value"] = value
 
                 # Executar simulação
                 simulated = self.run_simulation()
@@ -199,9 +214,9 @@ class HistoryMatching:
             sensitivity = np.std(errors) / np.mean(errors)
 
             results[name] = {
-                'values': values,
-                'errors': errors,
-                'sensitivity': sensitivity
+                "values": values,
+                "errors": errors,
+                "sensitivity": sensitivity,
             }
 
         self.sensitivity_results = results
@@ -217,35 +232,44 @@ class HistoryMatching:
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
 
         # Pressão
-        axes[0,0].plot(self.historical_data['time'],
-                      self.historical_data['pressure'],
-                      'ko-', label='Histórico')
-        axes[0,0].plot(self.historical_data['time'],
-                      simulated['pressure'],
-                      'r--', label='Simulado')
-        axes[0,0].set_title('Pressão')
-        axes[0,0].set_xlabel('Tempo')
-        axes[0,0].set_ylabel('Pressão (psia)')
-        axes[0,0].legend()
-        axes[0,0].grid(True)
+        axes[0, 0].plot(
+            self.historical_data["time"],
+            self.historical_data["pressure"],
+            "ko-",
+            label="Histórico",
+        )
+        axes[0, 0].plot(
+            self.historical_data["time"], simulated["pressure"], "r--", label="Simulado"
+        )
+        axes[0, 0].set_title("Pressão")
+        axes[0, 0].set_xlabel("Tempo")
+        axes[0, 0].set_ylabel("Pressão (psia)")
+        axes[0, 0].legend()
+        axes[0, 0].grid(True)
 
         # Produção
-        for i, phase in enumerate(['oil', 'water', 'gas']):
-            if phase in simulated and phase in self.historical_data['production']:
+        for i, phase in enumerate(["oil", "water", "gas"]):
+            if phase in simulated and phase in self.historical_data["production"]:
                 row = (i + 1) // 2
                 col = (i + 1) % 2
 
-                axes[row,col].plot(self.historical_data['time'],
-                                 self.historical_data['production'][phase],
-                                 'ko-', label='Histórico')
-                axes[row,col].plot(self.historical_data['time'],
-                                 simulated['production'][phase],
-                                 'r--', label='Simulado')
-                axes[row,col].set_title(f'Produção de {phase}')
-                axes[row,col].set_xlabel('Tempo')
-                axes[row,col].set_ylabel('Taxa de Produção')
-                axes[row,col].legend()
-                axes[row,col].grid(True)
+                axes[row, col].plot(
+                    self.historical_data["time"],
+                    self.historical_data["production"][phase],
+                    "ko-",
+                    label="Histórico",
+                )
+                axes[row, col].plot(
+                    self.historical_data["time"],
+                    simulated["production"][phase],
+                    "r--",
+                    label="Simulado",
+                )
+                axes[row, col].set_title(f"Produção de {phase}")
+                axes[row, col].set_xlabel("Tempo")
+                axes[row, col].set_ylabel("Taxa de Produção")
+                axes[row, col].legend()
+                axes[row, col].grid(True)
 
         plt.tight_layout()
         return fig
@@ -257,26 +281,25 @@ class HistoryMatching:
 
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        sensitivities = {name: results['sensitivity']
-                        for name, results in self.sensitivity_results.items()}
+        sensitivities = {
+            name: results["sensitivity"]
+            for name, results in self.sensitivity_results.items()
+        }
 
         # Ordenar por sensibilidade
-        sorted_sens = dict(sorted(sensitivities.items(),
-                                key=lambda x: x[1],
-                                reverse=True))
+        sorted_sens = dict(
+            sorted(sensitivities.items(), key=lambda x: x[1], reverse=True)
+        )
 
         # Plotar barras
-        ax.bar(range(len(sorted_sens)),
-               list(sorted_sens.values()))
+        ax.bar(range(len(sorted_sens)), list(sorted_sens.values()))
 
         # Configurar eixo x
         ax.set_xticks(range(len(sorted_sens)))
-        ax.set_xticklabels(list(sorted_sens.keys()),
-                          rotation=45,
-                          ha='right')
+        ax.set_xticklabels(list(sorted_sens.keys()), rotation=45, ha="right")
 
-        ax.set_title('Sensibilidade dos Parâmetros')
-        ax.set_ylabel('Sensibilidade')
+        ax.set_title("Sensibilidade dos Parâmetros")
+        ax.set_ylabel("Sensibilidade")
         ax.grid(True)
 
         plt.tight_layout()
@@ -290,18 +313,20 @@ class HistoryMatching:
         # Criar DataFrame com resultados
         results = []
         for name, param in self.parameters.items():
-            results.append({
-                'parameter': name,
-                'value': param['value'],
-                'description': param['description']
-            })
+            results.append(
+                {
+                    "parameter": name,
+                    "value": param["value"],
+                    "description": param["description"],
+                }
+            )
 
         df = pd.DataFrame(results)
 
         # Plotar matriz de correlação
         fig, ax = plt.subplots(figsize=(10, 8))
-        sns.heatmap(df.corr(), annot=True, cmap='coolwarm', ax=ax)
-        ax.set_title('Correlação entre Parâmetros')
+        sns.heatmap(df.corr(), annot=True, cmap="coolwarm", ax=ax)
+        ax.set_title("Correlação entre Parâmetros")
 
         plt.tight_layout()
         return fig
@@ -314,9 +339,9 @@ class HistoryMatching:
             filename: Nome do arquivo de saída
         """
         results = {
-            'parameters': self.parameters,
-            'optimization': self.optimization_results,
-            'sensitivity': self.sensitivity_results
+            "parameters": self.parameters,
+            "optimization": self.optimization_results,
+            "sensitivity": self.sensitivity_results,
         }
 
         pd.DataFrame(results).to_csv(filename, index=False)
