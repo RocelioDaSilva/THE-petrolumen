@@ -11,6 +11,15 @@ This document provides guidelines and instructions for AI agents working with th
 *   Ensure any code changes are accompanied by relevant tests.
 *   Follow standard coding conventions for the respective languages (JavaScript/TypeScript for frontend, Python for backend).
 
+## General Principles for AI Agents
+
+*   **Clarity and Readability:** Prioritize writing clear, understandable, and maintainable code.
+*   **Comments:** Add comments to explain complex logic, assumptions, or non-obvious decisions.
+*   **Testing:** Strive to add or update tests for any new features or bug fixes (supplements existing guideline).
+*   **Incremental Changes:** Prefer smaller, incremental commits over large, monolithic ones.
+*   **Consult `AGENTS.md` in Subdirectories:** Be aware that subdirectories (e.g., `petrolumen/`, `backend/`) may contain their own `AGENTS.md` files with more specific instructions. Always check for and adhere to the guidance in the most specific `AGENTS.md` file applicable to the files you are modifying.
+*   **Future Improvements:** Refer to `FUTURE_IMPROVEMENTS_JULY.md` in the root directory for a broader list of potential enhancements to the repository.
+
 ## Working with the Frontend (`petrolumen/`)
 
 *   The frontend is built with React/Next.js and packaged natively using Tauri.
