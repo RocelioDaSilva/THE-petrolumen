@@ -6,10 +6,11 @@ import logging  # It's good practice to have logging available
 
 # Corrected imports
 from gaia_genesis.core.auth_manager import AuthManager
-from gaia_genesis.core.database_manager import (
-    DatabaseManager,
-)  # For type hints if needed, or mocking
-from gaia_genesis.core.database_models import User as DBUser  # For type hints
+
+# from gaia_genesis.core.database_manager import ( # Unused
+#     DatabaseManager,
+# )  # For type hints if needed, or mocking
+# from gaia_genesis.core.database_models import User as DBUser  # Unused
 
 logger = logging.getLogger(__name__)
 

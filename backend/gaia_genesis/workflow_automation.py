@@ -1,5 +1,5 @@
-import numpy as np
-import pandas as pd
+# import numpy as np # Unused
+# import pandas as pd # Unused
 from typing import Dict, List, Tuple, Optional, Any  # Union removed
 import matplotlib.pyplot as plt
 
@@ -11,8 +11,7 @@ import yaml
 from pathlib import Path
 import logging
 
-# from watchdog.observers import Observer # F811: redefinition of unused 'Observer'
-from watchdog.events import FileSystemEventHandler  # F401: imported but unused
+# from watchdog.observers import Observer # Removed commented out import
 import schedule
 
 # import time # Unused
@@ -22,7 +21,7 @@ from docx import Document
 
 # from docx.shared import Inches as DocxInches # Unused
 # from docx.enum.text import WD_ALIGN_PARAGRAPH # Unused
-# import jinja2 # F811: redefinition of unused 'jinja2'
+# import jinja2 # Removed commented out import
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -447,6 +446,8 @@ class WorkflowAutomation:
         """
         if not callable(on_new_file_callback):
             raise TypeError("Callback function must be callable.")
+
+        from watchdog.events import FileSystemEventHandler  # Import locally
 
         # Local Handler class to avoid F811 if FileSystemEventHandler was imported globally
         class _LocalMonitorHandler(FileSystemEventHandler):

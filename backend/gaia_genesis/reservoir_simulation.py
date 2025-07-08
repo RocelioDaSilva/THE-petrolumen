@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple, Optional  # Removed Union
 import matplotlib.pyplot as plt
-from scipy.special import exp1
-from scipy.optimize import curve_fit
+
+# from scipy.special import exp1 # Unused
+# from scipy.optimize import curve_fit # Unused
 from scipy.sparse import csr_matrix, spsolve
 import tensorflow as tf
 from sklearn.ensemble import RandomForestRegressor
@@ -181,7 +182,7 @@ class ReservoirSimulation:
 
     def _run_black_oil_simulation(self, timesteps: int, dt: float):
         """Executa simulação black-oil."""
-        nx, ny, nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]
+        _nx, _ny, _nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]  # noqa: F841
         cells = self.grid["cells"]
 
         # Inicializar arrays
@@ -227,7 +228,7 @@ class ReservoirSimulation:
 
     def _run_compositional_simulation(self, timesteps: int, dt: float):
         """Executa simulação composicional."""
-        nx, ny, nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]
+        _nx, _ny, _nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]  # noqa: F841
         cells = self.grid["cells"]
         components = self.pvt_data["components"]
         nc = len(components)
@@ -238,11 +239,11 @@ class ReservoirSimulation:
         composition = np.zeros((cells, nc))
         saturation = np.zeros((cells, 2))  # óleo e gás
 
-        # Propriedades do reservatório
-        kx = np.ones(cells) * 100  # md
-        ky = np.ones(cells) * 100
-        kz = np.ones(cells) * 10
-        phi = np.ones(cells) * 0.2
+        # Propriedades do reservatório - These were unused as _build_compositional_matrix defines its own
+        # kx = np.ones(cells) * 100  # md
+        # ky = np.ones(cells) * 100
+        # kz = np.ones(cells) * 10
+        # phi = np.ones(cells) * 0.2
 
         # Armazenar resultados
         self.simulation_results = {
@@ -275,7 +276,7 @@ class ReservoirSimulation:
 
             # Construir matriz de coeficientes
             A = self._build_compositional_matrix(
-                pressure, temperature, composition, saturation
+                pressure, temperature, composition, saturation, dt  # Added dt
             )
             b = self._build_compositional_rhs(
                 pressure, temperature, composition, saturation, dt
@@ -298,7 +299,11 @@ class ReservoirSimulation:
 
     def _run_thermal_simulation(self, timesteps: int, dt: float):
         """Executa simulação térmica."""
-        nx, ny, nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]
+        nx, ny, _nz = (
+            self.grid["nx"],
+            self.grid["ny"],
+            self.grid["nz"],
+        )  # nz is F841, prefixed # noqa: F841
         cells = self.grid["cells"]
 
         # Inicializar arrays
@@ -307,10 +312,10 @@ class ReservoirSimulation:
         saturation = np.zeros((cells, 3))  # água, óleo, vapor
 
         # Propriedades do reservatório
-        kx = np.ones(cells) * 100  # md
-        ky = np.ones(cells) * 100
-        kz = np.ones(cells) * 10
-        phi = np.ones(cells) * 0.2
+        # kx = np.ones(cells) * 100  # md # F841: Unused
+        # ky = np.ones(cells) * 100 # F841: Unused
+        # kz = np.ones(cells) * 10 # F841: Unused
+        phi = np.ones(cells) * 0.2  # This phi (porosity array) is used later
 
         # Propriedades térmicas
         rock_heat_capacity = self.pvt_data["rock_heat_capacity"]
@@ -627,7 +632,9 @@ class ReservoirSimulation:
                     # Diagonal principal
                     rows.append(idx)
                     cols.append(idx)
-                    data.append(phi[idx] / dt)
+                    data.append(
+                        phi[idx] / delta_t
+                    )  # Changed dt to delta_t to match signature
 
         return csr_matrix((data, (rows, cols)), shape=(cells, cells))
 
@@ -690,6 +697,7 @@ class ReservoirSimulation:
         temperature: np.ndarray,
         composition: np.ndarray,
         saturation: np.ndarray,
+        delta_t: float,  # Changed parameter name from dt to delta_t
     ) -> csr_matrix:
         """Constrói matriz de coeficientes para simulação composicional."""
         nx, ny, nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]
@@ -802,8 +810,15 @@ class ReservoirSimulation:
     ) -> np.ndarray:
         """Constrói vetor de termos independentes para simulação composicional."""
         cells = self.grid["cells"]
-        nc = composition.shape[1]
-        b = np.zeros(cells * (2 + nc))
+        # nc = composition.shape[1] # F841: Unused
+        # The size of b depends on nc, so nc IS used implicitly.
+        # Let's get nc and use it explicitly for clarity, or ensure it's not needed.
+        # nc is used to determine the size of the b vector.
+        # The error F841 means 'nc' itself is not referenced *after* this assignment.
+        # However, its value *is* used in `cells * (2 + nc)`.
+        # This might be a case where Flake8 is technically correct but the variable is explanatory.
+        # To silence Flake8 while keeping clarity, use it directly:
+        b = np.zeros(cells * (2 + composition.shape[1]))
 
         # Adicionar termos fonte (poços)
         for well_name, well in self.wells.items():

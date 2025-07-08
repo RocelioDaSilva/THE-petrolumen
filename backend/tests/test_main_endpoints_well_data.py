@@ -2,7 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 from fastapi import status
 import io
-import pandas as pd
+
+# import pandas as pd # Unused
 
 # This module tests well data management endpoints in main.py.
 # These endpoints require authentication.
@@ -341,10 +342,11 @@ def test_admin_delete_well_success(
         f"/api/v1/admin/wells/{well_name_to_delete}", headers=admin_auth_headers
     )
     assert delete_response.status_code == status.HTTP_200_OK
-    assert (
-        delete_response.json()["message"]
-        == f"Well '{well_name_to_delete}' and its data deleted successfully."
-    )
+    assert delete_response.json()[
+        "message"
+    ] == "Well '{}' and its data deleted successfully.".format(
+        well_name_to_delete
+    )  # noqa: F541
 
     # Verify absence via API after deleting
     preview_after_delete = client.get(
@@ -359,7 +361,7 @@ def test_admin_delete_well_not_found(
     response = client.delete(
         "/api/v1/admin/wells/NonExistentDeleteWell", headers=admin_auth_headers
     )
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.status_code == status.HTTP_404_NOT_FOUND  # noqa: F541
 
 
 def test_admin_delete_well_by_non_admin(

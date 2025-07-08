@@ -1,7 +1,7 @@
 from history_matching import HistoryMatching
 from flow_simulation import FlowSimulation
 import numpy as np
-from typing import Dict, Optional
+from typing import Dict  # Removed Optional
 
 
 class FlowHistoryMatching(HistoryMatching):

@@ -6,10 +6,11 @@ including stress/strain calculations, porosity/permeability updates, and fractur
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Union, Any
+from typing import Dict, List, Tuple  # Removed Optional, Union, Any
 from scipy.sparse import csr_matrix, lil_matrix
 from scipy.sparse.linalg import spsolve
-import numba
+
+# import numba # Unused
 
 
 class GeomechanicalModel:
@@ -120,8 +121,12 @@ class GeomechanicalModel:
             grid_geometry: Grid geometry information
         """
         # Extract properties
-        E = self.properties.get("youngs_modulus", np.ones(self.n_cells) * 1e6)  # psi
-        nu = self.properties.get("poissons_ratio", np.ones(self.n_cells) * 0.25)
+        _E = self.properties.get(
+            "youngs_modulus", np.ones(self.n_cells) * 1e6
+        )  # psi # noqa: F841
+        _nu = self.properties.get(
+            "poissons_ratio", np.ones(self.n_cells) * 0.25
+        )  # noqa: F841
 
         # Assemble stiffness matrix and load vector
         K, f = self._assemble_system(pressure, grid_geometry)

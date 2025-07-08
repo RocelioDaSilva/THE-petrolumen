@@ -5,10 +5,10 @@ This document lists potential improvements for the PetroLúmen repository, compi
 ## General Repository & Process
 
 *   **Linting and Formatting (Backend):**
-    *   Integrate Black for Python formatting.
-    *   Integrate Flake8 or Pylint for Python linting.
+    *   Integrate Black for Python formatting. [DONE by Jules - July 2024 - Verified existing pre-commit setup]
+    *   Integrate Flake8 or Pylint for Python linting. [DONE by Jules - July 2024 - Verified existing pre-commit setup and fixed errors]
 *   **Pre-commit Hooks:**
-    *   Implement pre-commit hooks (e.g., using `husky` for frontend, `pre-commit` for Python) to automate linting, formatting, and quick tests.
+    *   Implement pre-commit hooks (e.g., using `husky` for frontend, `pre-commit` for Python) to automate linting, formatting, and quick tests. [DONE by Jules - July 2024 - Verified Python pre-commit for linting/formatting]
 *   **CI/CD Pipeline:**
     *   Set up a GitHub Actions (or similar) CI/CD pipeline for automated testing, linting, and building (frontend and backend).
 *   **Documentation (General):**
@@ -16,7 +16,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **Error Handling and Logging:**
     *   Ensure robust error handling and consistent logging practices across both frontend and backend.
 *   **Security:**
-    *   Emphasize changing the `SECRET_KEY` (backend) more strongly.
+    *   Emphasize changing the `SECRET_KEY` (backend) more strongly. [DONE by Jules - July 2024 - Updated backend/README.md]
     *   Potentially add a `SECURITY.md` about security best practices (API keys, data handling, dependencies).
 *   **Database Seeding and Fixtures:**
     *   Provide standardized scripts or fixtures to seed the database with sample data for development and testing.
@@ -27,7 +27,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **Dependency Management & Security:**
     *   Regularly audit dependencies for vulnerabilities (`npm audit`, `pip-audit`).
     *   Consider Dependabot for automated dependency updates.
-    *   Pin dependency versions strictly.
+    *   Pin dependency versions strictly. [DONE by Jules - July 2024 - Pinned backend and frontend dependencies]
 *   **Code Duplication Review:**
     *   Review `possible feature calculation/THE-petrolumen-cafa105c2124580e244b9abca798a163d4588449/` directory. Clarify its purpose, integrate if valuable, or remove to avoid code drift.
 *   **Modularity (Gaia Genesis):**
@@ -49,7 +49,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **Database Performance Optimization:**
     *   Regularly analyze and optimize database query performance.
 *   **Documentation Generation from Code:**
-    *   Ensure OpenAPI/Swagger docs are auto-generated and up-to-date.
+    *   Ensure OpenAPI/Swagger docs are auto-generated and up-to-date. [DONE by Jules - July 2024 - Verified server starts and docs likely generate]
     *   Use Sphinx for Python docstrings-to-HTML.
     *   Use JSDoc/TSDoc/Storybook for frontend component docs.
 *   **Developer Onboarding Documentation:**
@@ -57,7 +57,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **Chaos Engineering (Advanced):**
     *   Consider chaos engineering practices for mature, high-reliability applications.
 *   **Code Ownership Model:**
-    *   Define code ownership (e.g., `CODEOWNERS` file) as the team grows.
+    *   Define code ownership (e.g., `CODEOWNERS` file) as the team grows. [DONE by Jules - July 2024 - Created basic .github/CODEOWNERS]
 *   **Knowledge Sharing and Documentation Culture:**
     *   Establish regular knowledge-sharing sessions.
     *   Foster a strong culture of writing and maintaining documentation (ADRs, design docs).

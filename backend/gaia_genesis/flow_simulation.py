@@ -1,7 +1,8 @@
 import numpy as np
-from scipy.sparse import diags, csr_matrix
-from scipy.sparse.linalg import spsolve
-import pandas as pd
+
+# from scipy.sparse import diags, csr_matrix # Unused
+# from scipy.sparse.linalg import spsolve # Unused
+# import pandas as pd # Unused
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from .geology.mesh import Mesh  # Corrected to relative import
@@ -292,7 +293,7 @@ class FlowSimulation:
             return 0
 
         # Calcular pressão no cap de gás
-        goc_depth = self.gas_cap_properties["gas_oil_contact"]
+        # goc_depth = self.gas_cap_properties["gas_oil_contact"] # F841: Unused
         goc_pressure = self.gas_cap_properties["initial_pressure"]
 
         # Calcular expansão do gás
@@ -389,7 +390,7 @@ class FlowSimulation:
             current_time = step * dt
 
             # Calcular pressão capilar
-            pc = self.calculate_capillary_pressure(self.saturation)
+            _ = self.calculate_capillary_pressure(self.saturation)  # pc F841: Unused
 
             # Calcular permeabilidade relativa
             kr = self.calculate_relative_permeability(self.saturation)
@@ -463,7 +464,7 @@ class FlowSimulation:
 
         for step in range(n_steps):
             # Calcular pressão capilar
-            pc = self.calculate_capillary_pressure(self.saturation)
+            _ = self.calculate_capillary_pressure(self.saturation)  # pc F841: Unused
 
             # Calcular permeabilidade relativa
             kr = self.calculate_relative_permeability(self.saturation)
@@ -524,7 +525,7 @@ class FlowSimulation:
 
         for step in range(n_steps):
             # Calcular pressão capilar
-            pc = self.calculate_capillary_pressure(self.saturation)
+            _ = self.calculate_capillary_pressure(self.saturation)  # pc F841: Unused
 
             # Calcular permeabilidade relativa
             kr = self.calculate_relative_permeability(self.saturation)

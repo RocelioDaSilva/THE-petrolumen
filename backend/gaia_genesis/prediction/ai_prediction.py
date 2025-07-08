@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict  # noqa: F401 (Dict is used)
 import logging
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, GridSearchCV

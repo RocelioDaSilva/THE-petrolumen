@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
-import tensorflow as tf
+
+# import tensorflow as tf # Unused
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
-from sklearn.ensemble import RandomForestClassifier
-from typing import Dict, List, Tuple, Optional, Union
+
+# from sklearn.ensemble import RandomForestClassifier # Unused
+from typing import Tuple  # Corrected typing import
 import matplotlib.pyplot as plt
 import seaborn as sns
 

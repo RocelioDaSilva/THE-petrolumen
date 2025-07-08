@@ -29,7 +29,8 @@ class DatabaseManager:
             self.SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=self.engine
             )
-            with self.engine.connect() as connection:  # Test connection
+            # Test connection by trying to connect
+            with self.engine.connect():  # Variable 'connection' was unused
                 logger.info(f"Successfully connected to database: {self.db_url}")
             return True
         except SQLAlchemyError as e:

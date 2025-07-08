@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Optional  # Removed Tuple, Union
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-import tensorflow as tf
+
+# import tensorflow as tf # Unused
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM, Dropout
 
@@ -480,7 +481,7 @@ class ProductionForecasting:
                 c="b",
                 marker="o",
             )
-            plt.title(f'Cenário {i+1}\nEspaçamento: {scenario["spacing"]:.0f}m')
+            plt.title(f'Cenário {i +1}\nEspaçamento: {scenario["spacing"]:.0f}m')
             plt.xlabel("X (m)")
             plt.ylabel("Y (m)")
             plt.grid(True)
@@ -580,8 +581,8 @@ class ProductionForecasting:
     ) -> float:
         """Calcula recuperação para recuperação térmica."""
         # Parâmetros
-        mu_oil = constraints["oil_viscosity"]
-        mu_steam = constraints["steam_viscosity"]
+        _mu_oil = constraints["oil_viscosity"]  # noqa: F841
+        _mu_steam = constraints["steam_viscosity"]  # noqa: F841
         temperature_factor = (temperature - constraints["reservoir_temperature"]) / 100
 
         # Calcular recuperação
