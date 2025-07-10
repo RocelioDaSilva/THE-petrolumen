@@ -387,3 +387,233 @@ def test_admin_delete_well_by_non_admin(
         f"/api/v1/admin/wells/{well_to_protect}", headers=user_auth_headers
     )
     assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+def test_admin_delete_well_unauthenticated(
+    client: TestClient,
+    sample_csv_file_tuple, # To create a well to attempt to delete
+    sample_csv_data_content,
+    user_auth_headers, # To create the well initially
+    clear_wells_and_production_data_tables
+):
+    """Test unauthenticated attempt to delete a well."""
+    well_name_to_delete = "DeleteMeUnauthWell"
+    # Create the well first (as any authenticated user, doesn't have to be admin for creation)
+    client.post(
+        f"/api/v1/wells/{well_name_to_delete}/data",
+        headers=user_auth_headers, # Use user_auth_headers for creation
+        files={
+            "files": (
+                sample_csv_file_tuple[0],
+                io.BytesIO(sample_csv_data_content.encode("utf-8")),
+                sample_csv_file_tuple[2],
+            )
+        },
+    )
+    # Attempt delete without auth headers
+    response = client.delete(f"/api/v1/admin/wells/{well_name_to_delete}")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# --- More tests for POST /api/v1/wells/{well_name}/data ---
+
+def test_upload_well_data_multiple_files_some_invalid(
+    client: TestClient, user_auth_headers, sample_csv_data_content, clear_wells_and_production_data_tables
+):
+    """Test uploading multiple files where one is not a CSV."""
+    well_name = "MultiFileWellSomeInvalid"
+    valid_csv_file = ("valid.csv", io.BytesIO(sample_csv_data_content.encode("utf-8")), "text/csv")
+    invalid_txt_file = ("invalid.txt", io.BytesIO(b"this is not a csv"), "text/plain")
+
+    files_payload = [
+        ("files", valid_csv_file),
+        ("files", invalid_txt_file)
+    ]
+    response = client.post(
+        f"/api/v1/wells/{well_name}/data",
+        headers=user_auth_headers,
+        files=files_payload, # Pass as a list of tuples for multiple files
+    )
+    # The endpoint processes files sequentially and raises error on the first invalid one.
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "File 'invalid.txt' is not a CSV" in response.json()["detail"]
+    # Also verify that no data from 'valid.csv' was processed for this well.
+    preview_resp = client.get(f"/api/v1/wells/{well_name}/preview", headers=user_auth_headers)
+    assert preview_resp.status_code == status.HTTP_404_NOT_FOUND # Well should not have been created or have data
+
+
+def test_upload_well_data_csv_with_malformed_content_non_numeric(
+    client: TestClient, user_auth_headers, clear_wells_and_production_data_tables
+):
+    """Test uploading CSV with non-numeric data in a numeric column."""
+    well_name = "MalformedContentWell"
+    malformed_csv_content = "Date,OilRate,GasRate,WaterRate\n2023-01-01,一百,50.2,10.1" # "一百" is Chinese for 100
+    files_payload = {"files": ("malformed.csv", io.BytesIO(malformed_csv_content.encode("utf-8")), "text/csv")}
+
+    response = client.post(
+        f"/api/v1/wells/{well_name}/data",
+        headers=user_auth_headers,
+        files=files_payload,
+    )
+    # This depends on how DataUploader and DatabaseManager handle pd.to_numeric errors or dtype issues.
+    # If `data_uploader.load_well_data` returns success=False and a message:
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    # The detail message will come from DataUploader -> DatabaseManager if pandas parsing fails or DB insertion fails.
+    # Example: "Error processing data for malformed.csv: Could not convert string to float" or similar.
+    # Or "Error inserting production data for well..."
+    # For now, let's check for a generic part of the expected error.
+    assert "Error processing data" in response.json()["detail"] or "Error inserting production data" in response.json()["detail"]
+
+
+def test_upload_well_data_empty_csv(
+    client: TestClient, user_auth_headers, clear_wells_and_production_data_tables
+):
+    """Test uploading an empty CSV file."""
+    well_name = "EmptyCSVWell"
+    empty_csv_content = "" # Completely empty
+    files_payload = {"files": ("empty.csv", io.BytesIO(empty_csv_content.encode("utf-8")), "text/csv")}
+    response = client.post(
+        f"/api/v1/wells/{well_name}/data",
+        headers=user_auth_headers,
+        files=files_payload,
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "empty.csv is empty or contains no data" in response.json()["detail"].lower()
+
+
+def test_upload_well_data_csv_headers_only(
+    client: TestClient, user_auth_headers, clear_wells_and_production_data_tables
+):
+    """Test uploading a CSV file with only headers and no data rows."""
+    well_name = "HeadersOnlyCSVWell"
+    headers_only_content = "Date,OilRate,GasRate,WaterRate\n"
+    files_payload = {"files": ("headers_only.csv", io.BytesIO(headers_only_content.encode("utf-8")), "text/csv")}
+    response = client.post(
+        f"/api/v1/wells/{well_name}/data",
+        headers=user_auth_headers,
+        files=files_payload,
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "headers_only.csv is empty or contains no data" in response.json()["detail"].lower()
+
+
+def test_upload_well_data_with_invalid_metadata_type(
+    client: TestClient, user_auth_headers, sample_csv_file_tuple, clear_wells_and_production_data_tables
+):
+    """Test uploading well data with metadata field of incorrect type (e.g. latitude as string)."""
+    well_name = "InvalidMetaWell"
+    # FastAPI/Pydantic should catch this due to WellMetadata model type hints.
+    # Note: files are sent as 'files' part, metadata as 'data' part for multipart/form-data
+    # TestClient handles this if `data` param is used for form fields and `files` for files.
+    response = client.post(
+        f"/api/v1/wells/{well_name}/data",
+        headers=user_auth_headers,
+        files={"files": sample_csv_file_tuple}, # Correct way to pass single file in files dict
+        data={"latitude": "not-a-float"} # This should cause Pydantic validation error for WellMetadata
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    details = response.json().get("detail", [])
+    assert any("Input should be a valid number" in error.get("msg", "") for error in details if error.get("loc") == ['body', 'latitude'])
+
+
+# --- More tests for GET /api/v1/wells/{well_name}/preview ---
+@pytest.mark.parametrize("n_rows_param, expected_len_coeff", [
+    ("n_rows=0", 0),
+    ("n_rows=1", 1),
+    ("n_rows=100", 1), # sample_csv_data_content has 2 rows, so preview will be capped at 2
+    ("", 1) # Default n_rows is 5, also capped at 2 for this data
+])
+def test_get_well_data_preview_n_rows_variations(
+    client: TestClient, user_auth_headers, sample_csv_file_tuple, sample_csv_data_content,
+    n_rows_param: str, expected_len_coeff: int, # expected_len_coeff relates to actual data size
+    clear_wells_and_production_data_tables
+):
+    well_name = "PreviewNRowsWell"
+    # Upload data
+    client.post(
+        f"/api/v1/wells/{well_name}/data",
+        headers=user_auth_headers,
+        files={
+            "files": (
+                sample_csv_file_tuple[0],
+                io.BytesIO(sample_csv_data_content.encode("utf-8")),
+                sample_csv_file_tuple[2],
+            )
+        },
+    )
+
+    num_data_rows = len(sample_csv_data_content.strip().split('\n')) - 1 # 2 for sample data
+
+    response = client.get(
+        f"/api/v1/wells/{well_name}/preview?{n_rows_param}", headers=user_auth_headers
+    )
+    assert response.status_code == status.HTTP_200_OK
+    preview_json = response.json()
+
+    expected_preview_len = 0
+    if n_rows_param == "n_rows=0":
+        expected_preview_len = 0
+    elif n_rows_param == "n_rows=1":
+        expected_preview_len = 1
+    elif n_rows_param == "n_rows=100": # n_rows > actual data rows
+        expected_preview_len = num_data_rows
+    elif n_rows_param == "": # default n_rows=5
+        expected_preview_len = num_data_rows
+
+    assert len(preview_json["preview"]) == expected_preview_len
+
+
+def test_get_well_data_preview_negative_n_rows(
+    client: TestClient, user_auth_headers, clear_wells_and_production_data_tables
+):
+    """Test preview with negative n_rows. Expects 422 if Query(ge=0) is used, otherwise depends on pandas."""
+    well_name = "PreviewNegativeNWell"
+    # No need to upload data if Pydantic catches it. If not, then upload.
+    # Assuming Pydantic doesn't have ge=0 for n_rows based on main.py.
+    # So, it will pass to pandas.DataFrame.head().
+    # For this test to be meaningful for pandas behavior, data should be uploaded.
+    # Let's use sample_csv_data_content (2 data rows). head(-1) means all but last 1 row.
+    client.post(
+        f"/api/v1/wells/{well_name}/data",
+        headers=user_auth_headers,
+        files={
+            "files": (
+                "data.csv",
+                io.BytesIO(b"Date,Val\n1,10\n2,20\n3,30"), # 3 data rows
+                "text/csv",
+            )
+        },
+    )
+    response = client.get(
+        f"/api/v1/wells/{well_name}/preview?n_rows=-1", headers=user_auth_headers
+    )
+    assert response.status_code == status.HTTP_200_OK # Pandas head(-N) is valid
+    preview_data = response.json()["preview"]
+    assert len(preview_data) == 2 # All but last 1 of 3 rows
+
+
+# --- More tests for DELETE /api/v1/admin/wells/{well_name} ---
+def test_admin_delete_well_with_no_production_data(
+    client: TestClient, admin_auth_headers, test_db_manager, clear_wells_and_production_data_tables
+):
+    """Test admin deleting a well that exists but has no production data."""
+    well_name_no_data = "WellWithNoProdData"
+    # Create well directly in DB without production data
+    test_db_manager.insert_well(well_name_no_data, field_name="TestField")
+
+    # Verify well exists (e.g., by trying to get its preview, should be 404 or empty preview)
+    # Or by listing wells
+    list_resp_before = client.get("/api/v1/wells", headers=admin_auth_headers)
+    assert well_name_no_data in [w['name'] for w in list_resp_before.json()['wells']]
+
+    # Attempt to delete
+    delete_response = client.delete(
+        f"/api/v1/admin/wells/{well_name_no_data}", headers=admin_auth_headers
+    )
+    assert delete_response.status_code == status.HTTP_200_OK
+    assert delete_response.json()["message"] == f"Well '{well_name_no_data}' and its data deleted successfully."
+
+    # Verify well is gone
+    list_resp_after = client.get("/api/v1/wells", headers=admin_auth_headers)
+    assert well_name_no_data not in [w['name'] for w in list_resp_after.json()['wells']]
+    assert test_db_manager.get_well_by_name(well_name_no_data) is None

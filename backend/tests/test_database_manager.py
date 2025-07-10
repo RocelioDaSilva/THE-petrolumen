@@ -276,6 +276,133 @@ def test_well_name_unique_constraint(
     db_session.rollback()
 
 
+# --- Connection and Session Management Tests ---
+
+def test_db_manager_connect_failure():
+    """Test DB connection failure with a bad URL."""
+    bad_db_url = "sqlite:///nonexistent_path/should_fail.db" # Or an invalid postgresql URL etc.
+    # Ensure the path is truly non-writable or invalid for the DB driver
+    # For SQLite, a non-existent directory in the path usually causes failure.
+    # If running in a sandbox where all paths might be writable, this needs care.
+    # Let's try a deliberately malformed URL for a driver that's not installed.
+    malformed_db_url = "postgresql+hopefullynotasdriver://user:pass@host/db"
+
+    db_manager_fail = DatabaseManager(db_url=malformed_db_url)
+    assert db_manager_fail.connect() is False
+    assert db_manager_fail.engine is None
+    assert db_manager_fail.SessionLocal is None
+
+
+def test_create_tables_not_connected(caplog):
+    """Test create_tables fails if DB is not connected."""
+    db_manager_no_connect = DatabaseManager(db_url="sqlite:///memory_no_connect.db")
+    # Do not call connect()
+    with caplog.at_level(logging.ERROR):
+        assert db_manager_no_connect.create_tables() is False
+    assert "Cannot create tables: Database engine not initialized" in caplog.text
+
+
+def test_get_session_not_connected(caplog):
+    """Test get_session raises error if DB is not connected."""
+    db_manager_no_connect = DatabaseManager(db_url="sqlite:///memory_get_session_fail.db")
+    # Do not call connect()
+    with pytest.raises(ConnectionError, match="Database not connected. Cannot get session."):
+        db_manager_no_connect.get_session()
+    # Also check log for "SessionLocal not initialized"
+    # Note: caplog might not capture this if ConnectionError is raised before logging.
+    # The primary check is the ConnectionError.
+
+
+# --- More specific tests for insert_production_data ---
+
+def test_insert_production_data_invalid_date_formats(
+    test_db_manager: DatabaseManager, clear_wells_and_production_data_tables, caplog
+):
+    """Test insert_production_data with various invalid date formats/types, ensuring they are skipped."""
+    well_id = test_db_manager.insert_well("WellForInvalidDates")
+    assert well_id is not None
+
+    prod_data_invalid_dates = [
+        {"date": "2023/01/01", "oil_rate": 100.0}, # Wrong format
+        {"date": "not-a-date", "oil_rate": 110.0}, # Not a date string
+        {"date": 12345, "oil_rate": 120.0},        # Wrong type (int)
+        {"date": None, "oil_rate": 130.0},         # None date
+        {"date": "2023-01-05", "oil_rate": 150.0}  # Valid one to ensure something can be inserted
+    ]
+
+    with caplog.at_level(logging.WARNING):
+        success = test_db_manager.insert_production_data(well_id, prod_data_invalid_dates)
+
+    assert success is True # The method returns True if any valid data is processed or no new data needs inserting
+
+    # Check logs for warnings about skipped records
+    assert "Invalid date format for record: {'date': '2023/01/01', 'oil_rate': 100.0}. Skipping." in caplog.text
+    assert "Invalid date format for record: {'date': 'not-a-date', 'oil_rate': 110.0}. Skipping." in caplog.text
+    assert "Invalid date type for record: {'date': 12345, 'oil_rate': 120.0}. Skipping." in caplog.text
+    assert "Invalid date type for record: {'date': None, 'oil_rate': 130.0}. Skipping." in caplog.text
+
+    retrieved_data = test_db_manager.get_well_production_data(well_id)
+    assert len(retrieved_data) == 1 # Only the valid date should be inserted
+    assert retrieved_data[0]["date"] == "2023-01-05"
+    assert retrieved_data[0]["oil_rate"] == 150.0
+
+
+def test_insert_production_data_no_new_data_to_insert(
+    test_db_manager: DatabaseManager, clear_wells_and_production_data_tables, caplog
+):
+    """Test insert_production_data when all provided data already exists or is invalid."""
+    well_id = test_db_manager.insert_well("WellForNoNewData")
+    assert well_id is not None
+
+    # Insert initial valid data
+    initial_data = [{"date": "2023-02-01", "oil_rate": 200.0}]
+    assert test_db_manager.insert_production_data(well_id, initial_data) is True
+
+    # Attempt to insert same data again, plus some invalid data
+    data_to_try_insert = [
+        {"date": "2023-02-01", "oil_rate": 201.0}, # Duplicate date
+        {"date": "invalid-date", "oil_rate": 202.0}  # Invalid date
+    ]
+
+    with caplog.at_level(logging.INFO): # To catch "No new production data"
+        success = test_db_manager.insert_production_data(well_id, data_to_try_insert)
+
+    assert success is True
+    assert f"No new production data to insert for well ID {well_id}." in caplog.text
+
+    retrieved_data = test_db_manager.get_well_production_data(well_id)
+    assert len(retrieved_data) == 1
+    assert retrieved_data[0]["oil_rate"] == 200.0 # Original data unchanged
+
+
+# --- Test DatabaseManager.close() ---
+def test_db_manager_close_connected(test_db_manager_with_real_connect: DatabaseManager, mocker):
+    """Test that close() disposes the engine if connected."""
+    # test_db_manager_with_real_connect is a fixture that ensures connect() was called.
+    # We need to spy on engine.dispose.
+    # Ensure engine exists first
+    assert test_db_manager_with_real_connect.engine is not None
+
+    mock_dispose = mocker.spy(test_db_manager_with_real_connect.engine, 'dispose')
+
+    test_db_manager_with_real_connect.close()
+
+    mock_dispose.assert_called_once()
+
+
+def test_db_manager_close_not_connected(mocker):
+    """Test that close() does not fail if engine is None (not connected)."""
+    db_manager_no_engine = DatabaseManager()
+    assert db_manager_no_engine.engine is None # Engine is None by default
+
+    # No need to mock dispose as it shouldn't be called if engine is None.
+    # Just ensure calling close() doesn't raise an error.
+    try:
+        db_manager_no_engine.close()
+    except Exception as e:
+        pytest.fail(f"DatabaseManager.close() raised an exception when not connected: {e}")
+
+
 def test_production_data_well_date_unique_constraint(
     db_session: Session,
     test_db_manager: DatabaseManager,

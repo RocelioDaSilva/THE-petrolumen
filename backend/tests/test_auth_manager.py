@@ -256,3 +256,69 @@ def test_delete_user(test_auth_manager: AuthManager, clear_users_table):
     assert test_auth_manager.get_user_by_username(username_to_delete) is None
 
     assert test_auth_manager.delete_user("nosuchuser_auth_delete") is False
+
+
+# --- Test AuthManager Initialization ---
+def test_auth_manager_init_no_secret_key(test_db_manager):
+    """Test AuthManager initialization fails without a secret key."""
+    with pytest.raises(ValueError, match="A secret key is required for AuthManager"):
+        AuthManager(db_manager=test_db_manager, secret_key="")
+    with pytest.raises(ValueError, match="A secret key is required for AuthManager"):
+        AuthManager(db_manager=test_db_manager, secret_key=None)
+
+
+# --- More granular token validation tests ---
+def test_token_validation_missing_sub_claim(test_auth_manager: AuthManager, clear_users_table):
+    """Test that a token missing the 'sub' claim fails validation."""
+    # Create a token with no 'sub' (username)
+    # Note: This requires knowing the internal structure of create_access_token or using a different way
+    # to craft such a token if create_access_token always enforces 'sub'.
+    # For this test, let's assume we can craft a payload that create_access_token would use.
+    # The create_access_token method itself doesn't require 'sub' in its input `data` dict,
+    # but the `get_current_user_from_token` expects 'sub' in the decoded payload.
+
+    # We will create a token with some other data, but not 'sub'
+    # This token will be for a non-existent user effectively, but the key is 'sub' missing.
+    malformed_token_payload = {"user_id": 123, "custom_info": "some_val"}
+
+    # Use the same AuthManager instance to create the token to ensure the same secret key and algo are used.
+    # The `create_access_token` method adds 'exp' and 'iat'.
+    malformed_access_token = test_auth_manager.create_access_token(data=malformed_token_payload)
+
+    with pytest.raises(HTTPException) as exc_info:
+        test_auth_manager.get_current_user_from_token(malformed_access_token)
+
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "Could not validate credentials" in exc_info.value.detail # This is the generic message for various JWT issues including missing sub
+    # A more specific check could be added if the error message for missing 'sub' was distinct.
+
+
+def test_create_user_db_failure_simulation(
+    test_auth_manager: AuthManager, clear_users_table, mocker
+):
+    """Test create_user when db_manager.create_db_user returns None (simulating DB error)."""
+    username = "db_fail_user"
+    email = "dbfail@example.com"
+    password = "password123"
+
+    # Mock db_manager.create_db_user to return None
+    mocker.patch.object(test_auth_manager.db_manager, 'create_db_user', return_value=None)
+
+    created_user = test_auth_manager.create_user(username, email, password)
+
+    assert created_user is None
+    # Verify that get_db_user_by_username and get_db_user_by_email were called before create_db_user
+    # This requires more complex mocking if we want to ensure the checks for existing user happened.
+    # For now, just checking the outcome of create_user is sufficient.
+    test_auth_manager.db_manager.create_db_user.assert_called_once()
+
+
+# (Optional/Low Priority) Test for jwt.encode error in create_access_token
+# This would require mocking jose.jwt.encode which can be complex.
+# def test_create_access_token_jwt_encode_error(test_auth_manager: AuthManager, mocker):
+#     """Test create_access_token when jose.jwt.encode raises JWTError."""
+#     mocker.patch('jose.jwt.encode', side_effect=JWTError("Simulated encoding error"))
+#     with pytest.raises(HTTPException) as exc_info:
+#         test_auth_manager.create_access_token(data={"sub": "testuser"})
+#     assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+#     assert "Could not create access token" in exc_info.value.detail
