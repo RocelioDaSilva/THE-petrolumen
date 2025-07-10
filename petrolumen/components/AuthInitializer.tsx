@@ -16,51 +16,48 @@ const AuthInitializer: React.FC = () => {
         return; // Don't run on server
       }
 
-      const storedToken = localStorage.getItem('authToken');
+      // With HttpOnly cookies, we can't directly check for a token.
+      // We attempt to fetch user data; if it succeeds, a valid session cookie exists.
+      // The `setToken` action from the store is no longer relevant for managing the actual token string.
+      // `currentTokenInStore` is also less relevant as the source of truth is the cookie.
 
-      if (storedToken) {
-        // If token in store is different or not set, update it (e.g. on first load)
-        // This also ensures backendClient will use it if it reads from store directly in future.
-        // For now, backendClient reads from localStorage, so this setToken call primarily updates store state.
-        if (currentTokenInStore !== storedToken) {
-            useAppStore.setState({ token: storedToken }); // Set token directly to avoid re-saving to localStorage
+      try {
+        // Attempt to fetch current user.
+        // backendClient.getCurrentUser() will automatically send the HttpOnly cookie.
+        const userProfileData = await backendClient.getCurrentUser();
+
+        const userToStore: UserProfile = {
+          id: userProfileData.id,
+          username: userProfileData.username,
+          email: userProfileData.email,
+          full_name: userProfileData.full_name || null,
+          role: userProfileData.role,
+          is_active: userProfileData.is_active,
+        };
+
+        if (userToStore.is_active) {
+          // Login action in store now only takes userData, token is implicit via cookie
+          login(userToStore);
+        } else {
+          // User is inactive, treat as logged out
+          // logout action in store now also calls backendClient.logoutUser() to clear cookie
+          await logout();
         }
-
-        try {
-          // Validate token by fetching user profile
-          const userProfileData = await backendClient.getCurrentUser(); // This uses the token from localStorage via fetchWithAuth
-
-          const userToStore: UserProfile = {
-            id: userProfileData.id,
-            username: userProfileData.username,
-            email: userProfileData.email,
-            full_name: userProfileData.full_name || null,
-            role: userProfileData.role,
-            is_active: userProfileData.is_active,
-          };
-
-          if (userToStore.is_active) {
-            login(userToStore, storedToken); // This will also set token in store and localStorage again (idempotent)
-          } else {
-            // User is inactive, treat as logged out
-            logout(); // This clears user, token, isAuthenticated, and localStorage
-          }
-        } catch (error) {
-          console.warn("Auth token validation failed on load:", error);
-          logout(); // Clear invalid token and user state
-        }
-      } else {
-        // No token found, ensure logged out state (e.g. if store was persisted differently)
-        if (currentTokenInStore) { // If store had a token but localStorage didn't (e.g. after manual clear)
-            logout();
-        }
+      } catch (error) {
+        // If getCurrentUser fails (e.g., 401 Unauthorized), it means no valid session.
+        // ApiErrorResponse might be thrown by backendClient
+        console.warn("Auth initialization: No active session or token validation failed.", error);
+        // Ensure client state is logged out.
+        // logout() already handles clearing store state.
+        // If error is not due to auth (e.g. network error), user remains logged out on client.
+        await logout();
       }
       setIsInitializing(false);
     };
 
     initializeAuth();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [login, logout]); // Added login and logout to dependency array as per ESLint best practices
 
   // Optionally, render a loading state or nothing while initializing
   // For now, it does its work in the background.

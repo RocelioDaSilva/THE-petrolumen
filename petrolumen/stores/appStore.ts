@@ -22,23 +22,29 @@ interface AppState {
   setToken: (token: string | null) => void; // For initializing from storage or clearing
 }
 
+import { backendClient } from '@/lib/backendClient'; // Import backendClient for logout
+
 // Create the store
 export const useAppStore = create<AppState>((set) => ({
   // Initial state
   isAuthenticated: false,
   user: null,
-  token: null,
+  token: null, // This field will no longer be actively used to store the JWT string
 
   // Actions
-  login: (userData, userToken) => set({
+  login: (userData) => set({ // userToken is removed from parameters
     isAuthenticated: true,
     user: userData,
-    token: userToken
+    token: null // Token is in HttpOnly cookie, not stored here
   }),
 
-  logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
+  logout: async () => {
+    // No longer removing from localStorage here
+    try {
+      await backendClient.logoutUser(); // Call the backend to clear the HttpOnly cookie
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Optionally, handle logout error in UI, though store reset will proceed
     }
     set({
       isAuthenticated: false,
@@ -47,15 +53,14 @@ export const useAppStore = create<AppState>((set) => ({
     });
   },
 
+  // This function might need to be re-evaluated.
+  // If it was for initializing from localStorage, it's no longer needed in the same way.
+  // AuthInitializer will handle checking session via API.
+  // For now, let's make it just update the store's token state if ever called,
+  // but without localStorage interaction.
   setToken: (userToken) => {
-    if (typeof window !== 'undefined') {
-      if (userToken) {
-        localStorage.setItem('authToken', userToken);
-      } else {
-        localStorage.removeItem('authToken');
-      }
-    }
-    set({ token: userToken });
+    // Removed localStorage interaction
+    set({ token: userToken }); // This might be useful if we need to know *if* a token (cookie) should exist
   },
 }));
 

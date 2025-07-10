@@ -43,7 +43,8 @@ export default function DashboardPage() { // Renamed component for clarity
       } catch (e: any) { // Added ': any' to type 'e' for accessing its properties.
         console.error("[Frontend] fetchModuleStatuses: Failed to interact with Tauri API. Error:", e);
         // Try to extract a more specific message if 'e' is a string or has a message property.
-        const errorMessage = typeof e === 'string' ? e : (e?.message || "Erro desconhecido ao buscar dados dos módulos.");
+        // TODO: Verify the exact error structure from Tauri invoke for more precise error messages.
+        const errorMessage = typeof e === 'string' ? e : (e instanceof Error ? e.message : "Erro desconhecido ao buscar dados dos módulos.");
         setError(`Falha ao carregar dados dos módulos: ${errorMessage} Verifique a conexão com o backend ou tente novamente.`);
         console.warn("[Frontend] fetchModuleStatuses: Setting error state:", errorMessage);
         setModules([]); // Clear modules on error
@@ -150,6 +151,7 @@ export default function DashboardPage() { // Renamed component for clarity
             <Brain className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
+            {/* // TODO: Replace hardcoded "5 / 8" with dynamic data from backend/store */}
             <div className="text-2xl font-bold">5 / 8</div>
             <p className="text-xs text-muted-foreground">
               Modelos treinados e disponíveis
@@ -217,6 +219,7 @@ export default function DashboardPage() { // Renamed component for clarity
         <Card className="shadow-sm">
           <CardContent className="pt-6">
             {/* WellDataDemo component is client-side only, ensure it's correctly imported */}
+            {/* TODO: If WellDataDemo is heavy or causes layout shifts, consider Suspense or a loading placeholder. */}
             {typeof window !== "undefined" && <WellDataDemo />}
           </CardContent>
         </Card>

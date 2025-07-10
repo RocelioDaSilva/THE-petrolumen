@@ -11,12 +11,11 @@ import AuthInitializer from "@/components/AuthInitializer"; // Import the AuthIn
 
 const inter = Inter({ subsets: ["latin"] });
 
-// Metadata can remain as is, but Next.js might recommend moving it if all exports are client components.
-// For now, let's keep it here. If issues arise, we can revisit.
-// export const metadata: Metadata = { // Metadata type might need to be imported if not global
-//   title: "PetroLúmen Platform",
-//   description: "Advanced petroleum engineering analysis and simulation platform",
-// };
+// Note: This is a client component ("use client" is at the top).
+// For Next.js App Router, static metadata should be exported from server components (e.g., a parent layout.tsx if this were nested,
+// or this file if it were a server component). Dynamic metadata can be generated using generateMetadata.
+// The commented-out metadata below would not work as expected in a client component.
+// If metadata is required for this root layout, it should be re-evaluated based on Next.js App Router best practices.
 
 export default function RootLayout({
   children,
@@ -34,6 +33,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <AuthInitializer />
           <div className="flex flex-col h-screen bg-background">
             <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             <div className="flex flex-1 overflow-hidden">

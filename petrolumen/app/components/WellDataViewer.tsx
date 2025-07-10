@@ -32,9 +32,12 @@ interface WellDataViewerProps {
   isLoading: boolean; // To show loading state if data for selected well is being fetched
 }
 
-const renderStatisticValue = (value: any, isNumericDetail: boolean = false): React.ReactNode => {
+const renderStatisticValue = (value: unknown, isNumericDetail: boolean = false): React.ReactNode => {
   if (typeof value === 'number') {
     return <span className="text-slate-700 dark:text-slate-200">{value.toFixed(isNumericDetail ? 4 : 2)}</span>;
+  }
+  if (typeof value === 'boolean') {
+    return <span className="text-slate-700 dark:text-slate-200">{value ? 'True' : 'False'}</span>;
   }
   if (typeof value === 'object' && value !== null) {
     if (Array.isArray(value)) {
@@ -110,7 +113,10 @@ export const WellDataViewer: React.FC<WellDataViewerProps> = ({
                 {previewData.map((row, rowIndex) => (
                   <TableRow key={rowIndex}>
                     {previewColumns.map((colKey) => (
-                      <TableCell key={`${rowIndex}-${colKey}`}>{String(row[colKey])}</TableCell>
+                      // TODO: Implement richer display formatting for different data types in table cells if needed
+                      // For example, boolean values, specific number precisions, date formats etc.
+                      // Current implementation uses renderStatisticValue which has some basic type handling.
+                      <TableCell key={`${rowIndex}-${colKey}`}>{renderStatisticValue(row[colKey])}</TableCell>
                     ))}
                   </TableRow>
                 ))}
