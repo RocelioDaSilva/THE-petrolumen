@@ -46,12 +46,9 @@ export class ApiErrorResponse extends Error {
 
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-
+  // Token is no longer read from localStorage. HttpOnly cookie will be sent automatically by browser.
   const headers = new Headers(options.headers || {});
-  if (token) {
-    headers.append('Authorization', `Bearer ${token}`);
-  }
+
   // Do not set Content-Type if body is FormData, browser will do it with boundary.
   // For JSON, it should be set.
   if (!(options.body instanceof FormData) && options.body) {
@@ -62,6 +59,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
 
   const response = await fetch(url, {
     ...options,
+    credentials: 'include', // Ensure cookies are sent, 'same-origin' is often default but explicit is safer
     headers,
   });
   return response;
@@ -203,6 +201,25 @@ export const loginForAccessToken = async (username: string, password: string): P
 export const getCurrentUser = async (): Promise<UserProfileResponse> => {
   const response = await fetchWithAuth(`${API_BASE_URL}/users/me`);
   return handleApiResponse<UserProfileResponse>(response);
+};
+
+export const logoutUser = async (): Promise<void> => {
+  const response = await fetchWithAuth(`${API_BASE_URL}/auth/logout`, { // Assuming this endpoint
+    method: 'POST',
+    // No body needed typically for logout if it's just clearing a cookie
+  });
+  if (!response.ok) {
+    // Attempt to parse error detail if possible, otherwise use status text
+    let errorDetail = `Logout failed with status: ${response.status}`;
+    try {
+      const errorJson = await response.json();
+      errorDetail = errorJson.detail || errorDetail;
+    } catch (e) {
+      // Ignore if response is not JSON or empty
+    }
+    throw new ApiErrorResponse(errorDetail, response.status, errorDetail);
+  }
+  // No need to return data if backend just clears cookie and returns 200/204
 };
 
 // --- PVT Calculation Types ---

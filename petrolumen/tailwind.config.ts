@@ -3,10 +3,12 @@ import type { Config } from "tailwindcss";
 const config: Config = {
     darkMode: "class",
     content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}", // If you have a pages directory
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "*.{js,ts,jsx,tsx,mdx}"
+    // Removed root-level "*.{js,ts,jsx,tsx,mdx}" as it's too broad
+    // and usually not where component/page files requiring Tailwind processing reside.
+    // If there are specific files in petrolumen/ root that need Tailwind, list them explicitly.
   ],
   theme: {
   	extend: {

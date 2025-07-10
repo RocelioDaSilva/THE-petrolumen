@@ -2,7 +2,7 @@
 
 import React, { useState, FormEvent } from 'react';
 import { useAppStore, UserProfile } from '@/stores/appStore';
-import { backendClient, ApiErrorResponse } from '@/lib/backendClient'; // Assuming backendClient has loginUser
+import { backendClient, ApiErrorResponse, UserProfileResponse } from '@/lib/backendClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,45 +21,46 @@ export const LoginForm: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 1. Authenticate and get token
-      const tokenResponse = await backendClient.loginForAccessToken(username, password);
-      const token = tokenResponse.access_token;
+      // 1. Authenticate and get token (token is now set as an HttpOnly cookie by the backend)
+      // The response from loginForAccessToken might change; assuming it still returns something
+      // or we might not need its direct response if backend confirms session via cookie.
+      await backendClient.loginForAccessToken(username, password);
+      // No token to set in localStorage anymore.
 
-      // Store token immediately for subsequent requests
-      // In a real app, use secure storage. For now, localStorage for web or for Zustand store.
-      localStorage.setItem('authToken', token); // For backendClient to pick up
+      // 2. Fetch user details. backendClient.getCurrentUser() will use the HttpOnly cookie.
+      const userProfileData: UserProfileResponse = await backendClient.getCurrentUser();
 
-      // 2. Fetch user details using the new token
-      // backendClient's internal fetch should now use the token from localStorage
-      const userProfileData = await backendClient.getCurrentUser(); // This now sends the token
-
-      // 3. Update global store
-      // Assuming UserProfile type from store matches backend response structure for /users/me
+      // 3. Update global store by mapping UserProfileResponse to UserProfile (from appStore)
+      // The types are very similar; this mapping ensures conformity.
       const userToStore: UserProfile = {
-        id: userProfileData.id, // Assuming id is part of UserResponse from backend
+        id: userProfileData.id,
         username: userProfileData.username,
         email: userProfileData.email,
-        full_name: userProfileData.full_name || null,
-        role: userProfileData.role, // Assuming role is part of UserResponse
-        is_active: userProfileData.is_active, // Assuming is_active is part of UserResponse
+        full_name: userProfileData.full_name || null, // Handles optional full_name from UserProfileResponse
+        role: userProfileData.role,
+        is_active: userProfileData.is_active,
       };
-      login(userToStore, token);
+      login(userToStore); // Pass only user data; token is not handled by client JS here.
 
       // Clear form (optional)
       // setUsername('');
       // setPassword('');
       // No need to redirect here, parent components will react to isAuthenticated
 
-    } catch (err) {
-      console.error("Login failed:", err);
-      if (err instanceof ApiErrorResponse) {
-        setError(err.detail || "Login failed. Please check your credentials.");
-      } else if (err instanceof Error) {
-        setError(err.message || "An unexpected error occurred during login.");
+    } catch (error) { // Changed err to error for clarity
+      console.error("Login failed:", error);
+      if (error instanceof ApiErrorResponse) {
+        // ApiErrorResponse.detail can be a string or an array of error objects (e.g., FastAPI validation errors)
+        const message = typeof error.detail === 'string' ? error.detail :
+                        Array.isArray(error.detail) ? error.detail.map(d => d.msg).join(', ') :
+                        "Login failed. Please check your credentials.";
+        setError(message);
+      } else if (error instanceof Error) {
+        setError(error.message || "An unexpected error occurred during login.");
       } else {
         setError("An unexpected error occurred during login.");
       }
-      localStorage.removeItem('authToken'); // Clear token on error
+      // No token in localStorage to clear on error
     } finally {
       setIsLoading(false);
     }
