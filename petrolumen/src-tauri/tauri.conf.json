@@ -107,9 +107,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "resources": [
-         "../../backend/database.db"
-      ],
+      "resources": [],
       "externalBin": [],
       "copyright": "Copyright © Petrolumen Project 2024",
       "category": "Utility",
