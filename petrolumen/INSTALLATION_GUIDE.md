@@ -43,7 +43,7 @@ Before you begin, ensure you have the following software installed on your Windo
 
 ## 3. Backend Setup (Python)
 
-The PetroLúmen application requires a running Python backend for its full functionality.
+The PetroLúmen application requires a running Python backend for its full functionality. The backend manages its own data and database (configured via its own `.env` file, typically using a `DATABASE_URL`). The PetroLúmen desktop application communicates with this backend via network requests and does **not** bundle or directly manage the backend's database.
 
 1.  **Navigate to your backend directory:**
     Open Command Prompt or PowerShell and change to your backend project folder.
@@ -62,13 +62,14 @@ The PetroLúmen application requires a running Python backend for its full funct
     ```bash
     pip install -r requirements.txt
     ```
+    (Ensure your backend's `.env` file is correctly configured, especially the `DATABASE_URL`, before starting the server. Refer to the backend's documentation for details if necessary.)
 
 4.  **Start the backend server:**
-    The command to start the server depends on how your Python backend is set up (e.g., Flask, Django, FastAPI). For a FastAPI application using Uvicorn (as referenced in the main README), the command is typically:
+    The command to start the server depends on how your Python backend is set up. For a FastAPI application using Uvicorn (as referenced in the main project README), the command is typically:
     ```bash
-    uvicorn main:app --reload
+    uvicorn main:app --reload --host 0.0.0.0 --port 8000
     ```
-    (Replace `main:app` if your main application instance is named differently).
+    (Replace `main:app` if your main application instance is named differently. Using `--host 0.0.0.0 --port 8000` makes it accessible from the frontend.)
 
     Keep this terminal window open. The backend server needs to be running for the desktop application to connect to it.
 
@@ -86,9 +87,17 @@ The PetroLúmen application requires a running Python backend for its full funct
     ```bash
     npm install
     ```
+    (This project uses `npm` for its build scripts specified in `tauri.conf.json`. If you use `yarn` or `pnpm` for managing `node_modules` during development, ensure `npm install` is also run or that your lock files are compatible before proceeding with the build if issues arise, though typically `npm run desktop:build` should handle its own script executions correctly.)
 
-4.  **Build the Windows desktop application:**
-    This command will first build the Next.js frontend and then use Tauri to compile the Rust application and bundle it all into a Windows installer.
+4.  **Configure Frontend (Optional - API URL):**
+    The frontend will attempt to connect to the backend at `http://localhost:8000/api/v1` by default. If your backend is running on a different URL, you need to set the `NEXT_PUBLIC_API_BASE_URL` environment variable before building. This can be done by creating a `.env.local` file in the `petrolumen` directory with the content:
+    ```
+    NEXT_PUBLIC_API_BASE_URL=http://your-backend-url/api/v1
+    ```
+    For the typical setup described in this guide (backend on `http://localhost:8000`), this step is not necessary.
+
+5.  **Build the Windows desktop application:**
+    This command will first build the Next.js frontend (which is configured for static export to the `out/` directory, as needed by Tauri) and then use Tauri to compile the Rust application and bundle it all into a Windows installer.
     ```bash
     npm run desktop:build
     ```
