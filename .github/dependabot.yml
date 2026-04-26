@@ -1,0 +1,33 @@
+version: 2
+updates:
+  # Enable version updates for Python/pip (backend)
+  - package-ecosystem: "pip"
+    directory: "/backend" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    target-branch: "main" # Or your default branch
+    reviewers:
+      - "jules-agent" # Placeholder, replace with actual reviewers/teams
+    labels:
+      - "dependencies"
+      - "python"
+      - "backend"
+
+  # Enable version updates for JavaScript/pnpm (frontend)
+  - package-ecosystem: "npm" # pnpm is supported via the npm ecosystem in Dependabot
+    directory: "/petrolumen" # Location of package manifests
+    schedule:
+      interval: "weekly"
+    target-branch: "main" # Or your default branch
+    reviewers:
+      - "jules-agent" # Placeholder, replace with actual reviewers/teams
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "frontend"
+    # Specify pnpm as the package manager
+    # For Dependabot to work correctly with pnpm, ensure a pnpm-lock.yaml file is present
+    # and that Dependabot has access to it.
+    # No explicit package-manager key for pnpm, it's auto-detected if lockfile is present.
+    # However, if issues arise, you might need to configure versioning-strategy for npm.
+    # For now, relying on auto-detection with pnpm-lock.yaml.

@@ -105,6 +105,12 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
+    // IMPORTANT: The 'key' and 'color' values are injected directly into CSS.
+    // Ensure that the 'config' prop passed to ChartContainer, from which these
+    // values are derived, contains only trusted, developer-defined strings.
+    // If 'key' or 'color' could ever originate from unsanitized user input,
+    // this could be an XSS vector via CSS injection.
+    // Keys should be simple identifiers, and colors should be valid CSS color values.
     return color ? `  --color-${key}: ${color};` : null
   })
   .join("\n")}

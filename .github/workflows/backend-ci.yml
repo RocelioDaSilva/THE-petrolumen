@@ -1,0 +1,57 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ main, master ] # Adjust if your main branch has a different name
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ main, master ] # Adjust if your main branch has a different name
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend # Run all steps within the backend directory
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11' # Specify a Python version consistent with the project
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Lint with Flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=12 --max-line-length=88 --statistics --config=.flake8
+      working-directory: ./backend # Ensure flake8 runs from backend dir where .flake8 is
+
+    - name: Check formatting with Black
+      run: |
+        black . --check --config=pyproject.toml
+      working-directory: ./backend # Ensure black runs from backend dir where pyproject.toml is
+
+    - name: Test with Pytest
+      run: |
+        pytest tests/ # Path relative to the working-directory (./backend)
+      working-directory: ./backend # Ensure pytest runs from backend directory
+      # Add environment variables if tests need them, e.g., for database connection
+      # env:
+      #   DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }} # Example if using secrets
+      #   SECRET_KEY: "test_secret_key_for_ci"
+      #   LOG_LEVEL: "DEBUG"

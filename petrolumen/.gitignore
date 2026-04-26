@@ -6,3 +6,9 @@ build/
 .vscode/
 .next/
 .DS_Store
+
+# Exclude web-prototype directory
+web-prototype/
+
+# Tauri build artifacts
+src-tauri/target/
