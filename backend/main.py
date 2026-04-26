@@ -11,11 +11,13 @@ from fastapi import (
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, List, Any, Tuple, Optional
+from fastapi.encoders import jsonable_encoder
+from typing import Dict, List, Any, Tuple, Optional, Literal
 from pydantic import BaseModel, EmailStr
 import logging
 import os  # For environment variables
 import datetime
+import uuid
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
@@ -104,7 +106,7 @@ if settings.DATABASE_URL == DEFAULT_DATABASE_URL:
 
 
 # --- Initialize Managers with configuration from settings ---
-db_manager = DatabaseManager(db_url=settings.DATABASE_URL)
+db_manager = DatabaseManager.get_instance(db_url=settings.DATABASE_URL)
 # Ensure DB is connected and tables are created on startup
 if not db_manager.connect():
     logger.critical(
@@ -118,16 +120,13 @@ if not db_manager.create_tables():  # This will now also create the User table
         "already exist or if there's a permissions issue)."
     )
 
-auth_manager = AuthManager(
+auth_manager = AuthManager.get_instance(
     db_manager=db_manager,
     secret_key=settings.SECRET_KEY,
     access_token_expire_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
-    # JWT_ALGORITHM is used internally by AuthManager, ensure it matches
-    # settings.JWT_ALGORITHM if AuthManager is modified to take it.
-    # For now, AuthManager has its own JWT_ALGORITHM constant. This could be synced.
 )
 auth_utils.auth_manager = auth_manager
-data_uploader = DataUploader(db_manager=db_manager)
+data_uploader = DataUploader.get_instance(db_manager=db_manager)
 
 # OAuth2 Scheme
 from auth_utils import oauth2_scheme
@@ -238,15 +237,19 @@ class Token(BaseModel):
 from auth_utils import UserBase, UserResponse
 
 
+from pydantic import Field
+
+
 class UserCreate(UserBase):
-    password: str
-    role: Optional[str] = "user"  # Default role on creation
+    username: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=8)
+    role: Optional[Literal["admin", "editor", "user"]] = "user"
 
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[Literal["admin", "editor", "user"]] = None
     is_active: Optional[bool] = None
 
 
@@ -411,6 +414,8 @@ def dataframe_to_json_serializable(df: pd.DataFrame | None) -> Any:
     return df.where(pd.notnull(df), None).to_dict(orient="records")
 
 
+
+
 from auth_utils import get_current_active_user, get_current_active_admin_user
 
 
@@ -496,6 +501,9 @@ async def read_users_me(current_user: UserResponse = Depends(get_current_active_
 
 
 # --- Admin User Management Endpoints ---
+from fastapi import Query
+
+
 @app.get(
     "/api/v1/admin/users",
     response_model=List[UserResponse],
@@ -503,8 +511,8 @@ async def read_users_me(current_user: UserResponse = Depends(get_current_active_
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def list_all_users(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=0),
     admin_user: UserResponse = Depends(
         get_current_active_admin_user
     ),  # Dependency for logging/audit if needed beyond auth
@@ -684,15 +692,17 @@ async def upload_well_data(
             data_preview_df = temp_preview_df
 
     return JSONResponse(
-        content={
-            "message": message,
-            "well_name": well_name,
-            "well_id": well_id,
-            "files_processed": [f.filename for f in files],
-            "data_preview_first_5_rows": dataframe_to_json_serializable(
-                data_preview_df
-            ),
-        }
+        content=jsonable_encoder(
+            {
+                "message": message,
+                "well_name": well_name,
+                "well_id": well_id,
+                "files_processed": [f.filename for f in files],
+                "data_preview_first_5_rows": dataframe_to_json_serializable(
+                    data_preview_df
+                ),
+            }
+        )
     )
 
 
@@ -756,7 +766,7 @@ async def list_wells_with_data(
     """Lists all wells from the database."""
     logger.info(f"User '{current_user.username}' listing all wells.")
     wells = data_uploader.list_loaded_wells()  # This now returns list of dicts from DB
-    return JSONResponse(content={"wells": wells})
+    return JSONResponse(content=jsonable_encoder({"wells": wells}))
 
 
 # Admin endpoint - example of role-based access (conceptual, AuthManager doesn't

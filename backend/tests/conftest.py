@@ -67,7 +67,8 @@ def test_db_manager(test_engine):
     Provides a DatabaseManager instance configured for the test database.
     This manager can be used by other fixtures or tests that need to interact with the DB directly.
     """
-    manager = DatabaseManager(db_url=TEST_DATABASE_URL)
+    DatabaseManager.reset_instance()
+    manager = DatabaseManager.get_instance(db_url=TEST_DATABASE_URL)
     manager.engine = test_engine  # Use the test engine
     manager.SessionLocal = sessionmaker(
         autocommit=False, autoflush=False, bind=test_engine
@@ -82,7 +83,8 @@ def test_auth_manager(test_db_manager):  # Depends on test_db_manager
     # Use a fixed, non-default secret key for testing token generation consistency
     test_secret_key = "test_secret_key_for_fastapi_tests"
     # Ensure using CoreAuthManager if that's the intended one for tests
-    return CoreAuthManager(db_manager=test_db_manager, secret_key=test_secret_key)
+    CoreAuthManager.reset_instance()
+    return CoreAuthManager.get_instance(db_manager=test_db_manager, secret_key=test_secret_key)
 
 
 @pytest.fixture(
@@ -106,11 +108,15 @@ def client(
             lambda: db_session
         )
 
-    # It's crucial that the AuthManager used by the app is the test_auth_manager.
-    # The current main.py instantiates auth_manager globally. We need to ensure
-    # this global `auth_manager` uses the `test_db_manager`.
+    # It's crucial that the AuthManager and DataUploader used by the app use the test_db_manager.
+    # The current main.py instantiates them globally.
+    from main import data_uploader as main_data_uploader
+
     original_auth_db_manager = main_auth_manager.db_manager
     main_auth_manager.db_manager = test_db_manager
+
+    original_data_uploader_db_manager = main_data_uploader.db_manager
+    main_data_uploader.db_manager = test_db_manager
 
     with TestClient(app) as c:
         yield c
@@ -118,6 +124,7 @@ def client(
     # Clean up overrides after tests
     app.dependency_overrides = {}
     main_auth_manager.db_manager = original_auth_db_manager
+    main_data_uploader.db_manager = original_data_uploader_db_manager
 
 
 # --- Helper Fixtures for Creating Users ---
@@ -255,7 +262,7 @@ def clear_users_table(db_session):
 @pytest.fixture(scope="function")
 def clear_wells_and_production_data_tables(db_session):  # Takes db_session
     """Clears Well and ProductionData tables using DELETE statements via db_session."""
-    from gaia_genesis.reservoir_engineering.database import Well, ProductionData
+    from gaia_genesis.core.database_models import Well, ProductionData
 
     db_session.execute(ProductionData.__table__.delete())
     db_session.execute(Well.__table__.delete())

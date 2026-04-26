@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Body, Depends
 import logging
+import numpy as np
 
 # Imports adjusted for typical project structure where 'backend/' is in PYTHONPATH
 # or when running tests from 'backend/' directory.
@@ -58,7 +59,11 @@ async def calculate_z_factor_endpoint(
             temperature=request_data.temperature,
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
+        if np.isnan(z):
+            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
         return ZFactorResponse(z_factor=z)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Error in /calculate_z_factor: {e}", exc_info=True)
         raise HTTPException(
@@ -98,7 +103,11 @@ async def calculate_fvf_endpoint(
             api_gravity=request_data.api_gravity,
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
+        if np.isnan(fvf):
+            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
         return FormationVolumeFactorResponse(fvf=fvf)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Error in /calculate_formation_volume_factor: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error calculating FVF: {str(e)}")
@@ -133,7 +142,11 @@ async def calculate_viscosity_endpoint(
             api_gravity=request_data.api_gravity,
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
+        if np.isnan(viscosity):
+            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
         return ViscosityResponse(viscosity=viscosity)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Error in /calculate_viscosity: {e}", exc_info=True)
         raise HTTPException(
@@ -160,7 +173,11 @@ async def calculate_rs_endpoint(
             api_gravity=request_data.api_gravity,
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
+        if np.isnan(rs):
+            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
         return SolutionGasRatioResponse(rs=rs)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Error in /calculate_solution_gas_ratio: {e}", exc_info=True)
         raise HTTPException(

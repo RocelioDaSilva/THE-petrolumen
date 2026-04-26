@@ -1,8 +1,9 @@
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Type
 import datetime
 import logging
+import uuid
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session  # Added Session for type hinting
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 # Import Base and models from database_models.py
@@ -12,11 +13,31 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    def __init__(self, db_url: str = "sqlite:///./default_reservoir_data.db"):
+    _instance: Optional["DatabaseManager"] = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(DatabaseManager, cls).__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def get_instance(cls, db_url: Optional[str] = None) -> "DatabaseManager":
+        if not cls._instance:
+            if not db_url:
+                # Default fallback if not already initialized
+                db_url = "sqlite:///./default_app_data.db"
+            cls._instance = DatabaseManager(db_url)
+        return cls._instance
+
+    def __init__(self, db_url: str = "sqlite:///./default_app_data.db"):
+        # Initialize only once
+        if hasattr(self, "_initialized") and self._initialized:
+            return
         self.db_url = db_url
         self.engine = None
         self.SessionLocal = None
-        logger.info(f"DatabaseManager initialized for DB URL: {self.db_url}")
+        self._initialized = True
+        logger.info(f"DatabaseManager singleton initialized for DB URL: {self.db_url}")
 
     def connect(self) -> bool:
         try:
@@ -67,7 +88,7 @@ class DatabaseManager:
         field_name: Optional[str] = None,
         latitude: Optional[float] = None,
         longitude: Optional[float] = None,
-    ) -> Optional[int]:
+    ) -> Optional[uuid.UUID]:
         session = self.get_session()
         try:
             new_well = Well(
@@ -92,7 +113,9 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def insert_production_data(self, well_id: int, data: List[Dict[str, Any]]) -> bool:
+    def insert_production_data(
+        self, well_id: uuid.UUID, data: List[Dict[str, Any]]
+    ) -> bool:
         session = self.get_session()
         try:
             well = session.query(Well).filter(Well.id == well_id).first()
@@ -172,7 +195,7 @@ class DatabaseManager:
 
     def get_well_production_data(
         self,
-        well_id: int,
+        well_id: uuid.UUID,
         start_date: Optional[datetime.date] = None,
         end_date: Optional[datetime.date] = None,
     ) -> List[Dict[str, Any]]:
@@ -317,3 +340,10 @@ class DatabaseManager:
         if self.engine:
             self.engine.dispose()
             logger.info("Database engine disposed.")
+
+    @classmethod
+    def reset_instance(cls):
+        """Used mainly for testing to allow re-initialization with different DB URL"""
+        if cls._instance:
+            cls._instance.close()
+        cls._instance = None

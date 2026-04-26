@@ -21,13 +21,37 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class AuthManager:
+    _instance: Optional["AuthManager"] = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(AuthManager, cls).__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def get_instance(
+        cls,
+        db_manager: Optional[DatabaseManager] = None,
+        secret_key: Optional[str] = None,
+        access_token_expire_minutes: int = 30,
+    ) -> "AuthManager":
+        if not cls._instance:
+            if not db_manager or not secret_key:
+                raise ValueError(
+                    "db_manager and secret_key are required for AuthManager initialization."
+                )
+            cls._instance = AuthManager(db_manager, secret_key, access_token_expire_minutes)
+        return cls._instance
+
     def __init__(
         self,
         db_manager: DatabaseManager,
-        secret_key: str,  # Make secret_key required
+        secret_key: str,
         access_token_expire_minutes: int = 30,
     ):
-        if not secret_key:  # Basic check
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+        if not secret_key:
             logger.critical(
                 "AuthManager initialized WITHOUT a secret key. THIS IS INSECURE."
             )
@@ -35,8 +59,9 @@ class AuthManager:
         self.db_manager = db_manager
         self.secret_key = secret_key
         self.access_token_expire_minutes = access_token_expire_minutes
+        self._initialized = True
         logger.info(
-            f"AuthManager initialized. Token Expiry: {access_token_expire_minutes} minutes."
+            f"AuthManager singleton initialized. Token Expiry: {access_token_expire_minutes} minutes."
         )
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
@@ -252,3 +277,7 @@ class AuthManager:
 
     def delete_user(self, username: str) -> bool:
         return self.db_manager.delete_db_user(username)
+
+    @classmethod
+    def reset_instance(cls):
+        cls._instance = None

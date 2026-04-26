@@ -1,5 +1,6 @@
 import pytest
 import datetime
+import os
 
 # from typing import List # Unused
 import logging  # It's good practice to have logging available
@@ -280,10 +281,7 @@ def test_well_name_unique_constraint(
 
 def test_db_manager_connect_failure():
     """Test DB connection failure with a bad URL."""
-    bad_db_url = "sqlite:///nonexistent_path/should_fail.db" # Or an invalid postgresql URL etc.
-    # Ensure the path is truly non-writable or invalid for the DB driver
-    # For SQLite, a non-existent directory in the path usually causes failure.
-    # If running in a sandbox where all paths might be writable, this needs care.
+    DatabaseManager.reset_instance()
     # Let's try a deliberately malformed URL for a driver that's not installed.
     malformed_db_url = "postgresql+hopefullynotasdriver://user:pass@host/db"
 
@@ -295,6 +293,7 @@ def test_db_manager_connect_failure():
 
 def test_create_tables_not_connected(caplog):
     """Test create_tables fails if DB is not connected."""
+    DatabaseManager.reset_instance()
     db_manager_no_connect = DatabaseManager(db_url="sqlite:///memory_no_connect.db")
     # Do not call connect()
     with caplog.at_level(logging.ERROR):
@@ -304,6 +303,7 @@ def test_create_tables_not_connected(caplog):
 
 def test_get_session_not_connected(caplog):
     """Test get_session raises error if DB is not connected."""
+    DatabaseManager.reset_instance()
     db_manager_no_connect = DatabaseManager(db_url="sqlite:///memory_get_session_fail.db")
     # Do not call connect()
     with pytest.raises(ConnectionError, match="Database not connected. Cannot get session."):
@@ -376,6 +376,17 @@ def test_insert_production_data_no_new_data_to_insert(
 
 
 # --- Test DatabaseManager.close() ---
+@pytest.fixture
+def test_db_manager_with_real_connect():
+    """Provides a DatabaseManager instance that has been connected."""
+    manager = DatabaseManager(db_url="sqlite:///./test_close.db")
+    manager.connect()
+    yield manager
+    manager.close()
+    if os.path.exists("./test_close.db"):
+        os.remove("./test_close.db")
+
+
 def test_db_manager_close_connected(test_db_manager_with_real_connect: DatabaseManager, mocker):
     """Test that close() disposes the engine if connected."""
     # test_db_manager_with_real_connect is a fixture that ensures connect() was called.
@@ -392,6 +403,7 @@ def test_db_manager_close_connected(test_db_manager_with_real_connect: DatabaseM
 
 def test_db_manager_close_not_connected(mocker):
     """Test that close() does not fail if engine is None (not connected)."""
+    DatabaseManager.reset_instance()
     db_manager_no_engine = DatabaseManager()
     assert db_manager_no_engine.engine is None # Engine is None by default
 

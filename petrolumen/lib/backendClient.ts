@@ -24,7 +24,7 @@ export interface UploadResponse {
   data_preview_first_5_rows?: WellDataPreview[];
 }
 
-export interface ApiErrorResponse {
+export interface ApiErrorData {
   detail: string | Array<{ loc: string[]; msg: string; type: string }>;
 }
 
