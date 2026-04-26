@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 
 
 class ZFactorRequest(BaseModel):
@@ -17,7 +17,7 @@ class ZFactorResponse(BaseModel):
 class FormationVolumeFactorRequest(BaseModel):
     pressure: float
     temperature: float
-    fluid_type: str  # 'oil' or 'gas'
+    fluid_type: Literal["oil", "gas"]
     api_gravity: Optional[float] = None
     gas_specific_gravity: Optional[float] = None
 
@@ -29,7 +29,7 @@ class FormationVolumeFactorResponse(BaseModel):
 class ViscosityRequest(BaseModel):
     pressure: float
     temperature: float
-    fluid_type: str  # 'oil' or 'gas'
+    fluid_type: Literal["oil", "gas"]
     api_gravity: Optional[float] = None
     gas_specific_gravity: Optional[float] = None
 

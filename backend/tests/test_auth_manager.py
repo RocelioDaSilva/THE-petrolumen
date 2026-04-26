@@ -163,14 +163,26 @@ def test_token_validation_invalid_signature(
     username = "sig_user"
     test_auth_manager.create_user(username, f"{username}@example.com", "pass")
 
-    hacker_auth_manager = AuthManager(
+    # Reset singleton to create a rogue manager with a different secret key
+    AuthManager.reset_instance()
+    hacker_auth_manager = AuthManager.get_instance(
         db_manager=test_auth_manager.db_manager,
         secret_key="completely_different_secret_key",
     )
     rogue_token = hacker_auth_manager.create_access_token(data={"sub": username})
 
+    # Restore the original test_auth_manager state (or just use the rogue token against it)
+    # The singleton 'test_auth_manager' passed as argument is already rogue now!
+    # We need to use a manager with the ORIGINAL key to validate the rogue token.
+
+    AuthManager.reset_instance()
+    original_manager = AuthManager.get_instance(
+        db_manager=test_auth_manager.db_manager,
+        secret_key="test_secret_key_for_fastapi_tests", # Matching conftest
+    )
+
     with pytest.raises(HTTPException) as exc_info:
-        test_auth_manager.get_current_user_from_token(rogue_token)
+        original_manager.get_current_user_from_token(rogue_token)
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert "Could not validate credentials" in exc_info.value.detail
 
@@ -261,8 +273,12 @@ def test_delete_user(test_auth_manager: AuthManager, clear_users_table):
 # --- Test AuthManager Initialization ---
 def test_auth_manager_init_no_secret_key(test_db_manager):
     """Test AuthManager initialization fails without a secret key."""
+    # Reset singleton to test initialization
+    AuthManager.reset_instance()
     with pytest.raises(ValueError, match="A secret key is required for AuthManager"):
         AuthManager(db_manager=test_db_manager, secret_key="")
+
+    AuthManager.reset_instance()
     with pytest.raises(ValueError, match="A secret key is required for AuthManager"):
         AuthManager(db_manager=test_db_manager, secret_key=None)
 

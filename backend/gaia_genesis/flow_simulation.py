@@ -1,11 +1,10 @@
 import numpy as np
-
-# from scipy.sparse import diags, csr_matrix # Unused
-# from scipy.sparse.linalg import spsolve # Unused
-# import pandas as pd # Unused
+from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse.linalg import spsolve
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
-from .geology.mesh import Mesh  # Corrected to relative import
+from typing import List, Dict, Optional, Tuple
+from .geology.mesh import Mesh
+from .reservoir_engineering import PVTProperties
 import pyvista as pv
 
 
@@ -13,36 +12,47 @@ class FlowSimulation:
     def __init__(self, mesh_type="structured", **kwargs):
         """
         Inicializa o simulador de fluxo.
-
-        Args:
-            mesh_type (str): Tipo de malha ('structured' ou 'unstructured')
-            **kwargs: Parâmetros para criação da malha
-                Para malha estruturada: nx, ny, nz, dx, dy, dz
-                Para malha não estruturada: points, boundary_points
         """
-        # Criar malha
+        self.mesh_type = mesh_type
         self.mesh = Mesh()
         if mesh_type == "structured":
-            self.mesh.create_structured_mesh(**kwargs)
+            # Default values if not provided
+            self.nx = kwargs.get("nx", 10)
+            self.ny = kwargs.get("ny", 10)
+            self.nz = kwargs.get("nz", 1)
+            self.dx = kwargs.get("dx", 100.0)
+            self.dy = kwargs.get("dy", 100.0)
+            self.dz = kwargs.get("dz", 20.0)
+            self.mesh.create_structured_mesh(
+                self.nx, self.ny, self.nz, self.dx, self.dy, self.dz
+            )
+            self.num_cells = len(self.mesh.cells)
+        elif mesh_type == "radial":
+            # Radial grid is initialized via create_radial_grid
+            self.num_cells = 0
         else:
             self.mesh.create_unstructured_mesh(**kwargs)
+            self.num_cells = len(self.mesh.cells)
 
         # Inicializar propriedades do reservatório
-        self.porosity = np.ones(len(self.mesh.cells)) * 0.2
-        self.permeability = np.ones(len(self.mesh.cells)) * 100  # md
-        self.depth = np.zeros(len(self.mesh.cells))
+        self.porosity = np.ones(self.num_cells) * 0.2
+        self.permeability = np.ones(self.num_cells) * 100.0  # md
+        self.depth = np.zeros(self.num_cells)
 
         # Inicializar condições iniciais
-        self.pressure = np.ones(len(self.mesh.cells)) * 3000  # psia
-        self.temperature = np.ones(len(self.mesh.cells)) * 180  # °F
+        self.pressure = np.ones(self.num_cells) * 3000.0  # psia
+        self.temperature = np.ones(self.num_cells) * 180.0  # °F
         self.saturation = {
-            "oil": np.ones(len(self.mesh.cells)) * 0.7,
-            "water": np.ones(len(self.mesh.cells)) * 0.3,
-            "gas": np.zeros(len(self.mesh.cells)),
+            "oil": np.zeros(self.num_cells),
+            "water": np.zeros(self.num_cells),
+            "gas": np.ones(self.num_cells),
         }
 
-        # Inicializar propriedades PVT
-        self.pvt_data = None
+        # PVT Engine
+        self.pvt = PVTProperties()
+        self.gas_sg = 0.65
+        self.oil_api = 35.0
+        self.water_sg = 1.0
 
         # Inicializar composição para simulação composicional
         self.composition = None
@@ -370,78 +380,283 @@ class FlowSimulation:
             return f(pressure)
         return None
 
-    def run_black_oil_simulation(self, dt, n_steps):
-        """
-        Executa simulação black oil.
+    def create_radial_grid(self, nr, rw, re, h, dtheta=360):
+        """Cria uma malha radial simplificada para testes de poço."""
+        # dr calculation (logarithmic spacing)
+        r = np.logspace(np.log10(rw), np.log10(re), nr + 1)
+        self.r_centers = 0.5 * (r[:-1] + r[1:])
+        self.dr = np.diff(r)
+        self.nr = nr
+        self.h = h
+        self.num_cells = nr
 
-        Args:
-            dt (float): Passo de tempo
-            n_steps (int): Número de passos
+        # Reset properties for nr cells
+        self.porosity = np.ones(nr) * 0.2
+        self.permeability = np.ones(nr) * 100.0
+        self.pressure = np.ones(nr) * 3000.0
+        self.saturation = {"oil": np.ones(nr), "water": np.zeros(nr), "gas": np.zeros(nr)}
+
+    def run_radial_drawdown(self, dt_hours: float, n_steps: int, q_bbl_day: float):
+        """Simulação de drawdown em malha radial (monofásico óleo)."""
+        results = {"time": [], "pwf": [], "pressure_profile": []}
+
+        # Field units constants
+        beta = 0.001127
+        dt = dt_hours / 24.0 # hours to days
+
+        for step in range(n_steps):
+            # Matrix for radial flow
+            matrix_a = lil_matrix((self.nr, self.nr))
+            rhs_b = np.zeros(self.nr)
+
+            # PVT (Simplified constant for drawdown)
+            mu = 1.0; bo = 1.1; ct = 1e-5
+
+            for i in range(self.nr):
+                # Bulk volume of shell
+                r_outer = self.r_centers[i] + self.dr[i]/2
+                r_inner = self.r_centers[i] - self.dr[i]/2
+                v_bulk = np.pi * (r_outer**2 - r_inner**2) * self.h
+
+                acc = (v_bulk * self.porosity[i] * ct) / (5.615 * bo * dt)
+                matrix_a[i, i] += acc
+                rhs_b[i] = acc * self.pressure[i]
+
+                # Transmissibility to neighbor i+1
+                if i < self.nr - 1:
+                    r_interface = r_outer
+                    area = 2 * np.pi * r_interface * self.h
+                    dist = self.r_centers[i+1] - self.r_centers[i]
+                    k_avg = 2 * self.permeability[i] * self.permeability[i+1] / (self.permeability[i] + self.permeability[i+1])
+
+                    trans = beta * k_avg * area / (mu * bo * dist)
+
+                    matrix_a[i, i] += trans
+                    matrix_a[i, i+1] -= trans
+                    matrix_a[i+1, i] -= trans
+                    matrix_a[i+1, i+1] += trans
+
+            # Well at i=0
+            rhs_b[0] -= q_bbl_day
+
+            self.pressure = spsolve(matrix_a.tocsr(), rhs_b)
+            results["time"].append((step+1) * dt_hours)
+            results["pwf"].append(self.pressure[0])
+
+        return results
+
+    def run_oil_water_impes(self, dt_days: float, n_steps: int, wells: List[Dict]):
+        """
+        Executa simulação de óleo e água usando IMPES.
+        Implicit Pressure, Explicit Saturation.
         """
         results = {
             "time": [],
             "pressure": [],
-            "saturation": {"oil": [], "water": [], "gas": []},
-            "production": {"oil": [], "water": [], "gas": []},
-            "drive_mechanisms": {"gas_cap": [], "aquifer": [], "solution_gas": []},
+            "oil_saturation": [],
+            "water_saturation": [],
+            "oil_rate": [],
+            "water_rate": []
         }
 
         for step in range(n_steps):
-            current_time = step * dt
+            # 1. Update PVT and Relative Permeability
+            # For simplicity, using constant Bw and muw for now, but Bo and muo dynamic
+            bo = np.array([self.pvt.calculate_formation_volume_factor(p, self.temperature[0], "oil", api_gravity=self.oil_api, gas_specific_gravity=self.gas_sg) for p in self.pressure])
+            mu_o = np.array([self.pvt.calculate_viscosity(p, self.temperature[0], "oil", api_gravity=self.oil_api, gas_specific_gravity=self.gas_sg) for p in self.pressure])
 
-            # Calcular pressão capilar
-            _ = self.calculate_capillary_pressure(self.saturation)  # pc F841: Unused
+            bw = 1.03 # Constant water FVF
+            mu_w = 0.5 # Constant water viscosity (cp)
 
-            # Calcular permeabilidade relativa
             kr = self.calculate_relative_permeability(self.saturation)
 
-            # Calcular propriedades PVT
-            pvt = self.calculate_pvt_properties(self.pressure, self.temperature)
+            # 2. Build Pressure Matrix (Total Transmissibility)
+            matrix_a = lil_matrix((self.num_cells, self.num_cells))
+            rhs_b = np.zeros(self.num_cells)
+            beta = 0.001127
 
-            # Calcular mobilidade
-            mobility = self.calculate_phase_mobility(kr, pvt)
+            for i in range(self.nx):
+                for j in range(self.ny):
+                    idx = i + j * self.nx
 
-            # Calcular velocidade das fases
-            gravity = 32.2  # ft/s²
-            velocity = self.calculate_phase_velocity(self.pressure, mobility, gravity)
+                    neighbors = []
+                    if i < self.nx - 1: neighbors.append((idx + 1, self.dy * self.dz / self.dx))
+                    if j < self.ny - 1: neighbors.append((idx + self.nx, self.dx * self.dz / self.dy))
 
-            # Calcular efeitos de empuxo
-            gas_cap_drive = self.calculate_gas_cap_drive(self.pressure, self.saturation)
-            aquifer_drive = self.calculate_aquifer_drive(self.pressure, current_time)
-            solution_gas_drive = self.calculate_solution_gas_drive(
-                self.pressure, self.saturation
-            )
+                    for idx_n, geom_factor in neighbors:
+                        # Harmonic average of k
+                        k_avg = 2 * self.permeability[idx] * self.permeability[idx_n] / (self.permeability[idx] + self.permeability[idx_n])
 
-            # Atualizar saturação considerando empuxo
-            self.update_phase_saturation(velocity, dt)
+                        # Total mobility at interface (upstream weighting)
+                        # Simplified: use average of mobility for now
+                        mob_idx = kr["oil"][idx]/(mu_o[idx]*bo[idx]) + kr["water"][idx]/(mu_w*bw)
+                        mob_n = kr["oil"][idx_n]/(mu_o[idx_n]*bo[idx_n]) + kr["water"][idx_n]/(mu_w*bw)
+                        mob_avg = 0.5 * (mob_idx + mob_n)
 
-            # Aplicar efeitos de empuxo
-            if self.drive_mechanisms["gas_cap"]:
-                self.saturation["gas"] += gas_cap_drive
-            if self.drive_mechanisms["aquifer"]:
-                self.saturation["water"] += aquifer_drive
-            if self.drive_mechanisms["solution_gas"]:
-                self.saturation["gas"] += solution_gas_drive
+                        trans = beta * k_avg * geom_factor * mob_avg
 
-            # Normalizar saturações
-            total_sat = sum(self.saturation.values())
-            for phase in self.saturation.keys():
-                self.saturation[phase] /= total_sat
+                        matrix_a[idx, idx] += trans
+                        matrix_a[idx, idx_n] -= trans
+                        matrix_a[idx_n, idx] -= trans
+                        matrix_a[idx_n, idx_n] += trans
 
-            # Calcular produção
-            production = self.calculate_production(kr, pvt)
+            # 3. Accumulation and Well Terms
+            # Simplified compressibility
+            co = 1e-5
+            cw = 3e-6
+            cf = 3e-6
 
-            # Atualizar resultados
-            results["time"].append(current_time)
-            results["pressure"].append(self.pressure.copy())
-            for phase in ["oil", "water", "gas"]:
-                results["saturation"][phase].append(self.saturation[phase].copy())
-                results["production"][phase].append(production[phase])
+            for idx in range(self.num_cells):
+                v_bulk = self.dx * self.dy * self.dz
+                ct = co * self.saturation["oil"][idx] + cw * self.saturation["water"][idx] + cf
+                acc = (v_bulk * self.porosity[idx] * ct) / (5.615 * dt_days)
 
-            # Atualizar resultados de empuxo
-            results["drive_mechanisms"]["gas_cap"].append(gas_cap_drive)
-            results["drive_mechanisms"]["aquifer"].append(aquifer_drive)
-            results["drive_mechanisms"]["solution_gas"].append(solution_gas_drive)
+                matrix_a[idx, idx] += acc
+                rhs_b[idx] = acc * self.pressure[idx]
+
+            for well in wells:
+                w_idx = well["cell_index"]
+                rhs_b[w_idx] -= well["q_total"] # Total reservoir rate
+
+            # 4. Solve Pressure
+            p_new = spsolve(matrix_a.tocsr(), rhs_b)
+
+            # 5. Explicit Saturation Update (Water Phase)
+            # Sw(n+1) = Sw(n) + dt/(V*phi) * [ Sum(Tw*(Pn - Pi)) - qw*Bw ]
+            new_sw = self.saturation["water"].copy()
+            for i in range(self.nx):
+                for j in range(self.ny):
+                    idx = i + j * self.nx
+                    v_pore = (self.dx * self.dy * self.dz) * self.porosity[idx]
+
+                    net_water_flux = 0
+
+                    # Sum fluxes from neighbors
+                    neighbor_indices = []
+                    if i > 0: neighbor_indices.append((idx - 1, self.dy * self.dz / self.dx))
+                    if i < self.nx - 1: neighbor_indices.append((idx + 1, self.dy * self.dz / self.dx))
+                    if j > 0: neighbor_indices.append((idx - self.nx, self.dx * self.dz / self.dy))
+                    if j < self.ny - 1: neighbor_indices.append((idx + self.nx, self.dx * self.dz / self.dy))
+
+                    for idx_n, geom_factor in neighbor_indices:
+                        k_avg = 2 * self.permeability[idx] * self.permeability[idx_n] / (self.permeability[idx] + self.permeability[idx_n])
+
+                        # Upstream weighting for water mobility
+                        if p_new[idx_n] > p_new[idx]:
+                            # Flow into cell idx
+                            mob_w = kr["water"][idx_n] / (mu_w * bw)
+                        else:
+                            # Flow out of cell idx
+                            mob_w = kr["water"][idx] / (mu_w * bw)
+
+                        water_trans = beta * k_avg * geom_factor * mob_w
+                        net_water_flux += water_trans * (p_new[idx_n] - p_new[idx])
+
+                    # Add well term for water (if it's an injector or producer)
+                    # For now, assume production wells produce water based on fractional flow
+                    qw = 0
+                    for well in wells:
+                        if well["cell_index"] == idx:
+                            if well["q_total"] > 0:
+                                # Producer
+                                fw = (kr["water"][idx] / (mu_w * bw)) / (
+                                    kr["oil"][idx] / (mu_o[idx] * bo[idx])
+                                    + kr["water"][idx] / (mu_w * bw)
+                                )
+                                qw = well["q_total"] * fw
+                            else:
+                                # Injector (all water)
+                                qw = well["q_total"]
+
+                    new_sw[idx] += (dt_days / v_pore) * (5.615 * (net_water_flux - qw))
+
+            self.pressure = p_new
+            self.saturation["water"] = np.clip(new_sw, 0.2, 0.8) # Clipped to Swc and 1-Sor
+            self.saturation["oil"] = 1.0 - self.saturation["water"]
+
+            results["time"].append((step + 1) * dt_days)
+            results["pressure"].append(np.mean(self.pressure))
+            results["oil_saturation"].append(np.mean(self.saturation["oil"]))
+            results["water_saturation"].append(np.mean(self.saturation["water"]))
+
+        return results
+
+    def run_dry_gas_impes(self, dt_days: float, n_steps: int, wells: List[Dict]):
+        """
+        Executa simulação de gás seco usando IMPES (Implicit Pressure).
+        """
+        results = {
+            "time": [],
+            "pressure": [],
+            "production_rate": []
+        }
+
+        for step in range(n_steps):
+            # 1. Update PVT Properties (Z, Bg, Viscosity)
+            z = np.array([self.pvt.calculate_z_factor(p, self.temperature[0], self.gas_sg) for p in self.pressure])
+            bg = np.array([self.pvt.calculate_formation_volume_factor(p, self.temperature[0], "gas", gas_specific_gravity=self.gas_sg) for p in self.pressure])
+            mu_g = np.array([self.pvt.calculate_viscosity(p, self.temperature[0], "gas", gas_specific_gravity=self.gas_sg) for p in self.pressure])
+
+            # 2. Build Transmissibility Matrix (T)
+            # T = 0.001127 * k * A / (mu * B * L)
+            matrix_a = lil_matrix((self.num_cells, self.num_cells))
+            rhs_b = np.zeros(self.num_cells)
+
+            # Transmissibility constant (field units)
+            beta = 0.001127
+
+            for i in range(self.nx):
+                for j in range(self.ny):
+                    idx = i + j * self.nx
+
+                    # Connection to right (i+1)
+                    if i < self.nx - 1:
+                        idx_r = (i + 1) + j * self.nx
+                        # Harmonic average of k
+                        k_avg = 2 * self.permeability[idx] * self.permeability[idx_r] / (self.permeability[idx] + self.permeability[idx_r])
+                        trans = beta * k_avg * (self.dy * self.dz) / (mu_g[idx] * bg[idx] * self.dx)
+
+                        matrix_a[idx, idx] += trans
+                        matrix_a[idx, idx_r] -= trans
+                        matrix_a[idx_r, idx] -= trans
+                        matrix_a[idx_r, idx_r] += trans
+
+                    # Connection to top (j+1)
+                    if j < self.ny - 1:
+                        idx_t = i + (j + 1) * self.nx
+                        k_avg = 2 * self.permeability[idx] * self.permeability[idx_t] / (self.permeability[idx] + self.permeability[idx_t])
+                        trans = beta * k_avg * (self.dx * self.dz) / (mu_g[idx] * bg[idx] * self.dy)
+
+                        matrix_a[idx, idx] += trans
+                        matrix_a[idx, idx_t] -= trans
+                        matrix_a[idx_t, idx] -= trans
+                        matrix_a[idx_t, idx_t] += trans
+
+            # 3. Add Accumulation Term (V/dt * d(phi/B)/dP)
+            # Simplified: V * phi * c_t / (B * dt)
+            for idx in range(self.num_cells):
+                v_bulk = self.dx * self.dy * self.dz
+                c_g = self.pvt.calculate_gas_compressibility(self.pressure[idx], self.temperature[0], self.gas_sg)
+                acc = (v_bulk * self.porosity[idx] * c_g) / (5.615 * bg[idx] * dt_days)
+
+                matrix_a[idx, idx] += acc
+                rhs_b[idx] = acc * self.pressure[idx]
+
+            # 4. Add Well Terms (Sink/Source)
+            total_q = 0
+            for well in wells:
+                w_idx = well["cell_index"]
+                q_sc = well["q_sc"] # scf/day
+                rhs_b[w_idx] -= q_sc / 1000.0 # Convert to Mscf/day if Bg units match
+                total_q += q_sc
+
+            # 5. Solve for P(n+1)
+            p_new = spsolve(matrix_a.tocsr(), rhs_b)
+            self.pressure = p_new
+
+            results["time"].append((step + 1) * dt_days)
+            results["pressure"].append(np.mean(self.pressure))
+            results["production_rate"].append(total_q)
 
         return results
 
