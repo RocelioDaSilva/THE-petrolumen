@@ -368,6 +368,26 @@ export interface EURCalculationResponseData {
   eur: number;
 }
 
+export interface DCADataPoint {
+  date: string;
+  time: number;
+  rate: number;
+}
+
+export interface WellDCAResponse {
+  well_name: string;
+  method_used: string;
+  fitted_params: {
+    qi: number;
+    Di: number;
+    b: number;
+    type: string;
+  };
+  original_data: DCADataPoint[];
+  forecast_data: DCADataPoint[];
+  eur: number;
+}
+
 
 // --- Reservoir Analysis Tools API Client Functions ---
 
@@ -411,6 +431,11 @@ export const calculateEUR = async (data: EURCalculationRequestData): Promise<EUR
     body: JSON.stringify(data),
   });
   return handleApiResponse<EURCalculationResponseData>(response);
+};
+
+export const getWellDCA = async (wellName: string, method: string = 'hyperbolic'): Promise<WellDCAResponse> => {
+  const response = await fetchWithAuth(`${API_BASE_URL}/reservoir/dca/well/${encodeURIComponent(wellName)}?method=${method}`);
+  return handleApiResponse<WellDCAResponse>(response);
 };
 
 // --- Static Modeling Tools Types ---
