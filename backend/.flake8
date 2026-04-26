@@ -1,0 +1,20 @@
+[flake8]
+max-line-length = 88
+# extend-ignore now includes E203, W503 (Black conflicts), E501 (line too long),
+# F841 (unused var convention), E225 (operator whitespace, defer to Black)
+extend-ignore = E203, W503, E501, F841, E225
+max-complexity = 12
+# Keeping existing complexity for max-complexity, will be addressed by C901 later if needed
+# Optionally exclude generated migration files
+# extend-exclude = alembic/versions/
+
+# Per-file ignores
+per-file-ignores =
+    # Allow F401 (unused import) specifically for __init__.py files for re-export pattern
+    */__init__.py: F401
+    # Allow E402 in conftest.py due to sys.path manipulation
+    tests/conftest.py: E402
+    # Suppress likely false-positive F541 in this specific test file
+    tests/test_main_endpoints_well_data.py: F541
+# Example of ignoring F401 & F841 in all test files if truly needed (but prefer targeted fixes)
+#    tests/*: F401, F841

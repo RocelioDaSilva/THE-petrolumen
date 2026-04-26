@@ -7,17 +7,18 @@
     ],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": false,
+    "strict": true, // Changed from false
     "noEmit": true,
     "incremental": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler", // Changed from "node"
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "target": "ES2017",
     "downlevelIteration": true,
+    "types": ["node", "jest", "@testing-library/jest-dom", "vitest/globals"], // Added vitest/globals and jest-dom for matchers
     "plugins": [
       {
         "name": "next"
@@ -32,12 +33,12 @@
   },
   "include": [
     "next-env.d.ts",
-    "the entire project/.next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts" // Cleaned up
   ],
   "exclude": [
-    "the entire project/node_modules"
+    "node_modules", // Cleaned up
+    "web-prototype/**/*" // Exclude the web-prototype directory
   ]
 }
