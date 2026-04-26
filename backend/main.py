@@ -10,6 +10,7 @@ from fastapi import (
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, List, Any, Tuple, Optional
 from pydantic import BaseModel, EmailStr
 import logging
@@ -65,6 +66,16 @@ app = FastAPI(
         "Configuration via Pydantic BaseSettings."
     ),
     version=settings.APP_VERSION,
+)
+
+# Add CORS middleware to allow the Tauri frontend to communicate with the API
+# In production, origins should be restricted to the Tauri app's scheme/origin
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
 # --- Configuration now comes from settings object ---
@@ -366,8 +377,8 @@ class AIPredictionDataRequest(BaseModel):
 class AITrainResponse(BaseModel):
     message: str
     trained_models: List[str]  # List of names of models trained
-    # Could include performance metrics here for each model if desired
-    # performance: Optional[Dict[str, Dict[str, float]]] = None
+    performance: Optional[Dict[str, Dict[str, float]]] = None
+    best_model: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -1458,10 +1469,18 @@ async def train_ai_models(
                 detail="Model training did not result in any models.",
             )
 
+        performance = {}
+        for name, info in ai_predictor.models.items():
+            performance[name] = {
+                "r2": info.get("test_r2", 0),
+                "rmse": info.get("test_rmse", 0),
+            }
+
         return AITrainResponse(
             message="Models trained successfully. Best model selected based on R2 score.",
-            trained_models=trained_model_names,  # List of names of models trained
-            # (e.g., ['svr', 'xgb'])
+            trained_models=trained_model_names,
+            performance=performance,
+            best_model=ai_predictor.best_model,
         )
     except ValueError as ve:
         logger.error(f"ValueError during AI model training: {ve}", exc_info=True)
@@ -1472,6 +1491,80 @@ async def train_ai_models(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error during AI training: {str(e)}",
         )
+
+
+@app.post(
+    "/api/v1/reservoir/prediction/well/{well_name}/train",
+    response_model=AITrainResponse,
+    tags=["Reservoir Engineering", "AI Prediction"],
+)
+async def train_well_ai_models(
+    well_name: str = Path(..., title="The name of the well"),
+    target_column: str = Body(..., embed=True),
+    feature_columns: List[str] = Body(..., embed=True),
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    """
+    Fetches production data for a well and trains AI models to predict production.
+    """
+    if ai_predictor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AIPrediction service is not available.",
+        )
+
+    well = db_manager.get_well_by_name(well_name)
+    if not well:
+        raise HTTPException(status_code=404, detail=f"Well '{well_name}' not found")
+
+    data_dicts = db_manager.get_well_production_data(well.id)
+    if not data_dicts or len(data_dicts) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Not enough production data for AI training (minimum 10 points)",
+        )
+
+    df = pd.DataFrame(data_dicts)
+    # Basic feature engineering: days from start
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+    start_date = df["date"].min()
+    df["days_from_start"] = (df["date"] - start_date).dt.days.astype(float)
+
+    # Ensure columns exist
+    available_cols = df.columns.tolist()
+    if target_column not in available_cols:
+        raise HTTPException(
+            status_code=400, detail=f"Target column '{target_column}' not found"
+        )
+    for col in feature_columns:
+        if col not in available_cols:
+            raise HTTPException(
+                status_code=400, detail=f"Feature column '{col}' not found"
+            )
+
+    try:
+        X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
+            df, target_column, feature_columns
+        )
+        ai_predictor.train_models(X_train, y_train, X_test, y_test)
+
+        performance = {}
+        for name, info in ai_predictor.models.items():
+            performance[name] = {
+                "r2": info.get("test_r2", 0),
+                "rmse": info.get("test_rmse", 0),
+            }
+
+        return AITrainResponse(
+            message=f"Models for well '{well_name}' trained successfully.",
+            trained_models=list(ai_predictor.models.keys()),
+            performance=performance,
+            best_model=ai_predictor.best_model,
+        )
+    except Exception as e:
+        logger.exception(f"AI training failed for well {well_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"AI training failed: {str(e)}")
 
 
 @app.post(

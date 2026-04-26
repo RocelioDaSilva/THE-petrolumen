@@ -17,9 +17,11 @@ interface AppState {
   isAuthenticated: boolean;
   user: UserProfile | null;
   token: string | null;
-  login: (user: UserProfile, token: string) => void;
+  selectedWell: string | null;
+  login: (user: UserProfile) => void;
   logout: () => void;
-  setToken: (token: string | null) => void; // For initializing from storage or clearing
+  setToken: (token: string | null) => void;
+  setSelectedWell: (wellName: string | null) => void;
 }
 
 import { backendClient } from '@/lib/backendClient'; // Import backendClient for logout
@@ -29,13 +31,14 @@ export const useAppStore = create<AppState>((set) => ({
   // Initial state
   isAuthenticated: false,
   user: null,
-  token: null, // This field will no longer be actively used to store the JWT string
+  token: null,
+  selectedWell: null,
 
   // Actions
-  login: (userData) => set({ // userToken is removed from parameters
+  login: (userData) => set({
     isAuthenticated: true,
     user: userData,
-    token: null // Token is in HttpOnly cookie, not stored here
+    token: null
   }),
 
   logout: async () => {
@@ -59,8 +62,11 @@ export const useAppStore = create<AppState>((set) => ({
   // For now, let's make it just update the store's token state if ever called,
   // but without localStorage interaction.
   setToken: (userToken) => {
-    // Removed localStorage interaction
-    set({ token: userToken }); // This might be useful if we need to know *if* a token (cookie) should exist
+    set({ token: userToken });
+  },
+
+  setSelectedWell: (wellName) => {
+    set({ selectedWell: wellName });
   },
 }));
 
