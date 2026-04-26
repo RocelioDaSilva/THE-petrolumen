@@ -10,6 +10,15 @@ use std::{
     thread, // For running backend process management in a separate thread
 };
 
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TauriModuleStatus {
+    name: String,
+    status: String,
+    description: String,
+}
+
 // --- Global State for Backend Process ---
 // This will hold the handle to the Python backend process so we can manage it.
 struct BackendProcess(Mutex<Option<Child>>);
@@ -78,6 +87,29 @@ fn get_resource_path(app_handle: AppHandle, resource_name: String) -> Result<Str
         .map(|path| path.to_string_lossy().into_owned())
 }
 
+#[command]
+fn get_module_statuses() -> Result<Vec<TauriModuleStatus>, String> {
+    // In a real app, this could check if the backend process is actually alive
+    // or ping a health-check endpoint.
+    Ok(vec![
+        TauriModuleStatus {
+            name: "Reservoir Simulation".to_string(),
+            status: "active".to_string(),
+            description: "Core simulation engine is running.".to_string(),
+        },
+        TauriModuleStatus {
+            name: "Production Analysis".to_string(),
+            status: "active".to_string(),
+            description: "Ready for decline curve analysis.".to_string(),
+        },
+        TauriModuleStatus {
+            name: "AI Analytics".to_string(),
+            status: "active".to_string(),
+            description: "Machine learning models available.".to_string(),
+        },
+    ])
+}
+
 
 // --- Main Application Setup ---
 fn main() {
@@ -139,22 +171,10 @@ fn main() {
             // This assumes `python` or `python3` is in PATH, and the script is a resource.
             let python_executable = if cfg!(windows) { "python.exe" } else { "python3" }; // Or just "python"
 
-            // The main.py for FastAPI is now at `backend/gaia_genesis_new/main.py`
+            // The main.py for FastAPI is now at `backend/main.py`
             // If this `main.py` is a resource, its path needs to be resolved.
-            // Let's assume it's bundled as `backend_script.py` in resources for simplicity,
-            // or we use a relative path if the backend source is copied into the app bundle.
-            // The `setup.py` `entry_points` creates `petrolumen-backend` script in venv/bin.
-            // If we ship the venv or a Python distribution, we could call that.
-            // This is the trickiest part of sidecar setup.
 
-            // For now, let's assume a simple case:
-            // The backend is started by running the `main.py` script using a Python interpreter
-            // that is expected to be on the system PATH.
-            // The script itself is copied as a resource.
-            // Resource path in tauri.conf.json should be like: `../../backend/gaia_genesis_new/main.py`
-            // and perhaps `../../backend/database.py`, etc. or the whole `backend` dir.
-
-            let backend_script_resource_path = "../../backend/gaia_genesis_new/main.py";
+            let backend_script_resource_path = "../../backend/main.py";
             let backend_main_script_path = app.path_resolver()
                 .resolve_resource(backend_script_resource_path)
                 .ok_or_else(|| format!("Backend script resource '{}' not found. Check tauri.conf.json resources.", backend_script_resource_path))
@@ -223,7 +243,8 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_platform_specific_db_path,
-            get_resource_path
+            get_resource_path,
+            get_module_statuses
         ])
         .build(context)
         .expect("Error while building Tauri application")

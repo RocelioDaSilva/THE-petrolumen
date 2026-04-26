@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle, Server, Activity, Brain } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Server, Activity } from "lucide-react";
 import WellDataDemo from "@/app/components/WellDataDemo"; // Import the new component
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Database, TrendingDown, Brain, Settings } from "lucide-react";
+import { useAppStore } from "@/stores/appStore";
+import DeclineCurveAnalysis from "@/app/components/visualizations/DeclineCurveAnalysis";
+import MLModelDashboard from "@/app/components/visualizations/MLModelDashboard";
+import ProductionCharts from "@/app/components/visualizations/ProductionCharts";
 
 // Define the status enum to match Rust's ModuleStatusEnum (after serialization)
 type ModuleStatusType = "active" | "inactive" | "error";
@@ -18,6 +24,7 @@ interface TauriModuleStatus {
 }
 
 export default function DashboardPage() { // Renamed component for clarity
+  const { selectedWell } = useAppStore();
   const [modules, setModules] = useState<TauriModuleStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null); // Added error state
@@ -213,16 +220,129 @@ export default function DashboardPage() { // Renamed component for clarity
         )}
       </div>
 
-      {/* Section for Well Data API Demo */}
+      {/* Refactored Tool Sections using Tabs */}
       <div className="mt-8">
-        <h2 className="text-xl font-semibold text-foreground mb-3">Demonstração API de Dados de Poços</h2>
-        <Card className="shadow-sm">
-          <CardContent className="pt-6">
-            {/* WellDataDemo component is client-side only, ensure it's correctly imported */}
-            {/* TODO: If WellDataDemo is heavy or causes layout shifts, consider Suspense or a loading placeholder. */}
-            {typeof window !== "undefined" && <WellDataDemo />}
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="data" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsTrigger value="data" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Data Management
+            </TabsTrigger>
+            <TabsTrigger value="analysis" className="flex items-center gap-2">
+              <TrendingDown className="h-4 w-4" />
+              Analysis
+            </TabsTrigger>
+            <TabsTrigger value="ml" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              Machine Learning
+            </TabsTrigger>
+            <TabsTrigger value="system" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              System Status
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="data">
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                {typeof window !== "undefined" && <WellDataDemo />}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analysis">
+             {selectedWell ? (
+               <div className="space-y-6">
+                 <ProductionCharts wellName={selectedWell} />
+                 <DeclineCurveAnalysis wellName={selectedWell} />
+               </div>
+             ) : (
+               <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle>Reservoir Analysis Tools</CardTitle>
+                  <CardDescription>Decline curve analysis and advanced reservoir engineering tools.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <p className="text-muted-foreground text-center py-12">
+                     Select a well in the Data Management tab to enable analysis tools.
+                   </p>
+                </CardContent>
+              </Card>
+             )}
+          </TabsContent>
+
+          <TabsContent value="ml">
+            {selectedWell ? (
+              <MLModelDashboard wellName={selectedWell} />
+            ) : (
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle>AI & Machine Learning</CardTitle>
+                  <CardDescription>Predictive models for production forecasting and optimization.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground text-center py-12">
+                    Select a well in the Data Management tab to enable machine learning tools.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="system">
+             <div aria-live="polite">
+                <h2 className="text-xl font-semibold text-foreground mb-3">Status dos Módulos</h2>
+                {loading && (
+                  <div className="col-span-full flex justify-center items-center p-8 bg-card rounded-lg shadow-sm" role="status">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <span className="ml-2 text-muted-foreground">Carregando módulos...</span>
+                  </div>
+                )}
+                {!loading && error && (
+                  <div className="col-span-full flex flex-col justify-center items-center p-8 bg-destructive/10 border border-destructive rounded-lg shadow-sm">
+                    <XCircle className="w-10 h-10 text-destructive mb-3" />
+                    <p className="text-destructive font-medium text-center mb-1">{error}</p>
+                    <p className="text-sm text-muted-foreground text-center mb-4">
+                      Por favor, verifique sua conexão ou tente novamente mais tarde.
+                    </p>
+                    <Button onClick={fetchModuleStatuses} variant="destructive" className="gap-2">
+                      <Loader2 className={`mr-2 h-4 w-4 ${!loading ? 'hidden' : 'animate-spin'}`} /> {/* Show loader when retrying */}
+                      Tentar Novamente
+                    </Button>
+                  </div>
+                )}
+                {!loading && !error && modules.length === 0 && (
+                   <div className="col-span-full flex justify-center items-center p-8 bg-card rounded-lg shadow-sm">
+                    <span className="text-muted-foreground">Nenhum módulo encontrado.</span>
+                  </div>
+                )}
+                {!loading && !error && modules.length > 0 && (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {modules.map((module) => (
+                      <Card key={module.name} className="shadow-sm hover:shadow-md transition-shadow">
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">{module.name}</CardTitle>
+                            {getStatusBadge(module.status)}
+                          </div>
+                          <CardDescription>{module.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            {getStatusIcon(module.status)}
+                            <span>
+                              {module.status === "active" ? "Ativo e operacional" :
+                               module.status === "inactive" ? "Inativo no momento" : "Erro detectado"}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
