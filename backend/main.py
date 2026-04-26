@@ -8,12 +8,13 @@ from fastapi import (
     status,
     Body,
 )
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from typing import Dict, List, Any, Tuple, Optional
 from pydantic import BaseModel, EmailStr
 import logging
 import os  # For environment variables
+import datetime
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
@@ -21,6 +22,7 @@ import os  # For environment variables
 # from gaia_genesis.core.data_uploader import DataUploader # Moved down for E402
 from gaia_genesis.core.database_manager import DatabaseManager
 from gaia_genesis.core.auth_manager import AuthManager
+import auth_utils
 
 # Assuming these classes are directly available in the top-level reservoir_engineering.py now
 from gaia_genesis.reservoir_engineering import (
@@ -113,10 +115,11 @@ auth_manager = AuthManager(
     # settings.JWT_ALGORITHM if AuthManager is modified to take it.
     # For now, AuthManager has its own JWT_ALGORITHM constant. This could be synced.
 )
+auth_utils.auth_manager = auth_manager
 data_uploader = DataUploader(db_manager=db_manager)
 
 # OAuth2 Scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+from auth_utils import oauth2_scheme
 
 # --- Initialize Reservoir Engineering Tools ---
 # WARNING: dca_analyzer is a global instance. If DeclineAnalysis methods become
@@ -221,10 +224,7 @@ class Token(BaseModel):
     token_type: str
 
 
-class UserBase(BaseModel):
-    username: str
-    email: EmailStr
-    full_name: Optional[str] = None
+from auth_utils import UserBase, UserResponse
 
 
 class UserCreate(UserBase):
@@ -237,14 +237,6 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
-
-
-class UserResponse(UserBase):
-    id: int
-    role: str
-    is_active: bool
-    # is_admin: bool # Deprecated, use role
-    # disabled: bool # Deprecated, use is_active
 
 
 class WellMetadata(BaseModel):  # For creating wells along with data
@@ -286,6 +278,21 @@ class DCAPredictionResponse(BaseModel):
     time_horizon: List[float]  # Echo back the time horizon used
     predicted_rate: List[float]
     model_used: str
+
+
+class DCADataPoint(BaseModel):
+    date: str
+    time: float
+    rate: float
+
+
+class WellDCAResponse(BaseModel):
+    well_name: str
+    method_used: str
+    fitted_params: DCAParams
+    original_data: List[DCADataPoint]
+    forecast_data: List[DCADataPoint]
+    eur: float
 
 
 # --- Flow Simulation Models ---
@@ -393,33 +400,7 @@ def dataframe_to_json_serializable(df: pd.DataFrame | None) -> Any:
     return df.where(pd.notnull(df), None).to_dict(orient="records")
 
 
-async def get_current_active_user(
-    token: str = Depends(oauth2_scheme),
-) -> Dict[str, Any]:
-    """Dependency to get current active user from token."""
-    user = auth_manager.get_current_user_from_token(token)
-    # get_current_user_from_token already raises HTTPException for invalid/expired
-    # tokens or inactive users
-    if not user:
-        # This case should ideally not be reached if get_current_user_from_token
-        # is robust
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials (unexpected)",
-        )
-    return UserResponse(**user)  # Validate against Pydantic model
-
-
-async def get_current_active_admin_user(
-    current_user: UserResponse = Depends(get_current_active_user),
-) -> UserResponse:
-    """Dependency to ensure the current user is an admin."""
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Operation not permitted: Requires admin privileges.",
-        )
-    return current_user
+from auth_utils import get_current_active_user, get_current_active_admin_user
 
 
 # --- API Endpoints ---
@@ -948,6 +929,105 @@ async def predict_decline(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error during prediction: {str(e)}",
         )
+
+
+@app.get(
+    "/api/v1/reservoir/dca/well/{well_name}",
+    response_model=WellDCAResponse,
+    tags=["Reservoir Engineering"],
+)
+async def get_well_dca(
+    well_name: str = Path(..., title="The name of the well"),
+    method: str = "hyperbolic",
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    """
+    Fetches production data for a well and performs Decline Curve Analysis.
+    Returns fitted parameters and points for visualization.
+    """
+    # 1. Fetch data
+    well = db_manager.get_well_by_name(well_name)
+    if not well:
+        raise HTTPException(status_code=404, detail=f"Well '{well_name}' not found")
+
+    data_dicts = db_manager.get_well_production_data(well.id)
+    if not data_dicts or len(data_dicts) < 2:
+        raise HTTPException(
+            status_code=400, detail="Not enough production data for DCA (minimum 2 points)"
+        )
+
+    df = pd.DataFrame(data_dicts)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+
+    # Use oil_rate for now
+    if "oil_rate" not in df.columns or df["oil_rate"].isnull().all():
+        raise HTTPException(
+            status_code=400, detail=f"Well '{well_name}' has no oil_rate data for DCA"
+        )
+
+    # Drop NaNs for fitting
+    df_fit = df.dropna(subset=["oil_rate"]).copy()
+
+    if len(df_fit) < 2:
+        raise HTTPException(
+            status_code=400, detail="Not enough valid oil_rate points for DCA"
+        )
+
+    start_date = df_fit["date"].min()
+    df_fit["time_days"] = (df_fit["date"] - start_date).dt.days.astype(float)
+
+    time_np = df_fit["time_days"].values
+    rate_np = df_fit["oil_rate"].values
+
+    # 2. Fit model
+    try:
+        params = dca_analyzer.fit_arps(time_np, rate_np, method=method)
+    except Exception as e:
+        logger.error(f"DCA fit failed for well {well_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"DCA fitting failed: {str(e)}")
+
+    # 3. Forecast
+    # Forecast for existing range + 2 years
+    last_day = time_np[-1]
+    forecast_days = np.linspace(0, last_day + 730, 100)
+    forecast_rates = dca_analyzer.forecast_production(params, forecast_days)
+
+    # 4. EUR
+    eur = dca_analyzer.calculate_eur(params)
+
+    # 5. Prepare Response
+    original_points = []
+    for _, row in df_fit.iterrows():
+        original_points.append(
+            DCADataPoint(
+                date=row["date"].strftime("%Y-%m-%d"),
+                time=row["time_days"],
+                rate=row["oil_rate"],
+            )
+        )
+
+    forecast_points = []
+    for d, r in zip(forecast_days, forecast_rates):
+        forecast_date = start_date + datetime.timedelta(days=float(d))
+        forecast_points.append(
+            DCADataPoint(
+                date=forecast_date.strftime("%Y-%m-%d"),
+                time=float(d),
+                rate=float(r),
+            )
+        )
+
+    return WellDCAResponse(
+        well_name=well_name,
+        method_used=method,
+        fitted_params=DCAParams(
+            qi=params["qi"], Di=params["di"], b=params.get("b", 0), type=params["method"]
+        ),
+        original_data=original_points,
+        forecast_data=forecast_points,
+        eur=eur,
+    )
 
 
 # --- Flow Simulation Endpoints ---

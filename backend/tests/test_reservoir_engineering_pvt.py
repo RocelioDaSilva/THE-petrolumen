@@ -1,5 +1,6 @@
 import pytest
 import logging
+import numpy as np
 
 # Corrected import
 from gaia_genesis.reservoir_engineering import PVTProperties

@@ -20,6 +20,7 @@ import { WellDataViewer } from "./WellDataViewer";
 import { AdminActionsPanel } from "./AdminActionsPanel";
 import { LoginForm } from "./LoginForm";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import DeclineCurveAnalysis from "./visualizations/DeclineCurveAnalysis";
 
 const WellDataDemo: React.FC = () => {
   const { isAuthenticated } = useAppStore(); // Get auth state
@@ -208,6 +209,12 @@ const WellDataDemo: React.FC = () => {
               />
             </CardContent>
           </Card>
+
+          {selectedWell && (
+            <div className="mt-6">
+              <DeclineCurveAnalysis wellName={selectedWell} />
+            </div>
+          )}
 
           {/* AdminActionsPanel might also check for admin role internally from store */}
           <AdminActionsPanel

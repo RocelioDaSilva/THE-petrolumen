@@ -18,10 +18,10 @@ try:
 
     # Import from other modules within the 'gaia_genesis' package or top-level 'backend'
     from gaia_genesis.reservoir_engineering import PVTProperties
-    from main import (
+    from auth_utils import (
         get_current_active_user,
         UserResponse,
-    )  # Assuming main.py is in backend/
+    )
 except ImportError as e:
     # Using f-string for better readability and direct variable insertion
     error_message = (
