@@ -20,12 +20,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_ALGORITHM: str = "HS256"
 
-    # --- CORS Settings (example, if needed later) ---
-    # CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
-    # # Frontend, etc.
-    # CORS_ALLOW_CREDENTIALS: bool = True
-    # CORS_ALLOW_METHODS: list[str] = ["*"]
-    # CORS_ALLOW_HEADERS: list[str] = ["*"]
+    # --- CORS Settings ---
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "tauri://localhost",
+        "http://tauri.localhost"
+    ]
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_METHODS: list[str] = ["*"]
+    CORS_ALLOW_HEADERS: list[str] = ["*"]
 
     # --- Reservoir Engineering Tools Paths (example, if models/data are outside DB) ---
     # DCA_MODELS_PATH: str = "./reservoir_models/dca/"

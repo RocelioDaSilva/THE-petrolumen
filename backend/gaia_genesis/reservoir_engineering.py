@@ -637,6 +637,9 @@ class WellTesting:
         return {"permeability": k, "skin": skin, "slope": slope, "intercept": intercept}
 
 
+from scipy.optimize import curve_fit
+
+
 class DeclineAnalysis:
     """Classe para análise de declínio de produção."""
 
@@ -646,19 +649,32 @@ class DeclineAnalysis:
     def _setup_logger(self) -> logging.Logger:
         logger = logging.getLogger("DeclineAnalysis")
         logger.setLevel(logging.INFO)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        if not logger.hasHandlers():
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
         return logger
+
+    def _exponential_decline(self, t, qi, di):
+        return qi * np.exp(-di * t)
+
+    def _harmonic_decline(self, t, qi, di):
+        return qi / (1 + di * t)
+
+    def _hyperbolic_decline(self, t, qi, di, b):
+        # b should be > 0. If b=0 it's exponential, if b=1 it's harmonic.
+        # Avoid division by zero and negative bases
+        base = 1 + b * di * t
+        return qi * np.power(base, -1 / b)
 
     def fit_arps(
         self, time: np.ndarray, rate: np.ndarray, method: str = "hyperbolic"
     ) -> Dict:
         """
-        Ajusta curva de declínio de Arps.
+        Ajusta curva de declínio de Arps usando curve_fit para melhor robustez.
 
         Args:
             time: Array de tempos
@@ -668,34 +684,47 @@ class DeclineAnalysis:
         Returns:
             Dicionário com parâmetros ajustados
         """
-        if method == "exponential":
-            # q = qi * exp(-Di * t)
-            log_rate = np.log(rate)
-            slope, intercept = np.polyfit(time, log_rate, 1)
-            di = -slope
-            qi = np.exp(intercept)
-            b = 0
+        self.logger.info(f"Ajustando curva de declínio usando método {method}")
 
-        elif method == "harmonic":
-            # q = qi / (1 + Di * t)
-            inv_rate = 1 / rate
-            slope, intercept = np.polyfit(time, inv_rate, 1)
-            di = slope / intercept
-            qi = 1 / intercept
-            b = 1
+        # Initial guesses
+        qi_guess = rate[0] if len(rate) > 0 else 100.0
+        di_guess = 0.01
 
-        else:  # hyperbolic
-            # q = qi / (1 + b * Di * t)^(1/b)
-            def objective(params):
-                qi, di, b = params
-                q_pred = qi / (1 + b * di * time) ** (1 / b)
-                return np.sum((rate - q_pred) ** 2)
-
-            # Otimização
-            result = minimize(
-                objective, [rate[0], 0.1, 0.5], bounds=[(0, None), (0, None), (0, 1)]
-            )
-            qi, di, b = result.x
+        try:
+            if method == "exponential":
+                popt, _ = curve_fit(
+                    self._exponential_decline,
+                    time,
+                    rate,
+                    p0=[qi_guess, di_guess],
+                    bounds=(0, [np.inf, 1.0]),
+                )
+                qi, di = popt
+                b = 0.0
+            elif method == "harmonic":
+                popt, _ = curve_fit(
+                    self._harmonic_decline,
+                    time,
+                    rate,
+                    p0=[qi_guess, di_guess],
+                    bounds=(0, [np.inf, 1.0]),
+                )
+                qi, di = popt
+                b = 1.0
+            else:  # hyperbolic
+                popt, _ = curve_fit(
+                    self._hyperbolic_decline,
+                    time,
+                    rate,
+                    p0=[qi_guess, di_guess, 0.5],
+                    bounds=(0, [np.inf, 1.0, 1.0]),
+                )
+                qi, di, b = popt
+                method = "hyperbolic"
+        except Exception as e:
+            self.logger.error(f"Erro no ajuste de Arps ({method}): {e}")
+            # Fallback a valores básicos se falhar
+            qi, di, b = qi_guess, di_guess, (0.5 if method == "hyperbolic" else 0.0)
 
         return {"qi": qi, "di": di, "b": b, "method": method}
 
@@ -712,41 +741,41 @@ class DeclineAnalysis:
         """
         qi = params["qi"]
         di = params["di"]
-        b = params["b"]
+        b = params.get("b", 0)
 
-        if params["method"] == "exponential":
-            rate = qi * np.exp(-di * time)
-        elif params["method"] == "harmonic":
-            rate = qi / (1 + di * time)
+        if params["method"] == "exponential" or b == 0:
+            return self._exponential_decline(time, qi, di)
+        elif params["method"] == "harmonic" or b == 1:
+            return self._harmonic_decline(time, qi, di)
         else:  # hyperbolic
-            rate = qi / (1 + b * di * time) ** (1 / b)
+            return self._hyperbolic_decline(time, qi, di, b)
 
-        return rate
-
-    def calculate_eur(self, params: Dict) -> float:
+    def calculate_eur(self, params: Dict, limit_rate: float = 1.0) -> float:
         """
-        Calcula EUR (Estimated Ultimate Recovery).
+        Calcula EUR (Estimated Ultimate Recovery) até um limite econômico.
 
         Args:
             params: Parâmetros do ajuste
+            limit_rate: Vazão limite econômica (padrão 1.0)
 
         Returns:
-            EUR estimado
+            EUR estimado (integral da curva de declínio)
         """
         qi = params["qi"]
         di = params["di"]
-        b = params["b"]
+        b = params.get("b", 0)
 
-        if params["method"] == "exponential":
-            eur = qi / di
-        elif params["method"] == "harmonic":
-            eur = qi / di * np.log(1 + di * 365 * 30)  # 30 anos
+        if di == 0:
+            return 0.0
+
+        if params["method"] == "exponential" or b == 0:
+            eur = (qi - limit_rate) / di
+        elif params["method"] == "harmonic" or b == 1:
+            eur = (qi / di) * np.log(qi / limit_rate)
         else:  # hyperbolic
-            eur = (
-                qi / ((1 - b) * di) * (1 - (1 + b * di * 365 * 30) ** (1 - 1 / b))
-            )  # 30 anos
+            eur = (qi / (di * (1 - b))) * (1 - (limit_rate / qi) ** ((1 - b) / b))
 
-        return eur
+        return float(eur)
 
 
 class HistoryMatching:

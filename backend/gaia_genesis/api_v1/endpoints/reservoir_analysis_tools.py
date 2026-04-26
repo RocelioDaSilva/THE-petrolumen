@@ -25,7 +25,7 @@ try:
     )
 
     # Auth dependency
-    from main import get_current_active_user, UserResponse
+    from auth_utils import get_current_active_user, UserResponse
 except ImportError as e:
     error_message = (
         f"Could not import dependencies for Reservoir Analysis Tools router: {e}."

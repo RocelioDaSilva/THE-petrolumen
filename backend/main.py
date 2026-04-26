@@ -8,12 +8,14 @@ from fastapi import (
     status,
     Body,
 )
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, List, Any, Tuple, Optional
 from pydantic import BaseModel, EmailStr
 import logging
 import os  # For environment variables
+import datetime
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
@@ -21,6 +23,7 @@ import os  # For environment variables
 # from gaia_genesis.core.data_uploader import DataUploader # Moved down for E402
 from gaia_genesis.core.database_manager import DatabaseManager
 from gaia_genesis.core.auth_manager import AuthManager
+import auth_utils
 
 # Assuming these classes are directly available in the top-level reservoir_engineering.py now
 from gaia_genesis.reservoir_engineering import (
@@ -63,6 +66,16 @@ app = FastAPI(
         "Configuration via Pydantic BaseSettings."
     ),
     version=settings.APP_VERSION,
+)
+
+# Add CORS middleware to allow the Tauri frontend to communicate with the API
+# In production, origins should be restricted to the Tauri app's scheme/origin
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
 # --- Configuration now comes from settings object ---
@@ -113,10 +126,11 @@ auth_manager = AuthManager(
     # settings.JWT_ALGORITHM if AuthManager is modified to take it.
     # For now, AuthManager has its own JWT_ALGORITHM constant. This could be synced.
 )
+auth_utils.auth_manager = auth_manager
 data_uploader = DataUploader(db_manager=db_manager)
 
 # OAuth2 Scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+from auth_utils import oauth2_scheme
 
 # --- Initialize Reservoir Engineering Tools ---
 # WARNING: dca_analyzer is a global instance. If DeclineAnalysis methods become
@@ -221,10 +235,7 @@ class Token(BaseModel):
     token_type: str
 
 
-class UserBase(BaseModel):
-    username: str
-    email: EmailStr
-    full_name: Optional[str] = None
+from auth_utils import UserBase, UserResponse
 
 
 class UserCreate(UserBase):
@@ -237,14 +248,6 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
-
-
-class UserResponse(UserBase):
-    id: int
-    role: str
-    is_active: bool
-    # is_admin: bool # Deprecated, use role
-    # disabled: bool # Deprecated, use is_active
 
 
 class WellMetadata(BaseModel):  # For creating wells along with data
@@ -286,6 +289,21 @@ class DCAPredictionResponse(BaseModel):
     time_horizon: List[float]  # Echo back the time horizon used
     predicted_rate: List[float]
     model_used: str
+
+
+class DCADataPoint(BaseModel):
+    date: str
+    time: float
+    rate: float
+
+
+class WellDCAResponse(BaseModel):
+    well_name: str
+    method_used: str
+    fitted_params: DCAParams
+    original_data: List[DCADataPoint]
+    forecast_data: List[DCADataPoint]
+    eur: float
 
 
 # --- Flow Simulation Models ---
@@ -359,8 +377,8 @@ class AIPredictionDataRequest(BaseModel):
 class AITrainResponse(BaseModel):
     message: str
     trained_models: List[str]  # List of names of models trained
-    # Could include performance metrics here for each model if desired
-    # performance: Optional[Dict[str, Dict[str, float]]] = None
+    performance: Optional[Dict[str, Dict[str, float]]] = None
+    best_model: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -393,33 +411,7 @@ def dataframe_to_json_serializable(df: pd.DataFrame | None) -> Any:
     return df.where(pd.notnull(df), None).to_dict(orient="records")
 
 
-async def get_current_active_user(
-    token: str = Depends(oauth2_scheme),
-) -> Dict[str, Any]:
-    """Dependency to get current active user from token."""
-    user = auth_manager.get_current_user_from_token(token)
-    # get_current_user_from_token already raises HTTPException for invalid/expired
-    # tokens or inactive users
-    if not user:
-        # This case should ideally not be reached if get_current_user_from_token
-        # is robust
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials (unexpected)",
-        )
-    return UserResponse(**user)  # Validate against Pydantic model
-
-
-async def get_current_active_admin_user(
-    current_user: UserResponse = Depends(get_current_active_user),
-) -> UserResponse:
-    """Dependency to ensure the current user is an admin."""
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Operation not permitted: Requires admin privileges.",
-        )
-    return current_user
+from auth_utils import get_current_active_user, get_current_active_admin_user
 
 
 # --- API Endpoints ---
@@ -950,6 +942,105 @@ async def predict_decline(
         )
 
 
+@app.get(
+    "/api/v1/reservoir/dca/well/{well_name}",
+    response_model=WellDCAResponse,
+    tags=["Reservoir Engineering"],
+)
+async def get_well_dca(
+    well_name: str = Path(..., title="The name of the well"),
+    method: str = "hyperbolic",
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    """
+    Fetches production data for a well and performs Decline Curve Analysis.
+    Returns fitted parameters and points for visualization.
+    """
+    # 1. Fetch data
+    well = db_manager.get_well_by_name(well_name)
+    if not well:
+        raise HTTPException(status_code=404, detail=f"Well '{well_name}' not found")
+
+    data_dicts = db_manager.get_well_production_data(well.id)
+    if not data_dicts or len(data_dicts) < 2:
+        raise HTTPException(
+            status_code=400, detail="Not enough production data for DCA (minimum 2 points)"
+        )
+
+    df = pd.DataFrame(data_dicts)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+
+    # Use oil_rate for now
+    if "oil_rate" not in df.columns or df["oil_rate"].isnull().all():
+        raise HTTPException(
+            status_code=400, detail=f"Well '{well_name}' has no oil_rate data for DCA"
+        )
+
+    # Drop NaNs for fitting
+    df_fit = df.dropna(subset=["oil_rate"]).copy()
+
+    if len(df_fit) < 2:
+        raise HTTPException(
+            status_code=400, detail="Not enough valid oil_rate points for DCA"
+        )
+
+    start_date = df_fit["date"].min()
+    df_fit["time_days"] = (df_fit["date"] - start_date).dt.days.astype(float)
+
+    time_np = df_fit["time_days"].values
+    rate_np = df_fit["oil_rate"].values
+
+    # 2. Fit model
+    try:
+        params = dca_analyzer.fit_arps(time_np, rate_np, method=method)
+    except Exception as e:
+        logger.error(f"DCA fit failed for well {well_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"DCA fitting failed: {str(e)}")
+
+    # 3. Forecast
+    # Forecast for existing range + 2 years
+    last_day = time_np[-1]
+    forecast_days = np.linspace(0, last_day + 730, 100)
+    forecast_rates = dca_analyzer.forecast_production(params, forecast_days)
+
+    # 4. EUR
+    eur = dca_analyzer.calculate_eur(params)
+
+    # 5. Prepare Response
+    original_points = []
+    for _, row in df_fit.iterrows():
+        original_points.append(
+            DCADataPoint(
+                date=row["date"].strftime("%Y-%m-%d"),
+                time=row["time_days"],
+                rate=row["oil_rate"],
+            )
+        )
+
+    forecast_points = []
+    for d, r in zip(forecast_days, forecast_rates):
+        forecast_date = start_date + datetime.timedelta(days=float(d))
+        forecast_points.append(
+            DCADataPoint(
+                date=forecast_date.strftime("%Y-%m-%d"),
+                time=float(d),
+                rate=float(r),
+            )
+        )
+
+    return WellDCAResponse(
+        well_name=well_name,
+        method_used=method,
+        fitted_params=DCAParams(
+            qi=params["qi"], Di=params["di"], b=params.get("b", 0), type=params["method"]
+        ),
+        original_data=original_points,
+        forecast_data=forecast_points,
+        eur=eur,
+    )
+
+
 # --- Flow Simulation Endpoints ---
 # WARNING: Operations below use a global `res_simulator` instance.
 # This is NOT thread-safe for concurrent users modifying the same simulation setup.
@@ -1378,10 +1469,18 @@ async def train_ai_models(
                 detail="Model training did not result in any models.",
             )
 
+        performance = {}
+        for name, info in ai_predictor.models.items():
+            performance[name] = {
+                "r2": info.get("test_r2", 0),
+                "rmse": info.get("test_rmse", 0),
+            }
+
         return AITrainResponse(
             message="Models trained successfully. Best model selected based on R2 score.",
-            trained_models=trained_model_names,  # List of names of models trained
-            # (e.g., ['svr', 'xgb'])
+            trained_models=trained_model_names,
+            performance=performance,
+            best_model=ai_predictor.best_model,
         )
     except ValueError as ve:
         logger.error(f"ValueError during AI model training: {ve}", exc_info=True)
@@ -1392,6 +1491,80 @@ async def train_ai_models(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error during AI training: {str(e)}",
         )
+
+
+@app.post(
+    "/api/v1/reservoir/prediction/well/{well_name}/train",
+    response_model=AITrainResponse,
+    tags=["Reservoir Engineering", "AI Prediction"],
+)
+async def train_well_ai_models(
+    well_name: str = Path(..., title="The name of the well"),
+    target_column: str = Body(..., embed=True),
+    feature_columns: List[str] = Body(..., embed=True),
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    """
+    Fetches production data for a well and trains AI models to predict production.
+    """
+    if ai_predictor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AIPrediction service is not available.",
+        )
+
+    well = db_manager.get_well_by_name(well_name)
+    if not well:
+        raise HTTPException(status_code=404, detail=f"Well '{well_name}' not found")
+
+    data_dicts = db_manager.get_well_production_data(well.id)
+    if not data_dicts or len(data_dicts) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Not enough production data for AI training (minimum 10 points)",
+        )
+
+    df = pd.DataFrame(data_dicts)
+    # Basic feature engineering: days from start
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+    start_date = df["date"].min()
+    df["days_from_start"] = (df["date"] - start_date).dt.days.astype(float)
+
+    # Ensure columns exist
+    available_cols = df.columns.tolist()
+    if target_column not in available_cols:
+        raise HTTPException(
+            status_code=400, detail=f"Target column '{target_column}' not found"
+        )
+    for col in feature_columns:
+        if col not in available_cols:
+            raise HTTPException(
+                status_code=400, detail=f"Feature column '{col}' not found"
+            )
+
+    try:
+        X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
+            df, target_column, feature_columns
+        )
+        ai_predictor.train_models(X_train, y_train, X_test, y_test)
+
+        performance = {}
+        for name, info in ai_predictor.models.items():
+            performance[name] = {
+                "r2": info.get("test_r2", 0),
+                "rmse": info.get("test_rmse", 0),
+            }
+
+        return AITrainResponse(
+            message=f"Models for well '{well_name}' trained successfully.",
+            trained_models=list(ai_predictor.models.keys()),
+            performance=performance,
+            best_model=ai_predictor.best_model,
+        )
+    except Exception as e:
+        logger.exception(f"AI training failed for well {well_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"AI training failed: {str(e)}")
 
 
 @app.post(

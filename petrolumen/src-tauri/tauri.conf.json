@@ -107,7 +107,14 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "resources": [],
+      "resources": [
+        "../../backend/main.py",
+        "../../backend/auth_utils.py",
+        "../../backend/config.py",
+        "../../backend/database.py",
+        "../../backend/default_app_data.db",
+        "../../backend/gaia_genesis"
+      ],
       "externalBin": [],
       "copyright": "Copyright © Petrolumen Project 2024",
       "category": "Utility",
@@ -139,7 +146,7 @@
       }
     },
     "security": {
-      "csp": "default-src 'self' tauri: http://localhost:8000 http://127.0.0.1:8000; img-src 'self' asset: https://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self';"
+      "csp": "default-src 'self' tauri: http://localhost:8000 http://127.0.0.1:8000; img-src 'self' asset: https://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000;"
     },
     "updater": {
       "active": false
