@@ -368,6 +368,26 @@ export interface EURCalculationResponseData {
   eur: number;
 }
 
+export interface DCADataPoint {
+  date: string;
+  time: number;
+  rate: number;
+}
+
+export interface WellDCAResponse {
+  well_name: string;
+  method_used: string;
+  fitted_params: {
+    qi: number;
+    Di: number;
+    b: number;
+    type: string;
+  };
+  original_data: DCADataPoint[];
+  forecast_data: DCADataPoint[];
+  eur: number;
+}
+
 
 // --- Reservoir Analysis Tools API Client Functions ---
 
@@ -411,6 +431,64 @@ export const calculateEUR = async (data: EURCalculationRequestData): Promise<EUR
     body: JSON.stringify(data),
   });
   return handleApiResponse<EURCalculationResponseData>(response);
+};
+
+export const getWellDCA = async (wellName: string, method: string = 'hyperbolic'): Promise<WellDCAResponse> => {
+  const response = await fetchWithAuth(`${API_BASE_URL}/reservoir/dca/well/${encodeURIComponent(wellName)}?method=${method}`);
+  return handleApiResponse<WellDCAResponse>(response);
+};
+
+// --- AI Prediction Types ---
+
+export interface AIPredictionDataRequest {
+  records: Record<string, any>[];
+  target_column: string;
+  feature_columns: string[];
+}
+
+export interface AITrainResponse {
+  message: string;
+  trained_models: string[];
+  performance?: Record<string, { r2: number; rmse: number }>;
+  best_model?: string | null;
+  error?: string | null;
+}
+
+export interface AIPredictRequest {
+  records: Record<string, any>[];
+  feature_columns: string[];
+  model_name?: string | null;
+}
+
+export interface AIPredictResponse {
+  predictions: Record<string, number[]>;
+  error?: string | null;
+}
+
+// --- AI Prediction API Client Functions ---
+
+export const trainAIModels = async (data: AIPredictionDataRequest): Promise<AITrainResponse> => {
+  const response = await fetchWithAuth(`${API_BASE_URL}/reservoir/prediction/train`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<AITrainResponse>(response);
+};
+
+export const trainWellAIModels = async (wellName: string, targetColumn: string, featureColumns: string[]): Promise<AITrainResponse> => {
+    const response = await fetchWithAuth(`${API_BASE_URL}/reservoir/prediction/well/${encodeURIComponent(wellName)}/train`, {
+      method: 'POST',
+      body: JSON.stringify({ target_column: targetColumn, feature_columns: featureColumns }),
+    });
+    return handleApiResponse<AITrainResponse>(response);
+};
+
+export const predictWithAI = async (data: AIPredictRequest): Promise<AIPredictResponse> => {
+  const response = await fetchWithAuth(`${API_BASE_URL}/reservoir/prediction/predict`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<AIPredictResponse>(response);
 };
 
 // --- Static Modeling Tools Types ---
@@ -574,4 +652,34 @@ export const performNMRAnalysis = async (data: NMRAnalysisRequestData): Promise<
     body: JSON.stringify(data),
   });
   return handleApiResponse<NMRAnalysisResponseData>(response);
+};
+
+// Export all functions as part of a backendClient object for backward compatibility with some imports
+export const backendClient = {
+    uploadWellData,
+    getWellDataPreview,
+    getWellStatistics,
+    listLoadedWells,
+    loginForAccessToken,
+    getCurrentUser,
+    logoutUser,
+    calculateZFactor,
+    calculateFormationVolumeFactor,
+    calculateViscosity,
+    calculateSolutionGasRatio,
+    calculateOGIP,
+    calculateSTOIIP,
+    analyzeBuildupTest,
+    analyzeDrawdownTest,
+    calculateEUR,
+    getWellDCA,
+    trainAIModels,
+    trainWellAIModels,
+    predictWithAI,
+    defineStaticGrid,
+    addStaticWellData,
+    calculatePropertyVariogram,
+    performKrigingInterpolation,
+    calculateRockPhysicsProperties,
+    performNMRAnalysis
 };

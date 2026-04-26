@@ -20,12 +20,12 @@ import { WellDataViewer } from "./WellDataViewer";
 import { AdminActionsPanel } from "./AdminActionsPanel";
 import { LoginForm } from "./LoginForm";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import DeclineCurveAnalysis from "./visualizations/DeclineCurveAnalysis";
 
 const WellDataDemo: React.FC = () => {
-  const { isAuthenticated } = useAppStore(); // Get auth state
+  const { isAuthenticated, selectedWell, setSelectedWell } = useAppStore(); // Get auth state
 
   const [loadedWells, setLoadedWells] = useState<string[]>([]);
-  const [selectedWell, setSelectedWell] = useState<string>("");
   const [previewData, setPreviewData] = useState<WellDataPreview[] | null>(null);
   const [statistics, setStatistics] = useState<WellStatistics | null>(null);
   const [error, setError] = useState<string>("");
@@ -40,7 +40,7 @@ const WellDataDemo: React.FC = () => {
       if (wells.length > 0 && !selectedWell) {
         setSelectedWell(wells[0]);
       } else if (wells.length === 0) {
-        setSelectedWell("");
+        setSelectedWell(null);
         setPreviewData(null);
         setStatistics(null);
       }
@@ -66,7 +66,7 @@ const WellDataDemo: React.FC = () => {
       fetchLoadedWells();
     } else { // Clear data if not authenticated
       setLoadedWells([]);
-      setSelectedWell("");
+      setSelectedWell(null);
       setPreviewData(null);
       setStatistics(null);
       setError(""); // Clear errors too
@@ -194,13 +194,13 @@ const WellDataDemo: React.FC = () => {
             <CardContent>
               <WellDataSelector
                 loadedWells={loadedWells}
-                selectedWell={selectedWell}
+                selectedWell={selectedWell || ""}
                 onSelectedWellChange={setSelectedWell}
                 onRefreshWells={fetchLoadedWells}
                 isLoading={isLoading}
               />
               <WellDataViewer
-                selectedWell={selectedWell}
+                selectedWell={selectedWell || ""}
                 previewData={previewData}
                 statistics={statistics}
                 // Show loading specifically for viewer if a well is selected and parent is loading its data
@@ -208,6 +208,7 @@ const WellDataDemo: React.FC = () => {
               />
             </CardContent>
           </Card>
+
 
           {/* AdminActionsPanel might also check for admin role internally from store */}
           <AdminActionsPanel
