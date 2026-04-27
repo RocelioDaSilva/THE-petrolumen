@@ -104,3 +104,4 @@ xgboost==3.0.2
 # Sphinx for documentation
 sphinx==8.2.3
 sphinx-rtd-theme==3.0.2
+prophet==1.1.6

@@ -1,15 +1,18 @@
+import uuid
+import datetime
 from sqlalchemy import (
     Column,
     Integer,
     String,
     Float,
     Date,
+    DateTime,
     ForeignKey,
     UniqueConstraint,
     Boolean,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, declarative_base
-import datetime
 
 Base = declarative_base()
 
@@ -17,12 +20,12 @@ Base = declarative_base()
 class Well(Base):
     __tablename__ = "wells"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     field = Column(String, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
-    created_at = Column(Date, default=datetime.date.today)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     production_data = relationship(
         "ProductionData", back_populates="well", cascade="all, delete-orphan"
@@ -35,8 +38,8 @@ class Well(Base):
 class ProductionData(Base):
     __tablename__ = "production_data"
 
-    id = Column(Integer, primary_key=True, index=True)
-    well_id = Column(Integer, ForeignKey("wells.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    well_id = Column(UUID(as_uuid=True), ForeignKey("wells.id"), nullable=False)
     date = Column(Date, nullable=False)
     oil_rate = Column(Float, nullable=True)
     gas_rate = Column(Float, nullable=True)
@@ -53,14 +56,14 @@ class ProductionData(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
     role = Column(String, default="user", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(Date, default=datetime.date.today)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"

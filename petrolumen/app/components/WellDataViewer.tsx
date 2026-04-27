@@ -142,7 +142,7 @@ export const WellDataViewer: React.FC<WellDataViewerProps> = ({
                     <AccordionItem value="description" key="description">
                       <AccordionTrigger className="text-base font-semibold">Data Description (Per Column)</AccordionTrigger>
                       <AccordionContent>
-                        <Accordion type="multiple" collapsible className="w-full space-y-2">
+                        <Accordion type="multiple" className="w-full space-y-2">
                           {Object.entries(value).map(([colName, colStats]) => (
                             <AccordionItem value={`desc-${colName}`} key={`desc-${colName}`}>
                               <AccordionTrigger className="text-sm font-medium">{colName}</AccordionTrigger>
