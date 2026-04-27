@@ -11,11 +11,13 @@ from fastapi import (
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, List, Any, Tuple, Optional
+from fastapi.encoders import jsonable_encoder
+from typing import Dict, List, Any, Tuple, Optional, Literal
 from pydantic import BaseModel, EmailStr
 import logging
 import os  # For environment variables
 import datetime
+import uuid
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
@@ -104,7 +106,7 @@ if settings.DATABASE_URL == DEFAULT_DATABASE_URL:
 
 
 # --- Initialize Managers with configuration from settings ---
-db_manager = DatabaseManager(db_url=settings.DATABASE_URL)
+db_manager = DatabaseManager.get_instance(db_url=settings.DATABASE_URL)
 # Ensure DB is connected and tables are created on startup
 if not db_manager.connect():
     logger.critical(
@@ -118,16 +120,13 @@ if not db_manager.create_tables():  # This will now also create the User table
         "already exist or if there's a permissions issue)."
     )
 
-auth_manager = AuthManager(
+auth_manager = AuthManager.get_instance(
     db_manager=db_manager,
     secret_key=settings.SECRET_KEY,
     access_token_expire_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
-    # JWT_ALGORITHM is used internally by AuthManager, ensure it matches
-    # settings.JWT_ALGORITHM if AuthManager is modified to take it.
-    # For now, AuthManager has its own JWT_ALGORITHM constant. This could be synced.
 )
 auth_utils.auth_manager = auth_manager
-data_uploader = DataUploader(db_manager=db_manager)
+data_uploader = DataUploader.get_instance(db_manager=db_manager)
 
 # OAuth2 Scheme
 from auth_utils import oauth2_scheme
@@ -166,68 +165,40 @@ logger.info("AIPrediction functionality enabled.")
 os.makedirs(settings.AI_MODELS_DIR, exist_ok=True)
 
 # --- Import Custom Routers ---
-# Import for PVT calculations from gaia_genesis
 try:
-    from gaia_genesis.api_v1.endpoints import pvt_calculations as gaia_pvt_router
-
-    app.include_router(
-        gaia_pvt_router.router,
-        prefix="/api/v1/gaia/pvt",
-        tags=["Gaia - PVT Calculations"],
-    )
-    logger.info("Successfully included Gaia PVT calculations router.")
-except ImportError as e:
-    logger.error(
-        f"Could not import Gaia PVT calculations router: {e}. Ensure "
-        "'gaia_genesis.api_v1.endpoints.pvt_calculations' is correct and discoverable."
-    )
+    from gaia_genesis.api_v1.endpoints import pvt_router, pvt_calculations as legacy_pvt_router
+    app.include_router(pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"])
+    app.include_router(legacy_pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - Legacy PVT"])
+    logger.info("Successfully included PVT routers.")
 except Exception as e:
-    logger.error(f"An unexpected error occurred while including Gaia PVT router: {e}")
+    logger.error(f"Error including PVT routers: {e}")
 
 try:
-    from gaia_genesis.api_v1.endpoints import (
-        reservoir_analysis_tools as gaia_reservoir_tools_router,
-    )
-
-    app.include_router(
-        gaia_reservoir_tools_router.router,
-        prefix="/api/v1/gaia/reservoir-tools",
-        tags=["Gaia - Reservoir Analysis Tools"],
-    )
-    logger.info("Successfully included Gaia Reservoir Analysis Tools router.")
-except ImportError as e:
-    logger.error(
-        f"Could not import Gaia Reservoir Analysis Tools router: {e}. Ensure "
-        "'gaia_genesis.api_v1.endpoints.reservoir_analysis_tools' is correct."
-    )
+    from gaia_genesis.api_v1.endpoints import reservoir_analysis_tools as gaia_reservoir_tools_router
+    app.include_router(gaia_reservoir_tools_router.router, prefix="/api/v1/gaia/reservoir-tools", tags=["Gaia - Reservoir Tools"])
+    logger.info("Successfully included Reservoir Tools router.")
 except Exception as e:
-    logger.error(
-        "An unexpected error occurred while including Gaia Reservoir Analysis Tools "
-        f"router: {e}"
-    )
+    logger.error(f"Error including Reservoir Tools router: {e}")
 
 try:
-    from gaia_genesis.api_v1.endpoints import (
-        static_modeling_tools as gaia_static_modeling_router,
-    )
-
-    app.include_router(
-        gaia_static_modeling_router.router,
-        prefix="/api/v1/gaia/static-modeling",
-        tags=["Gaia - Static Modeling Tools"],
-    )
-    logger.info("Successfully included Gaia Static Modeling Tools router.")
-except ImportError as e:
-    logger.error(
-        f"Could not import Gaia Static Modeling Tools router: {e}. Ensure "
-        "'gaia_genesis.api_v1.endpoints.static_modeling_tools' is correct."
-    )
+    from gaia_genesis.api_v1.endpoints import static_modeling_tools as gaia_static_modeling_router
+    app.include_router(gaia_static_modeling_router.router, prefix="/api/v1/gaia/static-modeling", tags=["Gaia - Static Modeling"])
+    logger.info("Successfully included Static Modeling router.")
 except Exception as e:
-    logger.error(
-        "An unexpected error occurred while including Gaia Static Modeling Tools "
-        f"router: {e}"
-    )
+    logger.error(f"Error including Static Modeling router: {e}")
 
+try:
+    from gaia_genesis.api_v1.endpoints import dca_router, rta_router, nodal_router, reservoir_router, simulation_router, economics_router, ai_router
+    app.include_router(dca_router.router, prefix="/api/v1/gaia/dca", tags=["Gaia - DCA"])
+    app.include_router(rta_router.router, prefix="/api/v1/gaia/rta", tags=["Gaia - RTA"])
+    app.include_router(nodal_router.router, prefix="/api/v1/gaia/nodal", tags=["Gaia - Nodal"])
+    app.include_router(reservoir_router.router, prefix="/api/v1/gaia/reservoir", tags=["Gaia - Reservoir"])
+    app.include_router(simulation_router.router, prefix="/api/v1/gaia/simulation", tags=["Gaia - Simulation"])
+    app.include_router(economics_router.router, prefix="/api/v1/gaia/economics", tags=["Gaia - Economics"])
+    app.include_router(ai_router.router, prefix="/api/v1/gaia/ai", tags=["Gaia - AI"])
+    logger.info("Successfully included Engineering, Simulation, and AI routers.")
+except Exception as e:
+    logger.error(f"Error including DCA/RTA routers: {e}")
 
 # --- Pydantic Models for API ---
 class Token(BaseModel):
@@ -238,15 +209,19 @@ class Token(BaseModel):
 from auth_utils import UserBase, UserResponse
 
 
+from pydantic import Field
+
+
 class UserCreate(UserBase):
-    password: str
-    role: Optional[str] = "user"  # Default role on creation
+    username: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=8)
+    role: Optional[Literal["admin", "editor", "user"]] = "user"
 
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[Literal["admin", "editor", "user"]] = None
     is_active: Optional[bool] = None
 
 
@@ -411,6 +386,8 @@ def dataframe_to_json_serializable(df: pd.DataFrame | None) -> Any:
     return df.where(pd.notnull(df), None).to_dict(orient="records")
 
 
+
+
 from auth_utils import get_current_active_user, get_current_active_admin_user
 
 
@@ -496,6 +473,9 @@ async def read_users_me(current_user: UserResponse = Depends(get_current_active_
 
 
 # --- Admin User Management Endpoints ---
+from fastapi import Query
+
+
 @app.get(
     "/api/v1/admin/users",
     response_model=List[UserResponse],
@@ -503,8 +483,8 @@ async def read_users_me(current_user: UserResponse = Depends(get_current_active_
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def list_all_users(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=0),
     admin_user: UserResponse = Depends(
         get_current_active_admin_user
     ),  # Dependency for logging/audit if needed beyond auth
@@ -684,15 +664,17 @@ async def upload_well_data(
             data_preview_df = temp_preview_df
 
     return JSONResponse(
-        content={
-            "message": message,
-            "well_name": well_name,
-            "well_id": well_id,
-            "files_processed": [f.filename for f in files],
-            "data_preview_first_5_rows": dataframe_to_json_serializable(
-                data_preview_df
-            ),
-        }
+        content=jsonable_encoder(
+            {
+                "message": message,
+                "well_name": well_name,
+                "well_id": well_id,
+                "files_processed": [f.filename for f in files],
+                "data_preview_first_5_rows": dataframe_to_json_serializable(
+                    data_preview_df
+                ),
+            }
+        )
     )
 
 
@@ -756,7 +738,7 @@ async def list_wells_with_data(
     """Lists all wells from the database."""
     logger.info(f"User '{current_user.username}' listing all wells.")
     wells = data_uploader.list_loaded_wells()  # This now returns list of dicts from DB
-    return JSONResponse(content={"wells": wells})
+    return JSONResponse(content=jsonable_encoder({"wells": wells}))
 
 
 # Admin endpoint - example of role-based access (conceptual, AuthManager doesn't

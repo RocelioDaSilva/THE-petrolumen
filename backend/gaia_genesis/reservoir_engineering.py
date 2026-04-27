@@ -42,6 +42,16 @@ class PVTProperties:
         api_gravity: Optional[float] = None,
         gas_specific_gravity: Optional[float] = None,
     ) -> float:
+        if (
+            pressure < 0
+            or temperature < -460
+            or (gas_specific_gravity is not None and gas_specific_gravity <= 0)
+            or (fluid_type == "oil" and api_gravity is not None and api_gravity <= 0)
+        ):
+            self.logger.warning(
+                f"Invalid physical inputs for FVF: P={pressure}, T={temperature}, Sg={gas_specific_gravity}, API={api_gravity}"
+            )
+            return np.nan
         """
         Calcula fator de volume de formação (Bo, Bg).
 
@@ -97,6 +107,17 @@ class PVTProperties:
         Returns:
             Viscosidade (cp)
         """
+        if (
+            pressure < 0
+            or temperature < -460
+            or (gas_specific_gravity is not None and gas_specific_gravity <= 0)
+            or (fluid_type == "oil" and api_gravity is not None and api_gravity <= 0)
+        ):
+            self.logger.warning(
+                f"Invalid physical inputs for Viscosity: P={pressure}, T={temperature}, Sg={gas_specific_gravity}, API={api_gravity}"
+            )
+            return np.nan
+
         if fluid_type == "oil":
             # Correlação de Beggs-Robinson para viscosidade do óleo
             api = api_gravity
@@ -214,6 +235,16 @@ class PVTProperties:
         api_gravity: float,
         gas_specific_gravity: float,
     ) -> float:
+        if (
+            pressure < 0
+            or temperature < -460
+            or gas_specific_gravity <= 0
+            or api_gravity <= 0
+        ):
+            self.logger.warning(
+                f"Invalid physical inputs for Rs: P={pressure}, T={temperature}, Sg={gas_specific_gravity}, API={api_gravity}"
+            )
+            return np.nan
         """
         Calcula relação gás-óleo em solução (Rs).
 
@@ -236,8 +267,19 @@ class PVTProperties:
         return rs
 
     def calculate_z_factor(
-        self, pressure: float, temperature: float, gas_specific_gravity: float
+        self,
+        pressure: float,
+        temperature: float,
+        gas_specific_gravity: float,
+        method: str = "hall-yarborough",
     ) -> float:
+        if pressure == 0:
+            return 1.0
+        if pressure < 0 or temperature < -460 or gas_specific_gravity <= 0:
+            self.logger.warning(
+                f"Invalid physical inputs: P={pressure}, T={temperature}, Sg={gas_specific_gravity}"
+            )
+            return np.nan
         """
         Calcula fator de compressibilidade (Z).
 
@@ -245,11 +287,15 @@ class PVTProperties:
             pressure: Pressão (psia)
             temperature: Temperatura (°F)
             gas_specific_gravity: Densidade do gás
+            method: 'hall-yarborough' ou 'dranchuk-abou-kassem'
 
         Returns:
             Fator de compressibilidade
         """
-        # Correlação de Hall-Yarborough
+        if method.lower() == "dranchuk-abou-kassem":
+            return self._calculate_z_dak(pressure, temperature, gas_specific_gravity)
+
+        # Default: Hall-Yarborough
         t = temperature + 460  # temperatura em Rankine
         tpc = 168 + 325 * gas_specific_gravity - 12.5 * gas_specific_gravity**2
         ppc = 677 + 15 * gas_specific_gravity - 37.5 * gas_specific_gravity**2
@@ -406,6 +452,73 @@ class PVTProperties:
             # Optionally return np.nan or the calculated z
         return z
 
+    def _calculate_z_dak(
+        self, pressure: float, temperature: float, gas_specific_gravity: float
+    ) -> float:
+        """Dranchuk-Abou-Kassem (DAK) Z-factor correlation."""
+        t_r = (temperature + 459.67) / (
+            168 + 325 * gas_specific_gravity - 12.5 * gas_specific_gravity**2
+        )
+        p_r = pressure / (
+            677 + 15 * gas_specific_gravity - 37.5 * gas_specific_gravity**2
+        )
+
+        a1, a2, a3, a4, a5 = 0.3265, -1.0700, -0.5339, 0.01569, -0.05165
+        a6, a7, a8, a9, a10, a11 = 0.5475, -0.7361, 0.1844, 0.1056, 0.6134, 0.7210
+
+        def dak_func(rho_r):
+            term1 = (
+                a1 + a2 / t_r + a3 / t_r**3 + a4 / t_r**4 + a5 / t_r**5
+            ) * rho_r
+            term2 = (a6 + a7 / t_r + a8 / t_r**2) * rho_r**2
+            term3 = a9 * (a7 / t_r + a8 / t_r**2) * rho_r**5
+            term4 = (
+                (a10 / t_r**3)
+                * rho_r**2
+                * (1 + a11 * rho_r**2)
+                * np.exp(-a11 * rho_r**2)
+            )
+            return 1 + term1 + term2 + term3 + term4 - (0.27 * p_r) / (rho_r * t_r)
+
+        # Initial guess for rho_r
+        rho_r_guess = 0.27 * p_r / (1.0 * t_r)
+
+        from scipy.optimize import fsolve
+
+        try:
+            rho_r_sol = fsolve(dak_func, rho_r_guess)[0]
+            z = (0.27 * p_r) / (rho_r_sol * t_r)
+            return float(z)
+        except Exception as e:
+            self.logger.error(f"DAK Z-factor convergence failed: {e}")
+            return np.nan
+
+    def calculate_langmuir_desorption(
+        self, pressure: float, v_l: float, p_l: float
+    ) -> float:
+        """
+        Calcula volume de gás adsorvido (Langmuir).
+        v_l: Langmuir Volume (scf/ton)
+        p_l: Langmuir Pressure (psia)
+        """
+        if pressure < 0:
+            return 0.0
+        return (v_l * pressure) / (p_l + pressure)
+
+    def calculate_gas_compressibility(
+        self, pressure: float, temperature: float, gas_specific_gravity: float
+    ) -> float:
+        """
+        Calcula compressibilidade isotérmica do gás (cg).
+        cg = (1/P) - (1/Z)*(dZ/dP)
+        """
+        dp = 1.0  # psia
+        z1 = self.calculate_z_factor(pressure, temperature, gas_specific_gravity)
+        z2 = self.calculate_z_factor(pressure + dp, temperature, gas_specific_gravity)
+        dz_dp = (z2 - z1) / dp
+        cg = (1.0 / pressure) - (1.0 / z1) * dz_dp
+        return cg
+
 
 class ReserveCategory(Enum):  # noqa: F401
     PROVED = "P1"
@@ -436,39 +549,37 @@ class MaterialBalance:
         production: np.ndarray,
         temperature: float,
         gas_specific_gravity: float,
-    ) -> float:
+    ) -> Dict[str, float]:
         """
-        Calcula OGIP usando balanço de materiais.
-
-        Args:
-            pressure: Array de pressões
-            production: Array de produção acumulada
-            temperature: Temperatura do reservatório
-            gas_specific_gravity: Densidade do gás
+        Calcula OGIP usando balanço de materiais (P/Z vs Gp).
 
         Returns:
-            OGIP estimado
+            Dicionário com OGIP e R-quadrado.
         """
-        # Método de Havlena-Odeh
-        p = pressure
-        gp = production
+        p = np.array(pressure)
+        gp = np.array(production)
 
-        # Calcular Z médio
-        z = np.array(
-            [
-                self.pvt.calculate_z_factor(pi, temperature, gas_specific_gravity)
-                for pi in p
-            ]
-        )
+        z = np.array([
+            self.pvt.calculate_z_factor(pi, temperature, gas_specific_gravity)
+            for pi in p
+        ])
 
-        # Calcular F e Eg
-        f = gp
-        eg = (p[0] / z[0] - p / z) * 1000  # 1000 para converter para scf
+        pz = p / z
+        # Gp = G * (1 - (P/Z)/(Pi/Zi)) => P/Z = Pi/Zi - (Pi/Zi / G) * Gp
+        # Y = A + B*X => Y = P/Z, X = Gp
+        slope, intercept = np.polyfit(gp, pz, 1)
 
-        # Regressão linear
-        slope, _ = np.polyfit(eg, f, 1)
+        ogip = -intercept / slope if slope != 0 else 0
 
-        return slope
+        # Calculate R-squared
+        p_poly = np.poly1d([slope, intercept])
+        y_hat = p_poly(gp)
+        y_bar = np.mean(pz)
+        ss_res = np.sum((pz - y_hat)**2)
+        ss_tot = np.sum((pz - y_bar)**2)
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+
+        return {"ogip": float(ogip), "r_squared": float(r_squared)}
 
     def calculate_stoiip(
         self,
@@ -477,58 +588,90 @@ class MaterialBalance:
         temperature: float,
         api_gravity: float,
         gas_specific_gravity: float,
+    ) -> Dict[str, float]:
+        """
+        Calcula STOIIP usando balanço de materiais (Havlena-Odeh).
+        """
+        p = np.array(pressure)
+        prod_np = np.array(production)
+
+        bo = np.array([
+            self.pvt.calculate_formation_volume_factor(pi, temperature, "oil", api_gravity, gas_specific_gravity)
+            for pi in p
+        ])
+        rs = np.array([
+            self.pvt.calculate_solution_gas_ratio(pi, temperature, api_gravity, gas_specific_gravity)
+            for pi in p
+        ])
+        bg = np.array([
+            self.pvt.calculate_formation_volume_factor(pi, temperature, "gas", None, gas_specific_gravity)
+            for pi in p
+        ])
+
+        # F = Np * (Bo + (Rs0 - Rs) * Bg)
+        f = prod_np * (bo + (rs[0] - rs) * bg)
+        # Eo = (Bo - Bo0) + (Rs0 - Rs) * Bg
+        eo = (bo - bo[0]) + (rs[0] - rs) * bg
+
+        slope, intercept = np.polyfit(eo, f, 1)
+
+        # Calculate R-squared
+        p_poly = np.poly1d([slope, intercept])
+        y_hat = p_poly(eo)
+        y_bar = np.mean(f)
+        ss_res = np.sum((f - y_hat)**2)
+        ss_tot = np.sum((f - y_bar)**2)
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+
+        return {"stoiip": float(slope), "intercept": float(intercept), "r_squared": float(r_squared)}
+
+    def calculate_aquifer_influx_fetkovich(
+        self,
+        p_avg: float,
+        p_aquifer_initial: float,
+        wei: float,
+        ct: float,
+        j: float,
+        dt: float,
+        we_cum_prev: float
     ) -> float:
         """
-        Calcula STOIIP usando balanço de materiais.
-
-        Args:
-            pressure: Array de pressões
-            production: Array de produção acumulada
-            temperature: Temperatura do reservatório
-            api_gravity: Grau API do óleo
-            gas_specific_gravity: Densidade do gás
-
-        Returns:
-            STOIIP estimado
+        Calcula influxo de água usando o modelo de Fetkovich.
+        wei: Initial encroachable water volume
+        ct: Total aquifer compressibility
+        j: Aquifer productivity index
         """
-        # Método de Havlena-Odeh para óleo
-        p = pressure
-        np = production
+        # Influx during dt
+        d_we = (j * (p_aquifer_initial * (1 - we_cum_prev / (wei * ct * p_aquifer_initial)) - p_avg) * dt)
+        return float(max(0, d_we))
 
-        # Calcular Bo e Rs
-        bo = np.array(
-            [
-                self.pvt.calculate_formation_volume_factor(
-                    pi, temperature, "oil", api_gravity, gas_specific_gravity
-                )
-                for pi in p
-            ]
-        )
-        rs = np.array(
-            [
-                self.pvt.calculate_solution_gas_ratio(
-                    pi, temperature, api_gravity, gas_specific_gravity
-                )
-                for pi in p
-            ]
-        )
+    def calculate_aquifer_influx_carter_tracy(
+        self,
+        p_initial: float,
+        p_current: float,
+        time: float,
+        b: float,
+        k: float,
+        phi: float,
+        mu: float,
+        ct: float,
+        r_w: float,
+    ) -> float:
+        """
+        Calcula influxo de água usando o modelo de Carter-Tracy (aproximação simplificada).
+        b: Water influx constant
+        """
+        # Dimensionless time
+        t_d = 0.006328 * k * time / (phi * mu * ct * r_w**2)
 
-        # Calcular F e Eo
-        f = np * (
-            bo
-            + (rs[0] - rs)
-            * self.pvt.calculate_formation_volume_factor(
-                p[0], temperature, "gas", None, gas_specific_gravity
-            )
-        )
-        eo = (bo - bo[0]) + (rs[0] - rs) * self.pvt.calculate_formation_volume_factor(
-            p[0], temperature, "gas", None, gas_specific_gravity
-        )
+        # Everdingen-Hurst P_d approximation (simplified for infinite aquifer)
+        if t_d < 0.01:
+            p_d = 2 * np.sqrt(t_d / np.pi)
+        else:
+            p_d = (np.log(t_d) + 0.80907) / 2
 
-        # Regressão linear
-        slope, _ = np.polyfit(eo, f, 1)
-
-        return slope
+        we = b * (p_initial - p_current) * (t_d / p_d)
+        return float(max(0, we))
 
 
 class WellTesting:
@@ -552,46 +695,62 @@ class WellTesting:
         self,
         time: np.ndarray,
         pressure: np.ndarray,
+        tp: float,
         rate: float,
-        viscosity: float,
-        compressibility: float,
-        porosity: float,
-        wellbore_radius: float,
+        mu: float,
+        bo: float,
+        ct: float,
+        phi: float,
+        rw: float,
+        h: float,
     ) -> Dict:
         """
-        Analisa teste de build-up.
-
-        Args:
-            time: Array de tempos
-            pressure: Array de pressões
-            rate: Vazão antes do build-up
-            viscosity: Viscosidade do fluido
-            compressibility: Compressibilidade total
-            porosity: Porosidade
-            wellbore_radius: Raio do poço
-
-        Returns:
-            Dicionário com resultados da análise
+        Analisa teste de build-up usando o gráfico de Horner.
+        tp: tempo de produção (horas)
         """
-        # Método de Horner
-        tp = time[-1]  # tempo de produção
-        dt = time - time[0]  # delta t
-        tda = (tp + dt) / dt  # tempo de Horner
+        # Delta t (tempo desde o fechamento)
+        dt = np.array(time)
+        p = np.array(pressure)
 
-        # Regressão linear
-        slope, intercept = np.polyfit(np.log(tda), pressure, 1)
+        # Remove dt=0 para evitar log(0)
+        mask = dt > 0
+        dt = dt[mask]
+        p = p[mask]
 
-        # Calcular parâmetros
-        k = 162.6 * rate * viscosity / (slope * 1)  # permeabilidade
+        # Horner Time: (tp + dt) / dt
+        horner_time = (tp + dt) / dt
+
+        # Regressão linear no período de semi-log (geralmente final do teste)
+        # Idealmente usaríamos uma detecção de reta automática, mas aqui usamos os últimos 50% dos dados
+        n_start = int(len(horner_time) * 0.5)
+        x = np.log10(horner_time[n_start:])
+        y = p[n_start:]
+
+        slope_m, intercept = np.polyfit(x, y, 1)
+        m = abs(slope_m) # Inclinação por ciclo
+
+        # Permeabilidade (k)
+        k = (162.6 * rate * bo * mu) / (m * h) if m != 0 else 0
+
+        # Pressão inicial (P*) extrapolada para Horner Time = 1
+        p_star = intercept # log10(1) = 0
+
+        # Skin (s) - usando P_1hr (pressão em dt=1hr na reta extrapolada)
+        p_1hr = m * np.log10((tp + 1) / 1) + intercept
+        p_wf = p[0] # Pressão no instante do fechamento
+
         skin = 1.151 * (
-            (intercept - pressure[0]) / slope
-            - np.log10(
-                k / (porosity * viscosity * compressibility * wellbore_radius**2)
-            )
+            (p_1hr - p_wf) / m
+            - np.log10(k / (phi * mu * ct * rw**2))
             + 3.23
         )
 
-        return {"permeability": k, "skin": skin, "slope": slope, "intercept": intercept}
+        return {
+            "permeability": float(k),
+            "skin": float(skin),
+            "p_star": float(p_star),
+            "slope": float(m),
+        }
 
     def analyze_drawdown(
         self,

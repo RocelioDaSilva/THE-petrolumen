@@ -3,6 +3,7 @@ import pandas as pd
 import io
 import logging
 import datetime
+import uuid
 from sqlalchemy.exc import SQLAlchemyError
 
 # Import DatabaseManager from the new core location
@@ -13,8 +14,29 @@ logger = logging.getLogger(__name__)
 
 
 class DataUploader:
+    _instance: Optional["DataUploader"] = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(DataUploader, cls).__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def get_instance(
+        cls, db_manager: Optional[DatabaseManager] = None
+    ) -> "DataUploader":
+        if not cls._instance:
+            if not db_manager:
+                db_manager = DatabaseManager.get_instance()
+            cls._instance = DataUploader(db_manager)
+        return cls._instance
+
     def __init__(self, db_manager: DatabaseManager):
+        if hasattr(self, "_initialized") and self._initialized:
+            return
         self.db_manager = db_manager
+        self._initialized = True
+        logger.info("DataUploader singleton initialized.")
         # self.well_data_cache = {} # Removed, as DB is the source of truth
 
     def load_well_data(
@@ -24,7 +46,7 @@ class DataUploader:
         field_name: Optional[str] = None,
         latitude: Optional[float] = None,
         longitude: Optional[float] = None,
-    ) -> Tuple[bool, str, Optional[int]]:
+    ) -> Tuple[bool, str, Optional[uuid.UUID]]:
         """
         Loads well data from multiple CSV content strings, validates, and stores in the database.
         Creates or updates well metadata.
@@ -66,6 +88,8 @@ class DataUploader:
         for filename, content_str in csv_files_content:
             try:
                 df = pd.read_csv(io.StringIO(content_str))
+                # Standardize column names to lowercase
+                df.columns = [c.lower() for c in df.columns]
             except Exception as e:
                 logger.error(
                     f"Error parsing CSV content from {filename} for well {well_name}: {e}"
@@ -89,22 +113,42 @@ class DataUploader:
 
             # Prepare records for database insertion
             for record_idx, row in df.iterrows():
-                # Ensure that rates are float or None, not NaN
-                oil_rate = row.get("oil_rate")
-                gas_rate = row.get("gas_rate")
-                water_rate = row.get("water_rate")
+                try:
+                    # Ensure that rates are float or None, not NaN
+                    oil_rate = row.get("oil_rate")
+                    gas_rate = row.get("gas_rate")
+                    water_rate = row.get("water_rate")
 
-                all_records_for_db.append(
-                    {
-                        "date": row["date"],  # Already formatted
-                        "oil_rate": float(oil_rate) if pd.notna(oil_rate) else None,
-                        "gas_rate": float(gas_rate) if pd.notna(gas_rate) else None,
-                        "water_rate": (
-                            float(water_rate) if pd.notna(water_rate) else None
-                        ),
-                        # Add other relevant columns if they exist and are part of ProductionData model
-                    }
-                )
+                    all_records_for_db.append(
+                        {
+                            "date": row["date"],  # Already formatted
+                            "oil_rate": (
+                                float(oil_rate)
+                                if pd.notna(oil_rate)
+                                else float(row.get("oilrate"))
+                                if pd.notna(row.get("oilrate"))
+                                else None
+                            ),
+                            "gas_rate": (
+                                float(gas_rate)
+                                if pd.notna(gas_rate)
+                                else float(row.get("gasrate"))
+                                if pd.notna(row.get("gasrate"))
+                                else None
+                            ),
+                            "water_rate": (
+                                float(water_rate)
+                                if pd.notna(water_rate)
+                                else float(row.get("waterrate"))
+                                if pd.notna(row.get("waterrate"))
+                                else None
+                            ),
+                            # Add other relevant columns if they exist and are part of ProductionData model
+                        }
+                    )
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error parsing numeric values in row {record_idx} of {filename}: {e}")
+                    return False, f"Invalid numeric data in {filename} at row {record_idx}: {e}", well_id
             processed_filenames.append(filename)
 
         if not all_records_for_db:
@@ -166,8 +210,9 @@ class DataUploader:
         if "date" in df.columns:
             df["date"] = pd.to_datetime(df["date"])
 
+        # Pandas 2.0 removed datetime_is_numeric, it's now default for datetime columns
         stats = df.describe(
-            include="all", datetime_is_numeric=True
+            include="all"
         ).to_dict()  # to_dict for JSON serializability
         # Pandas describe() with include='all' can produce NaNs for non-numeric types, which need handling for JSON.
         # A more robust approach would be to select numeric columns for describe() and handle others separately.
@@ -216,7 +261,9 @@ class DataUploader:
             session.close()
 
     # Placeholder for a method that might have been in the original DatabaseManager or a new one
-    def update_db_well_metadata(self, well_id: int, updates: Dict[str, Any]) -> bool:
+    def update_db_well_metadata(
+        self, well_id: uuid.UUID, updates: Dict[str, Any]
+    ) -> bool:
         """Updates metadata for an existing well."""
         session = self.db_manager.get_session()
         try:

@@ -5,7 +5,6 @@ import {
   getWellDataPreview,
   getWellStatistics,
   listLoadedWells,
-  adminClearAllData, // This function might be removed if endpoint is gone
   WellDataPreview,
   WellStatistics,
   UploadResponse,

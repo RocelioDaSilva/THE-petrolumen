@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, EmailStr
 import logging
+import uuid
 
 # This will be initialized in main.py
 auth_manager = None
@@ -15,7 +16,7 @@ class UserBase(BaseModel):
     full_name: Optional[str] = None
 
 class UserResponse(UserBase):
-    id: int
+    id: uuid.UUID
     role: str
     is_active: bool
 
