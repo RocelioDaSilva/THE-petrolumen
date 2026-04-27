@@ -165,68 +165,40 @@ logger.info("AIPrediction functionality enabled.")
 os.makedirs(settings.AI_MODELS_DIR, exist_ok=True)
 
 # --- Import Custom Routers ---
-# Import for PVT calculations from gaia_genesis
 try:
-    from gaia_genesis.api_v1.endpoints import pvt_calculations as gaia_pvt_router
-
-    app.include_router(
-        gaia_pvt_router.router,
-        prefix="/api/v1/gaia/pvt",
-        tags=["Gaia - PVT Calculations"],
-    )
-    logger.info("Successfully included Gaia PVT calculations router.")
-except ImportError as e:
-    logger.error(
-        f"Could not import Gaia PVT calculations router: {e}. Ensure "
-        "'gaia_genesis.api_v1.endpoints.pvt_calculations' is correct and discoverable."
-    )
+    from gaia_genesis.api_v1.endpoints import pvt_router, pvt_calculations as legacy_pvt_router
+    app.include_router(pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"])
+    app.include_router(legacy_pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - Legacy PVT"])
+    logger.info("Successfully included PVT routers.")
 except Exception as e:
-    logger.error(f"An unexpected error occurred while including Gaia PVT router: {e}")
+    logger.error(f"Error including PVT routers: {e}")
 
 try:
-    from gaia_genesis.api_v1.endpoints import (
-        reservoir_analysis_tools as gaia_reservoir_tools_router,
-    )
-
-    app.include_router(
-        gaia_reservoir_tools_router.router,
-        prefix="/api/v1/gaia/reservoir-tools",
-        tags=["Gaia - Reservoir Analysis Tools"],
-    )
-    logger.info("Successfully included Gaia Reservoir Analysis Tools router.")
-except ImportError as e:
-    logger.error(
-        f"Could not import Gaia Reservoir Analysis Tools router: {e}. Ensure "
-        "'gaia_genesis.api_v1.endpoints.reservoir_analysis_tools' is correct."
-    )
+    from gaia_genesis.api_v1.endpoints import reservoir_analysis_tools as gaia_reservoir_tools_router
+    app.include_router(gaia_reservoir_tools_router.router, prefix="/api/v1/gaia/reservoir-tools", tags=["Gaia - Reservoir Tools"])
+    logger.info("Successfully included Reservoir Tools router.")
 except Exception as e:
-    logger.error(
-        "An unexpected error occurred while including Gaia Reservoir Analysis Tools "
-        f"router: {e}"
-    )
+    logger.error(f"Error including Reservoir Tools router: {e}")
 
 try:
-    from gaia_genesis.api_v1.endpoints import (
-        static_modeling_tools as gaia_static_modeling_router,
-    )
-
-    app.include_router(
-        gaia_static_modeling_router.router,
-        prefix="/api/v1/gaia/static-modeling",
-        tags=["Gaia - Static Modeling Tools"],
-    )
-    logger.info("Successfully included Gaia Static Modeling Tools router.")
-except ImportError as e:
-    logger.error(
-        f"Could not import Gaia Static Modeling Tools router: {e}. Ensure "
-        "'gaia_genesis.api_v1.endpoints.static_modeling_tools' is correct."
-    )
+    from gaia_genesis.api_v1.endpoints import static_modeling_tools as gaia_static_modeling_router
+    app.include_router(gaia_static_modeling_router.router, prefix="/api/v1/gaia/static-modeling", tags=["Gaia - Static Modeling"])
+    logger.info("Successfully included Static Modeling router.")
 except Exception as e:
-    logger.error(
-        "An unexpected error occurred while including Gaia Static Modeling Tools "
-        f"router: {e}"
-    )
+    logger.error(f"Error including Static Modeling router: {e}")
 
+try:
+    from gaia_genesis.api_v1.endpoints import dca_router, rta_router, nodal_router, reservoir_router, simulation_router, economics_router, ai_router
+    app.include_router(dca_router.router, prefix="/api/v1/gaia/dca", tags=["Gaia - DCA"])
+    app.include_router(rta_router.router, prefix="/api/v1/gaia/rta", tags=["Gaia - RTA"])
+    app.include_router(nodal_router.router, prefix="/api/v1/gaia/nodal", tags=["Gaia - Nodal"])
+    app.include_router(reservoir_router.router, prefix="/api/v1/gaia/reservoir", tags=["Gaia - Reservoir"])
+    app.include_router(simulation_router.router, prefix="/api/v1/gaia/simulation", tags=["Gaia - Simulation"])
+    app.include_router(economics_router.router, prefix="/api/v1/gaia/economics", tags=["Gaia - Economics"])
+    app.include_router(ai_router.router, prefix="/api/v1/gaia/ai", tags=["Gaia - AI"])
+    logger.info("Successfully included Engineering, Simulation, and AI routers.")
+except Exception as e:
+    logger.error(f"Error including DCA/RTA routers: {e}")
 
 # --- Pydantic Models for API ---
 class Token(BaseModel):
