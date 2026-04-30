@@ -187,10 +187,10 @@ class TestPVTProperties:
         "pressure, temperature, sg, expected_is_nan",
         [
             (0, 150, 0.7, False),  # Zero pressure (not nan by default HY)
-            (-100, 150, 0.7, True), # Negative pressure
-            (3000, -500, 0.7, True),# Temp below abs zero for Rankine conversion
-            (3000, 150, 0, True),   # Zero specific gravity
-            (3000, 150, -0.7, True),# Negative specific gravity
+            (-100, 150, 0.7, True),  # Negative pressure
+            (3000, -500, 0.7, True),  # Temp below abs zero for Rankine conversion
+            (3000, 150, 0, True),  # Zero specific gravity
+            (3000, 150, -0.7, True),  # Negative specific gravity
         ],
     )
     def test_calculate_z_factor_invalid_inputs(
@@ -200,26 +200,55 @@ class TestPVTProperties:
         with caplog.at_level(logging.WARNING):
             z = pvt_props.calculate_z_factor(pressure, temperature, sg)
         if expected_is_nan:
-            assert np.isnan(z), f"Expected NaN for Z-factor with P={pressure}, T={temperature}, Sg={sg}"
-        else: # Should not happen with these params
+            assert np.isnan(
+                z
+            ), f"Expected NaN for Z-factor with P={pressure}, T={temperature}, Sg={sg}"
+        else:  # Should not happen with these params
             assert not np.isnan(z), "Expected valid Z-factor"
-
 
     @pytest.mark.parametrize(
         "pressure, temp, fluid_type, api, sg, expected_is_nan",
         [
             # Oil FVF invalid inputs
-            (0, 150, "oil", 30, 0.7, False), # Standing Rs is proportional to P, so Rs(P=0)=0. Valid.
+            (
+                0,
+                150,
+                "oil",
+                30,
+                0.7,
+                False,
+            ),  # Standing Rs is proportional to P, so Rs(P=0)=0. Valid.
             (-100, 150, "oil", 30, 0.7, True),
-            (2000, 150, "oil", 0, 0.7, True), # API 0 is considered invalid for oil
-            (2000, 150, "oil", -10, 0.7, True),# Negative API is considered invalid for oil
-            (2000, 150, "oil", 30, 0, True), # Sg 0 -> Tpc issue in Z -> NaN for Rs's Bg
-            (2000, 150, "oil", 30, -0.7, True), # Sg <0 -> Tpc issue in Z -> NaN for Rs's Bg
+            (2000, 150, "oil", 0, 0.7, True),  # API 0 is considered invalid for oil
+            (
+                2000,
+                150,
+                "oil",
+                -10,
+                0.7,
+                True,
+            ),  # Negative API is considered invalid for oil
+            (
+                2000,
+                150,
+                "oil",
+                30,
+                0,
+                True,
+            ),  # Sg 0 -> Tpc issue in Z -> NaN for Rs's Bg
+            (
+                2000,
+                150,
+                "oil",
+                30,
+                -0.7,
+                True,
+            ),  # Sg <0 -> Tpc issue in Z -> NaN for Rs's Bg
             # Gas FVF invalid inputs
-            (0, 150, "gas", None, 0.7, True), # P=0 for Bg
-            (-100, 150, "gas", None, 0.7, True), # P<0 for Bg
-            (2000, -500, "gas", None, 0.7, True), # T for Z leads to T_r issue
-            (2000, 150, "gas", None, 0, True), # Sg 0 for Z
+            (0, 150, "gas", None, 0.7, True),  # P=0 for Bg
+            (-100, 150, "gas", None, 0.7, True),  # P<0 for Bg
+            (2000, -500, "gas", None, 0.7, True),  # T for Z leads to T_r issue
+            (2000, 150, "gas", None, 0, True),  # Sg 0 for Z
         ],
     )
     def test_calculate_fvf_invalid_inputs(
@@ -227,27 +256,46 @@ class TestPVTProperties:
     ):
         """Test FVF with invalid inputs, expecting NaN and warnings."""
         with caplog.at_level(logging.WARNING):
-            fvf = pvt_props.calculate_formation_volume_factor(pressure, temp, fluid_type, api, sg)
+            fvf = pvt_props.calculate_formation_volume_factor(
+                pressure, temp, fluid_type, api, sg
+            )
         if expected_is_nan:
-            assert np.isnan(fvf), f"Expected NaN for FVF with P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
-        else: # For cases like API=0 or API=-10 where calculation might proceed but yield extreme results
-            assert not np.isnan(fvf), f"Expected non-NaN FVF for P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
-
+            assert np.isnan(
+                fvf
+            ), f"Expected NaN for FVF with P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
+        else:  # For cases like API=0 or API=-10 where calculation might proceed but yield extreme results
+            assert not np.isnan(
+                fvf
+            ), f"Expected non-NaN FVF for P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
 
     @pytest.mark.parametrize(
         "pressure, temp, fluid_type, api, sg, expected_is_nan",
         [
             # Oil Viscosity
-            (0, 150, "oil", 30, 0.7, False), # Standing Rs is proportional to P, so Rs(P=0)=0. Valid.
+            (
+                0,
+                150,
+                "oil",
+                30,
+                0.7,
+                False,
+            ),  # Standing Rs is proportional to P, so Rs(P=0)=0. Valid.
             (-100, 150, "oil", 30, 0.7, True),
             # Gas Viscosity
-            (0, 150, "gas", None, 0.7, False), # P=0 now returns valid results in some paths
+            (
+                0,
+                150,
+                "gas",
+                None,
+                0.7,
+                False,
+            ),  # P=0 now returns valid results in some paths
             (-100, 150, "gas", None, 0.7, True),
             (2000, 150, "gas", None, 0.6, False),
             (10, 60, "gas", None, 0.57, False),
             (1, 1000, "gas", None, 0.57, False),
             (5000, 100, "gas", None, 2.0, False),
-        ]
+        ],
     )
     def test_calculate_viscosity_invalid_inputs(
         self, pvt_props, caplog, pressure, temp, fluid_type, api, sg, expected_is_nan
@@ -257,20 +305,29 @@ class TestPVTProperties:
             visc = pvt_props.calculate_viscosity(pressure, temp, fluid_type, api, sg)
 
         if expected_is_nan:
-            assert np.isnan(visc), f"Expected NaN for Viscosity with P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
+            assert np.isnan(
+                visc
+            ), f"Expected NaN for Viscosity with P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
         else:
-             assert not np.isnan(visc), f"Expected non-NaN Viscosity for P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
-
+            assert not np.isnan(
+                visc
+            ), f"Expected non-NaN Viscosity for P={pressure}, T={temp}, type={fluid_type}, API={api}, Sg={sg}"
 
     @pytest.mark.parametrize(
         "pressure, temp, api, sg, expected_is_nan",
         [
-            (0, 150, 30, 0.7, False), # Standing Rs is proportional to P, so Rs(P=0)=0. Valid.
-            (-100, 150, 30, 0.7, True),# Rs(-100) now returns NaN
-            (2000, 150, 0, 0.7, True), # API 0 is considered invalid
-            (2000, 150, -10, 0.7, True),# Negative API is considered invalid
-            (2000, 150, 30, 0, True),   # Sg=0, Rs=nan
-            (2000, 150, 30, -0.7, True),# Sg<0, Rs=nan
+            (
+                0,
+                150,
+                30,
+                0.7,
+                False,
+            ),  # Standing Rs is proportional to P, so Rs(P=0)=0. Valid.
+            (-100, 150, 30, 0.7, True),  # Rs(-100) now returns NaN
+            (2000, 150, 0, 0.7, True),  # API 0 is considered invalid
+            (2000, 150, -10, 0.7, True),  # Negative API is considered invalid
+            (2000, 150, 30, 0, True),  # Sg=0, Rs=nan
+            (2000, 150, 30, -0.7, True),  # Sg<0, Rs=nan
         ],
     )
     def test_calculate_solution_gas_ratio_invalid_inputs(
@@ -280,13 +337,17 @@ class TestPVTProperties:
         # Standing's Rs correlation is generally robust for wide range of inputs,
         # even if they lead to physically questionable Rs values (e.g., negative Rs).
         # It does not have internal checks that would lead to NaN like Z-factor for these cases.
-        with caplog.at_level(logging.WARNING): # Check if any unexpected warnings occur
+        with caplog.at_level(logging.WARNING):  # Check if any unexpected warnings occur
             rs = pvt_props.calculate_solution_gas_ratio(pressure, temp, api, sg)
 
-        if expected_is_nan: # Should not be triggered by these params for Rs
-            assert np.isnan(rs), f"Expected NaN for Rs with P={pressure}, T={temp}, API={api}, Sg={sg}"
+        if expected_is_nan:  # Should not be triggered by these params for Rs
+            assert np.isnan(
+                rs
+            ), f"Expected NaN for Rs with P={pressure}, T={temp}, API={api}, Sg={sg}"
         else:
-            assert not np.isnan(rs), f"Expected non-NaN for Rs. P={pressure}, T={temp}, API={api}, Sg={sg}, Got Rs={rs}"
+            assert not np.isnan(
+                rs
+            ), f"Expected non-NaN for Rs. P={pressure}, T={temp}, API={api}, Sg={sg}, Got Rs={rs}"
         # For Rs, it's hard to make it NaN with simple bad inputs unless an underlying
         # calculation like 10**x overflows, which is unlikely for typical T, API.
         # We are mostly checking it runs without error.

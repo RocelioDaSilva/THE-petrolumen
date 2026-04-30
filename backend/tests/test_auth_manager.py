@@ -10,7 +10,7 @@ from gaia_genesis.core.auth_manager import AuthManager
 # from gaia_genesis.core.database_manager import ( # Unused
 #     DatabaseManager,
 # )  # For type hints if needed, or mocking
-# from gaia_genesis.core.database_models import User as DBUser  # Unused
+# from gaia_genesis.models import User as DBUser  # Unused
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +178,7 @@ def test_token_validation_invalid_signature(
     AuthManager.reset_instance()
     original_manager = AuthManager.get_instance(
         db_manager=test_auth_manager.db_manager,
-        secret_key="test_secret_key_for_fastapi_tests", # Matching conftest
+        secret_key="test_secret_key_for_fastapi_tests",  # Matching conftest
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -284,7 +284,9 @@ def test_auth_manager_init_no_secret_key(test_db_manager):
 
 
 # --- More granular token validation tests ---
-def test_token_validation_missing_sub_claim(test_auth_manager: AuthManager, clear_users_table):
+def test_token_validation_missing_sub_claim(
+    test_auth_manager: AuthManager, clear_users_table
+):
     """Test that a token missing the 'sub' claim fails validation."""
     # Create a token with no 'sub' (username)
     # Note: This requires knowing the internal structure of create_access_token or using a different way
@@ -299,13 +301,17 @@ def test_token_validation_missing_sub_claim(test_auth_manager: AuthManager, clea
 
     # Use the same AuthManager instance to create the token to ensure the same secret key and algo are used.
     # The `create_access_token` method adds 'exp' and 'iat'.
-    malformed_access_token = test_auth_manager.create_access_token(data=malformed_token_payload)
+    malformed_access_token = test_auth_manager.create_access_token(
+        data=malformed_token_payload
+    )
 
     with pytest.raises(HTTPException) as exc_info:
         test_auth_manager.get_current_user_from_token(malformed_access_token)
 
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-    assert "Could not validate credentials" in exc_info.value.detail # This is the generic message for various JWT issues including missing sub
+    assert (
+        "Could not validate credentials" in exc_info.value.detail
+    )  # This is the generic message for various JWT issues including missing sub
     # A more specific check could be added if the error message for missing 'sub' was distinct.
 
 
@@ -318,7 +324,9 @@ def test_create_user_db_failure_simulation(
     password = "password123"
 
     # Mock db_manager.create_db_user to return None
-    mocker.patch.object(test_auth_manager.db_manager, 'create_db_user', return_value=None)
+    mocker.patch.object(
+        test_auth_manager.db_manager, "create_db_user", return_value=None
+    )
 
     created_user = test_auth_manager.create_user(username, email, password)
 

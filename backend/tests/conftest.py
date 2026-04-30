@@ -12,7 +12,7 @@ if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
 # Corrected imports for database components
-from gaia_genesis.core.database_models import Base, User as DBUser  # noqa: E402
+from gaia_genesis.models import Base, User as DBUser  # noqa: E402
 from gaia_genesis.core.database_manager import DatabaseManager  # noqa: E402
 from main import (
     app,
@@ -84,7 +84,9 @@ def test_auth_manager(test_db_manager):  # Depends on test_db_manager
     test_secret_key = "test_secret_key_for_fastapi_tests"
     # Ensure using CoreAuthManager if that's the intended one for tests
     CoreAuthManager.reset_instance()
-    return CoreAuthManager.get_instance(db_manager=test_db_manager, secret_key=test_secret_key)
+    return CoreAuthManager.get_instance(
+        db_manager=test_db_manager, secret_key=test_secret_key
+    )
 
 
 @pytest.fixture(
@@ -262,7 +264,7 @@ def clear_users_table(db_session):
 @pytest.fixture(scope="function")
 def clear_wells_and_production_data_tables(db_session):  # Takes db_session
     """Clears Well and ProductionData tables using DELETE statements via db_session."""
-    from gaia_genesis.core.database_models import Well, ProductionData
+    from gaia_genesis.models import Well, ProductionData
 
     db_session.execute(ProductionData.__table__.delete())
     db_session.execute(Well.__table__.delete())

@@ -329,9 +329,7 @@ def test_admin_update_user_unauthenticated(
     """Unauthenticated attempt to update a user."""
     target_username = test_user["username"]
     update_payload = {"email": "unauthupdate@example.com"}
-    response = client.put(
-        f"/api/v1/admin/users/{target_username}", json=update_payload
-    )
+    response = client.put(f"/api/v1/admin/users/{target_username}", json=update_payload)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -409,6 +407,7 @@ def test_admin_delete_user_unauthenticated(
 
 # --- Input Validation and Edge Cases ---
 
+
 # POST /api/v1/admin/users
 @pytest.mark.parametrize(
     "field_to_invalidate, invalid_value, expected_detail_substring",
@@ -416,12 +415,20 @@ def test_admin_delete_user_unauthenticated(
         ("username", "", "ensure this value has at least 1 characters"),
         ("email", "not-an-email", "Invalid email address"),
         ("password", "short", "ensure this value has at least 8 characters"),
-        ("role", "invalid_role", "unexpected value; permitted: 'admin', 'editor', 'user'"), # Assuming UserCreate model validates role enum
-    ]
+        (
+            "role",
+            "invalid_role",
+            "unexpected value; permitted: 'admin', 'editor', 'user'",
+        ),  # Assuming UserCreate model validates role enum
+    ],
 )
 def test_admin_create_user_invalid_input(
-    client: TestClient, admin_auth_headers, clear_users_table,
-    field_to_invalidate, invalid_value, expected_detail_substring
+    client: TestClient,
+    admin_auth_headers,
+    clear_users_table,
+    field_to_invalidate,
+    invalid_value,
+    expected_detail_substring,
 ):
     """Test admin creating user with various invalid input fields."""
     user_data = {
@@ -435,34 +442,36 @@ def test_admin_create_user_invalid_input(
 
     # Adjust password length for specific test case
     if field_to_invalidate == "password" and invalid_value == "short":
-         # Pydantic UserCreate model might not have explicit length validation by default.
-         # Let's assume it does for this test or that it would be added.
-         # If not, this test might pass unexpectedly or need adjustment to how AuthManager handles short passwords.
-         # For now, we expect a Pydantic validation error.
-         # The UserCreate model in main.py does not specify min_length for password.
-         # The actual check might be in AuthManager or DB.
-         # Let's assume for now this test would be for Pydantic validation.
-         # If password validation is elsewhere, this test needs to be more specific.
-         # For now, let's change expected_detail_substring to something more generic for password
-         # if Pydantic doesn't validate length.
-         # The UserCreate model does not have a validator for password length.
-         # Let's assume the example "short" is too short for a hypothetical validator
-         # or that the error message is generic from FastAPI.
-         # Given UserCreate.password: str, Pydantic won't validate length by default.
-         # This test case for password length might be better suited for AuthManager tests
-         # unless UserCreate is updated with `min_length`.
-         # For now, I'll adjust the expectation to reflect a more general validation error detail.
-         # If UserCreate has `Field(..., min_length=8)` for password, the original detail is fine.
-         # Without it, the "ensure this value has at least X characters" won't appear for password.
-         # Let's assume UserCreate is updated or a general error occurs.
-         # The provided main.py UserCreate does not have min_length on password.
-         # Let's adjust the expected error for password to be more about it being a string,
-         # or remove this specific password length case if it's not validated at Pydantic level.
-         # For now, I'll keep it and assume a generic error or that model would be updated.
-         # The detail "ensure this value has at least 8 characters" is a common Pydantic message.
-        pass # No specific adjustment needed if we assume Pydantic handles it.
+        # Pydantic UserCreate model might not have explicit length validation by default.
+        # Let's assume it does for this test or that it would be added.
+        # If not, this test might pass unexpectedly or need adjustment to how AuthManager handles short passwords.
+        # For now, we expect a Pydantic validation error.
+        # The UserCreate model in main.py does not specify min_length for password.
+        # The actual check might be in AuthManager or DB.
+        # Let's assume for now this test would be for Pydantic validation.
+        # If password validation is elsewhere, this test needs to be more specific.
+        # For now, let's change expected_detail_substring to something more generic for password
+        # if Pydantic doesn't validate length.
+        # The UserCreate model does not have a validator for password length.
+        # Let's assume the example "short" is too short for a hypothetical validator
+        # or that the error message is generic from FastAPI.
+        # Given UserCreate.password: str, Pydantic won't validate length by default.
+        # This test case for password length might be better suited for AuthManager tests
+        # unless UserCreate is updated with `min_length`.
+        # For now, I'll adjust the expectation to reflect a more general validation error detail.
+        # If UserCreate has `Field(..., min_length=8)` for password, the original detail is fine.
+        # Without it, the "ensure this value has at least X characters" won't appear for password.
+        # Let's assume UserCreate is updated or a general error occurs.
+        # The provided main.py UserCreate does not have min_length on password.
+        # Let's adjust the expected error for password to be more about it being a string,
+        # or remove this specific password length case if it's not validated at Pydantic level.
+        # For now, I'll keep it and assume a generic error or that model would be updated.
+        # The detail "ensure this value has at least 8 characters" is a common Pydantic message.
+        pass  # No specific adjustment needed if we assume Pydantic handles it.
 
-    response = client.post("/api/v1/admin/users", headers=admin_auth_headers, json=user_data)
+    response = client.post(
+        "/api/v1/admin/users", headers=admin_auth_headers, json=user_data
+    )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
@@ -470,14 +479,21 @@ def test_admin_create_user_invalid_input(
 @pytest.mark.parametrize(
     "skip, limit",
     [
-        (-1, 10), (0, -1), (-5, -5) # FastAPI/Pydantic usually converts negative to default or raises error
-    ]
+        (-1, 10),
+        (0, -1),
+        (
+            -5,
+            -5,
+        ),  # FastAPI/Pydantic usually converts negative to default or raises error
+    ],
 )
 def test_admin_list_all_users_invalid_pagination(
     client: TestClient, admin_auth_headers, clear_users_table, skip, limit
 ):
     """Test admin listing users with invalid pagination parameters."""
-    response = client.get(f"/api/v1/admin/users?skip={skip}&limit={limit}", headers=admin_auth_headers)
+    response = client.get(
+        f"/api/v1/admin/users?skip={skip}&limit={limit}", headers=admin_auth_headers
+    )
     # Expect 422 if Pydantic validation for non-negative skip/limit is in place
     # (e.g. using `Query(ge=0)`). If not, the behavior might depend on AuthManager/DB.
     # The current main.py uses default int, which Pydantic validates as int but not range.

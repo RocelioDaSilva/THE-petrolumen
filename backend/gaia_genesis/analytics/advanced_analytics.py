@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -77,7 +80,7 @@ class AdvancedDataAnalysis:
                             )
                             df[f"{col}_seasonal"] = seasonal_comp.reindex(df.index)
                         except Exception as e:
-                            print(
+                            logger.info(
                                 f"Could not compute seasonal decomposition for {col}: {e}"
                             )
                             df[f"{col}_seasonal"] = np.nan
@@ -85,7 +88,7 @@ class AdvancedDataAnalysis:
                     # Detecção de eventos
                     df[f"{col}_events"] = self._detect_events(df[col])
                 else:
-                    print(
+                    logger.info(
                         f"Skipping trend/seasonal analysis for {col} due to "
                         "insufficient data or non-numeric type."
                     )
@@ -144,7 +147,7 @@ class AdvancedDataAnalysis:
         ):  # This method might not directly use self.data["production"]
             # but rather specific coordinate data and a value column.
             # Consider if this check is appropriate or if it should be more generic.
-            print(
+            logger.info(
                 "Warning: Production data not loaded, but spatial analysis might "
                 "proceed if coordinates are provided."
             )
@@ -166,7 +169,9 @@ class AdvancedDataAnalysis:
         values_valid = values[valid_indices]
 
         if len(x_valid) < 2:  # KDE needs at least 2 points
-            print("Warning: Not enough valid data points for KDE spatial analysis.")
+            logger.info(
+                "Warning: Not enough valid data points for KDE spatial analysis."
+            )
             self.patterns["spatial"] = None
             return
 
@@ -180,7 +185,7 @@ class AdvancedDataAnalysis:
         try:
             kde = gaussian_kde(np.vstack([x_valid, y_valid]), weights=values_valid)
         except np.linalg.LinAlgError as e:
-            print(
+            logger.info(
                 "Singular matrix in KDE, possibly due to collinear points or "
                 f"insufficient data: {e}"
             )
@@ -189,7 +194,7 @@ class AdvancedDataAnalysis:
                 try:
                     kde = gaussian_kde(np.vstack([x_valid, y_valid]))
                 except np.linalg.LinAlgError as e_unweighted:
-                    print(f"Unweighted KDE also failed: {e_unweighted}")
+                    logger.info(f"Unweighted KDE also failed: {e_unweighted}")
                     self.patterns["spatial"] = None
                     return
             else:  # Not enough points for unweighted KDE either
@@ -269,7 +274,7 @@ class AdvancedDataAnalysis:
         # correlation yet
         numeric_df = self.data["production"].select_dtypes(include=np.number).dropna()
         if numeric_df.shape[1] < 2:  # Need at least 2 columns for correlation
-            print("Not enough numeric columns for correlation analysis.")
+            logger.info("Not enough numeric columns for correlation analysis.")
             self.patterns["correlations"] = None
             return
 
@@ -286,7 +291,7 @@ class AdvancedDataAnalysis:
                 # distance; this might need tuning.
                 clusters = fcluster(linkage_matrix_val, t=1.5, criterion="distance")
             except Exception as e:
-                print(
+                logger.info(
                     "Could not perform hierarchical clustering on correlation matrix: "
                     f"{e}"
                 )

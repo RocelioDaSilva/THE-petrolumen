@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 """
 Advanced Well Modeling
 
@@ -309,12 +312,12 @@ class MultisegmentWell(Well):
                 if current_ctrl.control_type == ControlType.BHP:
                     self.segment_pressure[-1] = current_ctrl.target_value
                 else:  # Cannot determine bottom-hole pressure
-                    print(
+                    logger.info(
                         f"Warning: BHP not available for well {self.name} to calculate pressure profile."
                     )
                     return
             else:
-                print(
+                logger.info(
                     f"Warning: No BHP data or active control for well {self.name} to calculate pressure profile."
                 )
                 return
@@ -335,7 +338,7 @@ class MultisegmentWell(Well):
 
             if outlet_segment_obj is None:
                 # This case should ideally not happen if topology is correct and heel/toe is handled
-                print(
+                logger.info(
                     f"Warning: Outlet segment for segment {segment.segment_id} not found or pressure not set."
                 )
                 continue  # Or handle as error
