@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 from scipy.spatial import Delaunay
 import pyvista as pv
@@ -205,7 +208,7 @@ class Mesh:
     def to_pyvista(self) -> Optional[pv.UnstructuredGrid]:
         """Converte a malha para formato PyVista UnstructuredGrid."""
         if self.vertices is None or self.cells is None or self.cell_types is None:
-            print(
+            logger.info(
                 "Warning: Mesh data (vertices, cells, or cell_types) is not defined. Cannot convert to PyVista."
             )
             return None
@@ -230,7 +233,7 @@ class Mesh:
                 pass
             return grid
         except Exception as e:
-            print(f"Error creating PyVista UnstructuredGrid: {e}")
+            logger.info(f"Error creating PyVista UnstructuredGrid: {e}")
             return None
 
     def plot(
@@ -243,14 +246,14 @@ class Mesh:
         """Plota a malha usando PyVista."""
         grid = self.to_pyvista()
         if grid is None:
-            print("Cannot plot: PyVista grid conversion failed.")
+            logger.info("Cannot plot: PyVista grid conversion failed.")
             return
 
         if cell_data is not None and scalar_property_name is not None:
             if len(cell_data) == grid.n_cells:
                 grid.cell_data[scalar_property_name] = cell_data
             else:
-                print(
+                logger.info(
                     f"Warning: cell_data length ({len(cell_data)}) does not match number of cells ({grid.n_cells}). Not adding scalar data."
                 )
                 scalar_property_name = None  # Don't try to plot scalars

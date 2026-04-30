@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 # Import DatabaseManager from the new core location
 from .database_manager import DatabaseManager
-from .database_models import Well  # Assuming Well is in database_models
+from ..models import Well  # Assuming Well is in database_models
 
 logger = logging.getLogger(__name__)
 
@@ -125,30 +125,42 @@ class DataUploader:
                             "oil_rate": (
                                 float(oil_rate)
                                 if pd.notna(oil_rate)
-                                else float(row.get("oilrate"))
-                                if pd.notna(row.get("oilrate"))
-                                else None
+                                else (
+                                    float(row.get("oilrate"))
+                                    if pd.notna(row.get("oilrate"))
+                                    else None
+                                )
                             ),
                             "gas_rate": (
                                 float(gas_rate)
                                 if pd.notna(gas_rate)
-                                else float(row.get("gasrate"))
-                                if pd.notna(row.get("gasrate"))
-                                else None
+                                else (
+                                    float(row.get("gasrate"))
+                                    if pd.notna(row.get("gasrate"))
+                                    else None
+                                )
                             ),
                             "water_rate": (
                                 float(water_rate)
                                 if pd.notna(water_rate)
-                                else float(row.get("waterrate"))
-                                if pd.notna(row.get("waterrate"))
-                                else None
+                                else (
+                                    float(row.get("waterrate"))
+                                    if pd.notna(row.get("waterrate"))
+                                    else None
+                                )
                             ),
                             # Add other relevant columns if they exist and are part of ProductionData model
                         }
                     )
                 except (ValueError, TypeError) as e:
-                    logger.error(f"Error parsing numeric values in row {record_idx} of {filename}: {e}")
-                    return False, f"Invalid numeric data in {filename} at row {record_idx}: {e}", well_id
+                    logger.error(
+                        f"Error parsing numeric values in row {record_idx} of {filename}: {e}"
+                    )
+                    return (
+                        False,
+                        f"Invalid numeric data in {filename} at row {record_idx}: {e}",
+                        well_id,
+                    )
             processed_filenames.append(filename)
 
         if not all_records_for_db:
@@ -211,9 +223,7 @@ class DataUploader:
             df["date"] = pd.to_datetime(df["date"])
 
         # Pandas 2.0 removed datetime_is_numeric, it's now default for datetime columns
-        stats = df.describe(
-            include="all"
-        ).to_dict()  # to_dict for JSON serializability
+        stats = df.describe(include="all").to_dict()  # to_dict for JSON serializability
         # Pandas describe() with include='all' can produce NaNs for non-numeric types, which need handling for JSON.
         # A more robust approach would be to select numeric columns for describe() and handle others separately.
         # For simplicity, let's assume describe output is mostly numeric or can be converted.

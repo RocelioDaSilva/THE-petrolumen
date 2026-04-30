@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd  # Added import for pandas
 import tensorflow as tf
@@ -36,7 +39,7 @@ class AISeismicAnalysis:
                         sample_rate_us / 1_000_000.0
                     )  # Convert microseconds to seconds
                 except (IndexError, KeyError, AttributeError):
-                    print(
+                    logger.info(
                         "Warning: Could not read sample interval from SEGY header. "
                         "Using default or NaN."
                     )
@@ -67,7 +70,7 @@ class AISeismicAnalysis:
                     )
 
         except Exception as e:
-            print(f"Error loading SEGY file {filename}: {e}")
+            logger.info(f"Error loading SEGY file {filename}: {e}")
             self.seismic_data = None
             self.metadata = None
             raise
@@ -117,7 +120,7 @@ class AISeismicAnalysis:
         # window. For simplicity, if 3D (e.g. iline, xline, time), let's process
         # the first inline slice
         if data_to_process.ndim == 3:
-            print(
+            logger.info(
                 "Warning: Coherency calculation is simplified for 3D data, "
                 "processing first inline slice."
             )
@@ -468,4 +471,4 @@ class AISeismicAnalysis:
             #    json.dump({"attribute_names": self.property_model["attribute_names"],
             #               "target_property": self.property_model["target_property"]}, f)
 
-        print(f"Results exported with prefix: {filename_prefix}")
+        logger.info(f"Results exported with prefix: {filename_prefix}")

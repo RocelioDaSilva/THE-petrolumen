@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 """
 Thermal Modeling Module
 
@@ -193,7 +196,7 @@ class ThermalModel:
         try:
             self.temperature = spsolve(A_matrix, b_vector)
         except Exception as e:
-            print(
+            logger.info(
                 f"Error solving heat equation: {e}. Matrix A might be singular or "
                 "ill-conditioned."
             )
@@ -488,7 +491,7 @@ class SteamInjectionModel:
                 self.injection_cells.append(cell_idx)
                 self.injection_rates[cell_idx] = injection_rate * 5.615 * 62.4
             else:
-                print(
+                logger.info(
                     f"Warning: Cell index {cell_idx} out of bounds for injection well."
                 )
 

@@ -467,9 +467,7 @@ class PVTProperties:
         a6, a7, a8, a9, a10, a11 = 0.5475, -0.7361, 0.1844, 0.1056, 0.6134, 0.7210
 
         def dak_func(rho_r):
-            term1 = (
-                a1 + a2 / t_r + a3 / t_r**3 + a4 / t_r**4 + a5 / t_r**5
-            ) * rho_r
+            term1 = (a1 + a2 / t_r + a3 / t_r**3 + a4 / t_r**4 + a5 / t_r**5) * rho_r
             term2 = (a6 + a7 / t_r + a8 / t_r**2) * rho_r**2
             term3 = a9 * (a7 / t_r + a8 / t_r**2) * rho_r**5
             term4 = (
@@ -559,10 +557,12 @@ class MaterialBalance:
         p = np.array(pressure)
         gp = np.array(production)
 
-        z = np.array([
-            self.pvt.calculate_z_factor(pi, temperature, gas_specific_gravity)
-            for pi in p
-        ])
+        z = np.array(
+            [
+                self.pvt.calculate_z_factor(pi, temperature, gas_specific_gravity)
+                for pi in p
+            ]
+        )
 
         pz = p / z
         # Gp = G * (1 - (P/Z)/(Pi/Zi)) => P/Z = Pi/Zi - (Pi/Zi / G) * Gp
@@ -575,8 +575,8 @@ class MaterialBalance:
         p_poly = np.poly1d([slope, intercept])
         y_hat = p_poly(gp)
         y_bar = np.mean(pz)
-        ss_res = np.sum((pz - y_hat)**2)
-        ss_tot = np.sum((pz - y_bar)**2)
+        ss_res = np.sum((pz - y_hat) ** 2)
+        ss_tot = np.sum((pz - y_bar) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 
         return {"ogip": float(ogip), "r_squared": float(r_squared)}
@@ -595,18 +595,30 @@ class MaterialBalance:
         p = np.array(pressure)
         prod_np = np.array(production)
 
-        bo = np.array([
-            self.pvt.calculate_formation_volume_factor(pi, temperature, "oil", api_gravity, gas_specific_gravity)
-            for pi in p
-        ])
-        rs = np.array([
-            self.pvt.calculate_solution_gas_ratio(pi, temperature, api_gravity, gas_specific_gravity)
-            for pi in p
-        ])
-        bg = np.array([
-            self.pvt.calculate_formation_volume_factor(pi, temperature, "gas", None, gas_specific_gravity)
-            for pi in p
-        ])
+        bo = np.array(
+            [
+                self.pvt.calculate_formation_volume_factor(
+                    pi, temperature, "oil", api_gravity, gas_specific_gravity
+                )
+                for pi in p
+            ]
+        )
+        rs = np.array(
+            [
+                self.pvt.calculate_solution_gas_ratio(
+                    pi, temperature, api_gravity, gas_specific_gravity
+                )
+                for pi in p
+            ]
+        )
+        bg = np.array(
+            [
+                self.pvt.calculate_formation_volume_factor(
+                    pi, temperature, "gas", None, gas_specific_gravity
+                )
+                for pi in p
+            ]
+        )
 
         # F = Np * (Bo + (Rs0 - Rs) * Bg)
         f = prod_np * (bo + (rs[0] - rs) * bg)
@@ -619,11 +631,15 @@ class MaterialBalance:
         p_poly = np.poly1d([slope, intercept])
         y_hat = p_poly(eo)
         y_bar = np.mean(f)
-        ss_res = np.sum((f - y_hat)**2)
-        ss_tot = np.sum((f - y_bar)**2)
+        ss_res = np.sum((f - y_hat) ** 2)
+        ss_tot = np.sum((f - y_bar) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 
-        return {"stoiip": float(slope), "intercept": float(intercept), "r_squared": float(r_squared)}
+        return {
+            "stoiip": float(slope),
+            "intercept": float(intercept),
+            "r_squared": float(r_squared),
+        }
 
     def calculate_aquifer_influx_fetkovich(
         self,
@@ -633,7 +649,7 @@ class MaterialBalance:
         ct: float,
         j: float,
         dt: float,
-        we_cum_prev: float
+        we_cum_prev: float,
     ) -> float:
         """
         Calcula influxo de água usando o modelo de Fetkovich.
@@ -642,7 +658,14 @@ class MaterialBalance:
         j: Aquifer productivity index
         """
         # Influx during dt
-        d_we = (j * (p_aquifer_initial * (1 - we_cum_prev / (wei * ct * p_aquifer_initial)) - p_avg) * dt)
+        d_we = (
+            j
+            * (
+                p_aquifer_initial * (1 - we_cum_prev / (wei * ct * p_aquifer_initial))
+                - p_avg
+            )
+            * dt
+        )
         return float(max(0, d_we))
 
     def calculate_aquifer_influx_carter_tracy(
@@ -727,22 +750,20 @@ class WellTesting:
         y = p[n_start:]
 
         slope_m, intercept = np.polyfit(x, y, 1)
-        m = abs(slope_m) # Inclinação por ciclo
+        m = abs(slope_m)  # Inclinação por ciclo
 
         # Permeabilidade (k)
         k = (162.6 * rate * bo * mu) / (m * h) if m != 0 else 0
 
         # Pressão inicial (P*) extrapolada para Horner Time = 1
-        p_star = intercept # log10(1) = 0
+        p_star = intercept  # log10(1) = 0
 
         # Skin (s) - usando P_1hr (pressão em dt=1hr na reta extrapolada)
         p_1hr = m * np.log10((tp + 1) / 1) + intercept
-        p_wf = p[0] # Pressão no instante do fechamento
+        p_wf = p[0]  # Pressão no instante do fechamento
 
         skin = 1.151 * (
-            (p_1hr - p_wf) / m
-            - np.log10(k / (phi * mu * ct * rw**2))
-            + 3.23
+            (p_1hr - p_wf) / m - np.log10(k / (phi * mu * ct * rw**2)) + 3.23
         )
 
         return {

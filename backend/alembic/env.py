@@ -25,9 +25,8 @@ try:
     # When env.py is run, sys.path already includes backend/ (added above).
     # So, import directly from modules within backend/.
     from config import settings
-    from gaia_genesis.core.database_models import Base
+    from gaia_genesis.core.merged_metadata import target_metadata
 
-    target_metadata = Base.metadata
 except ImportError as e:
     sys.stderr.write(f"Error importing application modules in env.py: {e}\n")
     # Adding more debug info

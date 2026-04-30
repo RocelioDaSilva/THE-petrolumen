@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 
 # Import DatabaseManager and User model from the new core location
 from .database_manager import DatabaseManager
-from .database_models import (
+from ..models import (
     User as DBUser,
 )  # Alias to DBUser to match original usage if needed
 
@@ -40,7 +40,9 @@ class AuthManager:
                 raise ValueError(
                     "db_manager and secret_key are required for AuthManager initialization."
                 )
-            cls._instance = AuthManager(db_manager, secret_key, access_token_expire_minutes)
+            cls._instance = AuthManager(
+                db_manager, secret_key, access_token_expire_minutes
+            )
         return cls._instance
 
     def __init__(

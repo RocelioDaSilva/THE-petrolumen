@@ -10,15 +10,18 @@ auth_manager = None
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
+
 class UserBase(BaseModel):
     username: str
     email: EmailStr
     full_name: Optional[str] = None
 
+
 class UserResponse(UserBase):
     id: uuid.UUID
     role: str
     is_active: bool
+
 
 async def get_current_active_user(
     token: str = Depends(oauth2_scheme),
@@ -37,6 +40,7 @@ async def get_current_active_user(
             detail="Could not validate credentials",
         )
     return UserResponse(**user)
+
 
 async def get_current_active_admin_user(
     current_user: UserResponse = Depends(get_current_active_user),

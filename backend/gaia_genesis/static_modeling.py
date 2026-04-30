@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 
 # import pandas as pd # Unused
@@ -312,7 +315,7 @@ class StaticModeling:
             values_pred, std_pred = gp.predict(points_pred, return_std=True)
         except Exception as e:
             # Fallback to simpler interpolation if GPR fails (e.g. singular matrix)
-            print(
+            logger.info(
                 f"Kriging (GPR) failed: {e}. Falling back to griddata linear "
                 "interpolation."
             )
