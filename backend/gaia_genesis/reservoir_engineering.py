@@ -696,6 +696,27 @@ class MaterialBalance:
         we = b * (p_initial - p_current) * (t_d / p_d)
         return float(max(0, we))
 
+    def calculate_reserves_prms(
+        self,
+        ooip: float,
+        ogip: float,
+        oil_rf: float,
+        gas_rf: float,
+    ) -> Dict:
+        """
+        Calculates reserves P1/P2/P3 according to SPE-PRMS based on confidence levels.
+        Integrated from potential features.
+        """
+        confidence_levels = {"P1": 0.9, "P2": 0.5, "P3": 0.1}
+        reserves = {}
+        for cat, conf in confidence_levels.items():
+            reserves[cat] = {
+                "oil_volume": ooip * oil_rf * conf,
+                "gas_volume": ogip * gas_rf * conf,
+                "confidence": conf,
+            }
+        return reserves
+
 
 class WellTesting:
     """Classe para análise de testes de pressão."""

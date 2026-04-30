@@ -18,6 +18,9 @@ class FlowSimulation:
         }
         self.simulation_results = {}
         self.permeability = np.ones(self.num_cells) * 100.0
+        self.porosity = np.ones(self.num_cells) * 0.2
+        self.viscosity = 1.0  # cp
+        self.compressibility = 1e-5  # 1/psi
 
     def setup_1d_grid(self, nx, dx, area):
         self.nx = nx
@@ -48,18 +51,89 @@ class FlowSimulation:
         pass
 
     def run_simulation(self, end_time, dt, wells=None):
-        if wells:
-            for w in wells:
-                self.pressure[w.get("cell_index", 0)] -= w.get("q_sc", 0) * 0.01
+        """
+        Runs a 1D reservoir simulation using an implicit pressure solver (Implicit scheme).
+        This is more stable than the explicit one.
+        """
+        n_steps = max(1, int(end_time / dt))
+        p = self.pressure.copy()
+
+        # Grid parameters (assuming 1D for this implementation)
+        nx = self.nx
+        dx = self.dx
+        area = 100.0  # ft^2
+        v_cell = dx * area  # ft^3
+
+        # Properties
+        perm = self.permeability[:nx]  # md
+        por = self.porosity[0]  # simplified 1D homogeneous use
+        visc = self.viscosity
+        ct = self.compressibility
+
+        # Transmissibility constant
+        alpha = 0.001127
+
+        pressures_history = [p[:nx].copy()]
+        time_array = [0.0]
+
+        for step in range(1, n_steps + 1):
+            # Construct the system Ax = B
+            A = np.zeros((nx, nx))
+            B = np.zeros(nx)
+
+            for i in range(nx):
+                # T_i-1/2
+                if i > 0:
+                    t_left = (
+                        alpha
+                        * (2 * perm[i - 1] * perm[i] / (perm[i - 1] + perm[i]))
+                        * area
+                        / (visc * dx)
+                    )
+                else:
+                    t_left = 0
+
+                # T_i+1/2
+                if i < nx - 1:
+                    t_right = (
+                        alpha
+                        * (2 * perm[i] * perm[i + 1] / (perm[i] + perm[i + 1]))
+                        * area
+                        / (visc * dx)
+                    )
+                else:
+                    t_right = 0
+
+                acc = v_cell * por * ct / dt
+
+                A[i, i] = acc + t_left + t_right
+                if i > 0:
+                    A[i, i - 1] = -t_left
+                if i < nx - 1:
+                    A[i, i + 1] = -t_right
+
+                # Source term
+                q = 0
+                if wells:
+                    for w in wells:
+                        if w.get("cell_index") == i:
+                            q = w.get("q_sc", 0)
+
+                B[i] = acc * p[i] - q
+
+            try:
+                p_new = np.linalg.solve(A, B)
+                p[:nx] = p_new
+            except np.linalg.LinAlgError:
+                break
+
+            pressures_history.append(p[:nx].copy())
+            time_array.append(step * dt)
 
         self.simulation_results = {
             "status": "Completed",
-            "time_array": np.array([0, dt, end_time]),
-            "pressures_vs_time": [
-                self.pressure.copy(),
-                self.pressure * 0.99,
-                self.pressure * 0.98,
-            ],
+            "time_array": np.array(time_array),
+            "pressures_vs_time": pressures_history,
             "well_rates_vs_time": {},
         }
         return self.simulation_results
@@ -71,7 +145,9 @@ class FlowSimulation:
             for w in wells:
                 if w.get("q_sc", 0) != 0:
                     production = True
-                self.pressure[w.get("cell_index", 0)] -= w.get("q_sc", 0) * 0.001
+                idx = w.get("cell_index", 0)
+                if idx < len(self.pressure):
+                    self.pressure[idx] -= w.get("q_sc", 0) * 0.001
 
         results = {
             "pressure": [np.mean(initial_p)] * n_steps,
