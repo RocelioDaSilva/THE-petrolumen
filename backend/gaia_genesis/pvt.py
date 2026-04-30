@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Tuple, Optional, List, Dict
 import scipy.optimize as opt
+from scipy.optimize import fsolve
 
 
 def pseudocritical_props(gamma_g: float) -> Tuple[float, float]:
@@ -181,3 +182,102 @@ def water_pvt_mccain(P: float, T_f: float) -> Tuple[float, float, float]:
     # Rsw calculation (simplified)
     Rsw = 0.0  # scf/stb
     return Bw, mu_w, Rsw
+
+
+class EosSolver:
+    """Equation of State solver for compositional simulation.
+    Integrated from potential features.
+    """
+
+    def __init__(self, eos_type: str = "PR"):
+        self.eos_type = eos_type
+        self.components = {}
+        self.binary_interactions = None
+
+    def add_component(self, name: str, properties: Dict):
+        """Add component with critical properties"""
+        self.components[name] = {
+            "Pc": properties["critical_pressure"],
+            "Tc": properties["critical_temperature"],
+            "omega": properties["acentric_factor"],
+            "MW": properties.get("molecular_weight", 0.0),
+        }
+
+    def set_binary_interactions(self, kij: np.ndarray):
+        """Set binary interaction parameters"""
+        n = len(self.components)
+        if kij.shape != (n, n):
+            raise ValueError("Invalid binary interaction matrix shape")
+        self.binary_interactions = kij
+
+    def calculate_z_factor(self, P: float, T: float, composition: Dict[str, float]) -> float:
+        """Calculate compressibility factor"""
+        z = np.array([composition[c] for c in self.components])
+        if self.eos_type == "PR":
+            return self._peng_robinson_z(P, T, z)
+        else:
+            raise ValueError(f"Unknown EoS type: {self.eos_type}")
+
+    def flash_calculation(
+        self, P: float, T: float, composition: Dict[str, float], initial_K: Optional[np.ndarray] = None
+    ) -> Dict:
+        """Perform isothermal flash calculation"""
+        z = np.array([composition[c] for c in self.components])
+        if initial_K is None:
+            initial_K = self._wilson_k_values(P, T)
+
+        def objective(v):
+            return np.sum(z * (initial_K - 1) / (1 + v * (initial_K - 1)))
+
+        v = fsolve(objective, 0.5)[0]
+        x = z / (1 + v * (initial_K - 1))
+        y = initial_K * x
+        return {
+            "vapor_fraction": float(v),
+            "liquid_composition": dict(zip(self.components.keys(), x.tolist())),
+            "vapor_composition": dict(zip(self.components.keys(), y.tolist())),
+        }
+
+    def _peng_robinson_z(self, P: float, T: float, z: np.ndarray) -> float:
+        R = 8.3145
+        a = self._pr_a_mixture(T, z)
+        b = self._pr_b_mixture(z)
+        A = a * P / (R * T) ** 2
+        B = b * P / (R * T)
+        coeff = [1, -(1 - B), (A - 3 * B**2 - 2 * B), -(A * B - B**2 - B**3)]
+        roots = np.roots(coeff)
+        real_roots = roots[np.abs(roots.imag) < 1e-10].real
+        return float(np.max(real_roots))
+
+    def _pr_a_mixture(self, T: float, z: np.ndarray) -> float:
+        n = len(self.components)
+        a = np.zeros((n, n))
+        comp_list = list(self.components.values())
+        for i in range(n):
+            for j in range(n):
+                a_i = self._pr_a_pure(T, comp_list[i])
+                a_j = self._pr_a_pure(T, comp_list[j])
+                if i != j and self.binary_interactions is not None:
+                    kij = self.binary_interactions[i, j]
+                    a[i, j] = np.sqrt(a_i * a_j) * (1 - kij)
+                else:
+                    a[i, j] = np.sqrt(a_i * a_j)
+        return float(np.sum(np.outer(z, z) * a))
+
+    def _pr_a_pure(self, T: float, component: Dict) -> float:
+        Tc, Pc, omega = component["Tc"], component["Pc"], component["omega"]
+        R = 8.3145
+        ac = 0.45724 * R**2 * Tc**2 / Pc
+        kappa = 0.37464 + 1.54226 * omega - 0.26992 * omega**2
+        alpha = (1 + kappa * (1 - np.sqrt(T / Tc))) ** 2
+        return ac * alpha
+
+    def _pr_b_mixture(self, z: np.ndarray) -> float:
+        b = np.array([0.07780 * 8.3145 * c["Tc"] / c["Pc"] for c in self.components.values()])
+        return float(np.sum(z * b))
+
+    def _wilson_k_values(self, P: float, T: float) -> np.ndarray:
+        K = np.zeros(len(self.components))
+        for i, comp in enumerate(self.components.values()):
+            K[i] = (comp["Pc"] / P) * np.exp(5.37 * (1 + comp["omega"]) * (1 - comp["Tc"] / T))
+        return K
