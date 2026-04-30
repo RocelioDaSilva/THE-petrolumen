@@ -275,7 +275,7 @@ export interface SolutionGasRatioResponseData {
 const GAIA_API_PREFIX = `${API_BASE_URL}/gaia`; // Specific prefix for these new endpoints
 
 export const calculateZFactor = async (data: ZFactorRequestData): Promise<ZFactorResponseData> => {
-  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_z_factor`, {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt-legacy/calculate_z_factor`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -283,7 +283,7 @@ export const calculateZFactor = async (data: ZFactorRequestData): Promise<ZFacto
 };
 
 export const calculateFormationVolumeFactor = async (data: FormationVolumeFactorRequestData): Promise<FormationVolumeFactorResponseData> => {
-  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_formation_volume_factor`, {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt-legacy/calculate_formation_volume_factor`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -291,7 +291,7 @@ export const calculateFormationVolumeFactor = async (data: FormationVolumeFactor
 };
 
 export const calculateViscosity = async (data: ViscosityRequestData): Promise<ViscosityResponseData> => {
-  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_viscosity`, {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt-legacy/calculate_viscosity`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -299,7 +299,7 @@ export const calculateViscosity = async (data: ViscosityRequestData): Promise<Vi
 };
 
 export const calculateSolutionGasRatio = async (data: SolutionGasRatioRequestData): Promise<SolutionGasRatioResponseData> => {
-  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt/calculate_solution_gas_ratio`, {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/pvt-legacy/calculate_solution_gas_ratio`, {
     method: 'POST',
     body: JSON.stringify(data),
   });

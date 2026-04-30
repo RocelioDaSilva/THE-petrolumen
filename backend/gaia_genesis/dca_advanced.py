@@ -56,6 +56,40 @@ def perform_arps_fit(time: np.ndarray, rate: np.ndarray) -> Dict:
         return {"error": "Fitting failed"}
 
 
+def perform_ple_fit(time: np.ndarray, rate: np.ndarray) -> Dict:
+    try:
+        popt, _ = opt.curve_fit(
+            ple_model, time, rate, p0=[rate[0], 0.1, 0.01, 0.5], bounds=(0, np.inf)
+        )
+        qi, di, d_inf, n = popt
+        forecast = ple_model(time, qi, di, d_inf, n)
+        r2 = 1 - np.sum((rate - forecast) ** 2) / np.sum((rate - np.mean(rate)) ** 2)
+        return {
+            "parameters": {"qi": qi, "di": di, "d_inf": d_inf, "n": n},
+            "r_squared": r2,
+            "model": "PLE",
+        }
+    except:
+        return {"error": "Fitting failed"}
+
+
+def perform_sepd_fit(time: np.ndarray, rate: np.ndarray) -> Dict:
+    try:
+        popt, _ = opt.curve_fit(
+            sepd_model, time, rate, p0=[rate[0], 100, 0.5], bounds=(0, np.inf)
+        )
+        qi, tau, n = popt
+        forecast = sepd_model(time, qi, tau, n)
+        r2 = 1 - np.sum((rate - forecast) ** 2) / np.sum((rate - np.mean(rate)) ** 2)
+        return {
+            "parameters": {"qi": qi, "tau": tau, "n": n},
+            "r_squared": r2,
+            "model": "SEPD",
+        }
+    except:
+        return {"error": "Fitting failed"}
+
+
 def perform_duong_fit(time: np.ndarray, rate: np.ndarray) -> Dict:
     # time should be 1-based or shifted
     t = time + 1 if time[0] == 0 else time

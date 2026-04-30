@@ -219,7 +219,7 @@ try:
         pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"]
     )
     app.include_router(
-        legacy_pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - Legacy PVT"]
+        legacy_pvt_router.router, prefix="/api/v1/gaia/pvt-legacy", tags=["Gaia - Legacy PVT"]
     )
     app.include_router(
         dca_router.router, prefix="/api/v1/gaia/dca", tags=["Gaia - DCA"]
