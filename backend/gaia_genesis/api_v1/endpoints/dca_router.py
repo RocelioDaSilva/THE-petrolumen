@@ -1,34 +1,39 @@
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import APIRouter, Depends, Body, HTTPException
+from typing import List, Dict
 import numpy as np
-import structlog
-from gaia_genesis.dca_advanced import arps_hyperbolic, perform_duong, monte_carlo_eur
-from auth_utils import get_current_active_user, UserResponse
+from auth_utils import get_current_active_user
+from ...dca_advanced import perform_arps_fit, perform_duong_fit
 
-logger = structlog.get_logger()
-router = APIRouter(tags=["DCA"])
+router = APIRouter()
 
-class DCARequest(BaseModel):
-    time: List[float]
-    rate: List[float]
+
+@router.post("/fit")
+async def fit_dca(
+    time: List[float] = Body(...),
+    rate: List[float] = Body(...),
+    model_type: str = Body("hyperbolic"),
+    user=Depends(get_current_active_user),
+):
+    t_np = np.array(time)
+    r_np = np.array(rate)
+
+    if model_type == "duong":
+        result = perform_duong_fit(t_np, r_np)
+    else:
+        result = perform_arps_fit(t_np, r_np)
+
 
 @router.post("/duong")
-async def analyze_duong(data: DCARequest, user: UserResponse = Depends(get_current_active_user)):
-    log = logger.bind(user_id=str(user.id))
-    log.info("Running Duong analysis", num_points=len(data.time))
-    try:
-        result = perform_duong(np.array(data.time), np.array(data.rate))
-        return result
-    except Exception as e:
-        log.error("Duong analysis failed", error=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+async def fit_duong(
+    time: List[float] = Body(...),
+    rate: List[float] = Body(...),
+    user=Depends(get_current_active_user),
+):
+    result = perform_duong_fit(np.array(time), np.array(rate))
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
-@router.post("/monte-carlo-eur")
-async def get_mc_eur(data: DCARequest, user: UserResponse = Depends(get_current_active_user)):
-    log = logger.bind(user_id=str(user.id))
-    try:
-        return monte_carlo_eur(np.array(data.time), np.array(data.rate))
-    except Exception as e:
-        log.error("Monte Carlo EUR failed", error=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result

@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional  # Removed Union
@@ -161,26 +164,26 @@ class ReservoirSimulation:
             "saturations": saturations,
         }
 
-    def run_simulation(self, timesteps: int, dt: float, use_gpu: bool = False):
+    def run_simulation(self, timesteps: int, delta_t: float, use_gpu: bool = False):
         """
         Executa simulação.
 
         Args:
             timesteps: Número de passos de tempo
-            dt: Tamanho do passo de tempo
+            delta_t: Tamanho do passo de tempo
             use_gpu: Usar GPU para simulação
         """
         if use_gpu and self.gpu_available:
-            self._run_gpu_simulation(timesteps, dt)
+            self._run_gpu_simulation(timesteps, delta_t)
         else:
             if self.model_type == "black_oil":
-                self._run_black_oil_simulation(timesteps, dt)
+                self._run_black_oil_simulation(timesteps, delta_t)
             elif self.model_type == "compositional":
-                self._run_compositional_simulation(timesteps, dt)
+                self._run_compositional_simulation(timesteps, delta_t)
             elif self.model_type == "thermal":
-                self._run_thermal_simulation(timesteps, dt)
+                self._run_thermal_simulation(timesteps, delta_t)
 
-    def _run_black_oil_simulation(self, timesteps: int, dt: float):
+    def _run_black_oil_simulation(self, timesteps: int, delta_t: float):
         """Executa simulação black-oil."""
         _nx, _ny, _nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]  # noqa: F841
         cells = self.grid["cells"]
@@ -209,24 +212,26 @@ class ReservoirSimulation:
         # Loop temporal
         for t in range(timesteps):
             # Construir matriz de coeficientes
-            A = self._build_black_oil_matrix(pressure, sw, so, sg, kx, ky, kz, phi)
-            b = self._build_black_oil_rhs(pressure, sw, so, sg, dt)
+            A = self._build_black_oil_matrix(
+                pressure, sw, so, sg, kx, ky, kz, phi, delta_t
+            )
+            b = self._build_black_oil_rhs(pressure, sw, so, sg, delta_t)
 
             # Resolver sistema linear
             dp = spsolve(A, b)
             pressure += dp
 
             # Atualizar saturações
-            sw, so, sg = self._update_saturations(pressure, sw, so, sg, dt)
+            sw, so, sg = self._update_saturations(pressure, sw, so, sg, delta_t)
 
             # Armazenar resultados
             self.simulation_results["pressure"][t] = pressure
             self.simulation_results["sw"][t] = sw
             self.simulation_results["so"][t] = so
             self.simulation_results["sg"][t] = sg
-            self.simulation_results["time"][t] = (t + 1) * dt
+            self.simulation_results["time"][t] = (t + 1) * delta_t
 
-    def _run_compositional_simulation(self, timesteps: int, dt: float):
+    def _run_compositional_simulation(self, timesteps: int, delta_t: float):
         """Executa simulação composicional."""
         _nx, _ny, _nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]  # noqa: F841
         cells = self.grid["cells"]
@@ -276,10 +281,10 @@ class ReservoirSimulation:
 
             # Construir matriz de coeficientes
             A = self._build_compositional_matrix(
-                pressure, temperature, composition, saturation, dt  # Added dt
+                pressure, temperature, composition, saturation, delta_t  # Added delta_t
             )
             b = self._build_compositional_rhs(
-                pressure, temperature, composition, saturation, dt
+                pressure, temperature, composition, saturation, delta_t
             )
 
             # Resolver sistema linear
@@ -295,9 +300,9 @@ class ReservoirSimulation:
             self.simulation_results["temperature"][t] = temperature
             self.simulation_results["composition"][t] = composition
             self.simulation_results["saturation"][t] = saturation
-            self.simulation_results["time"][t] = (t + 1) * dt
+            self.simulation_results["time"][t] = (t + 1) * delta_t
 
-    def _run_thermal_simulation(self, timesteps: int, dt: float):
+    def _run_thermal_simulation(self, timesteps: int, delta_t: float):
         """Executa simulação térmica."""
         nx, ny, _nz = (
             self.grid["nx"],
@@ -355,7 +360,9 @@ class ReservoirSimulation:
                 )
 
                 # Atualizar temperatura
-                temperature[i] += dt * (qx + qy + qz) / (rock_heat_capacity * phi[i])
+                temperature[i] += (
+                    delta_t * (qx + qy + qz) / (rock_heat_capacity * phi[i])
+                )
 
                 # Calcular saturações
                 if temperature[i] > 212:  # Ponto de ebulição da água
@@ -373,7 +380,7 @@ class ReservoirSimulation:
 
             # Construir matriz de coeficientes
             A = self._build_thermal_matrix(pressure, temperature, saturation)
-            b = self._build_thermal_rhs(pressure, temperature, saturation, dt)
+            b = self._build_thermal_rhs(pressure, temperature, saturation, delta_t)
 
             # Resolver sistema linear
             dx = spsolve(A, b)
@@ -387,9 +394,9 @@ class ReservoirSimulation:
             self.simulation_results["pressure"][t] = pressure
             self.simulation_results["temperature"][t] = temperature
             self.simulation_results["saturation"][t] = saturation
-            self.simulation_results["time"][t] = (t + 1) * dt
+            self.simulation_results["time"][t] = (t + 1) * delta_t
 
-    def _run_gpu_simulation(self, timesteps: int, dt: float):
+    def _run_gpu_simulation(self, timesteps: int, delta_t: float):
         """Executa simulação usando GPU."""
         # Converter dados para tensores
         if self.model_type == "black_oil":
@@ -412,17 +419,17 @@ class ReservoirSimulation:
                 qz = self._calculate_flux_gpu(pressure, kz, self.grid["dz"])
 
                 # Atualizar pressão
-                pressure += dt * (qx + qy + qz) / phi
+                pressure += delta_t * (qx + qy + qz) / phi
 
                 # Atualizar saturações
-                sw, so, sg = self._update_saturations_gpu(pressure, sw, so, sg, dt)
+                sw, so, sg = self._update_saturations_gpu(pressure, sw, so, sg, delta_t)
 
                 # Armazenar resultados
                 self.simulation_results["pressure"][t] = pressure.numpy()
                 self.simulation_results["sw"][t] = sw.numpy()
                 self.simulation_results["so"][t] = so.numpy()
                 self.simulation_results["sg"][t] = sg.numpy()
-                self.simulation_results["time"][t] = (t + 1) * dt
+                self.simulation_results["time"][t] = (t + 1) * delta_t
 
     def history_matching(
         self,
@@ -453,7 +460,7 @@ class ReservoirSimulation:
 
         # Avaliar modelo
         score = model.score(X_test, y_test)
-        print(f"R² score: {score:.3f}")
+        logger.info(f"R² score: {score:.3f}")
 
         # Otimizar parâmetros
         best_params = {}
@@ -523,6 +530,7 @@ class ReservoirSimulation:
         ky: np.ndarray,
         kz: np.ndarray,
         phi: np.ndarray,
+        delta_t: float,
     ) -> csr_matrix:
         """Constrói matriz de coeficientes para simulação black-oil."""
         nx, ny, nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]
@@ -634,7 +642,7 @@ class ReservoirSimulation:
                     cols.append(idx)
                     data.append(
                         phi[idx] / delta_t
-                    )  # Changed dt to delta_t to match signature
+                    )  # Changed delta_t to delta_t to match signature
 
         return csr_matrix((data, (rows, cols)), shape=(cells, cells))
 
@@ -644,7 +652,7 @@ class ReservoirSimulation:
         sw: np.ndarray,
         so: np.ndarray,
         sg: np.ndarray,
-        dt: float,
+        delta_t: float,
     ) -> np.ndarray:
         """Constrói vetor de termos independentes para simulação black-oil."""
         cells = self.grid["cells"]
@@ -667,7 +675,7 @@ class ReservoirSimulation:
         sw: np.ndarray,
         so: np.ndarray,
         sg: np.ndarray,
-        dt: float,
+        delta_t: float,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Atualiza saturações para simulação black-oil."""
         # Calcular mobilidades
@@ -685,8 +693,8 @@ class ReservoirSimulation:
         lambda_t = lambda_w + lambda_o + lambda_g
 
         # Atualizar saturações
-        sw_new = sw + dt * lambda_w / lambda_t
-        so_new = so + dt * lambda_o / lambda_t
+        sw_new = sw + delta_t * lambda_w / lambda_t
+        so_new = so + delta_t * lambda_o / lambda_t
         sg_new = 1 - sw_new - so_new
 
         return sw_new, so_new, sg_new
@@ -697,7 +705,7 @@ class ReservoirSimulation:
         temperature: np.ndarray,
         composition: np.ndarray,
         saturation: np.ndarray,
-        delta_t: float,  # Changed parameter name from dt to delta_t
+        delta_t: float,  # Changed parameter name from delta_t to delta_t
     ) -> csr_matrix:
         """Constrói matriz de coeficientes para simulação composicional."""
         nx, ny, nz = self.grid["nx"], self.grid["ny"], self.grid["nz"]
@@ -806,7 +814,7 @@ class ReservoirSimulation:
         temperature: np.ndarray,
         composition: np.ndarray,
         saturation: np.ndarray,
-        dt: float,
+        delta_t: float,
     ) -> np.ndarray:
         """Constrói vetor de termos independentes para simulação composicional."""
         cells = self.grid["cells"]
@@ -930,7 +938,7 @@ class ReservoirSimulation:
         pressure: np.ndarray,
         temperature: np.ndarray,
         saturation: np.ndarray,
-        dt: float,
+        delta_t: float,
     ) -> np.ndarray:
         """Constrói vetor de termos independentes para simulação térmica."""
         cells = self.grid["cells"]
@@ -965,7 +973,7 @@ class ReservoirSimulation:
         sw: tf.Tensor,
         so: tf.Tensor,
         sg: tf.Tensor,
-        dt: float,
+        delta_t: float,
     ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
         """Atualiza saturações usando GPU."""
         # Calcular mobilidades
@@ -983,8 +991,8 @@ class ReservoirSimulation:
         lambda_t = lambda_w + lambda_o + lambda_g
 
         # Atualizar saturações
-        sw_new = sw + dt * lambda_w / lambda_t
-        so_new = so + dt * lambda_o / lambda_t
+        sw_new = sw + delta_t * lambda_w / lambda_t
+        so_new = so + delta_t * lambda_o / lambda_t
         sg_new = 1 - sw_new - so_new
 
         return sw_new, so_new, sg_new

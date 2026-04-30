@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional  # Removed Tuple, Union
@@ -368,7 +371,7 @@ class ProductionForecasting:
 
         # Avaliar modelo
         score = model.score(X_test, y_test)
-        print(f"R² score: {score:.3f}")
+        logger.info(f"R² score: {score:.3f}")
 
         self.ai_model = model
 

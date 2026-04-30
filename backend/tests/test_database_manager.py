@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session  # Added import for Session
 from gaia_genesis.core.database_manager import DatabaseManager
 
 # Removed DBUser from this import as it's unused in this file
-from gaia_genesis.core.database_models import Well, ProductionData
+from gaia_genesis.models import Well, ProductionData
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +279,7 @@ def test_well_name_unique_constraint(
 
 # --- Connection and Session Management Tests ---
 
+
 def test_db_manager_connect_failure():
     """Test DB connection failure with a bad URL."""
     DatabaseManager.reset_instance()
@@ -304,9 +305,13 @@ def test_create_tables_not_connected(caplog):
 def test_get_session_not_connected(caplog):
     """Test get_session raises error if DB is not connected."""
     DatabaseManager.reset_instance()
-    db_manager_no_connect = DatabaseManager(db_url="sqlite:///memory_get_session_fail.db")
+    db_manager_no_connect = DatabaseManager(
+        db_url="sqlite:///memory_get_session_fail.db"
+    )
     # Do not call connect()
-    with pytest.raises(ConnectionError, match="Database not connected. Cannot get session."):
+    with pytest.raises(
+        ConnectionError, match="Database not connected. Cannot get session."
+    ):
         db_manager_no_connect.get_session()
     # Also check log for "SessionLocal not initialized"
     # Note: caplog might not capture this if ConnectionError is raised before logging.
@@ -314,6 +319,7 @@ def test_get_session_not_connected(caplog):
 
 
 # --- More specific tests for insert_production_data ---
+
 
 def test_insert_production_data_invalid_date_formats(
     test_db_manager: DatabaseManager, clear_wells_and_production_data_tables, caplog
@@ -323,26 +329,45 @@ def test_insert_production_data_invalid_date_formats(
     assert well_id is not None
 
     prod_data_invalid_dates = [
-        {"date": "2023/01/01", "oil_rate": 100.0}, # Wrong format
-        {"date": "not-a-date", "oil_rate": 110.0}, # Not a date string
-        {"date": 12345, "oil_rate": 120.0},        # Wrong type (int)
-        {"date": None, "oil_rate": 130.0},         # None date
-        {"date": "2023-01-05", "oil_rate": 150.0}  # Valid one to ensure something can be inserted
+        {"date": "2023/01/01", "oil_rate": 100.0},  # Wrong format
+        {"date": "not-a-date", "oil_rate": 110.0},  # Not a date string
+        {"date": 12345, "oil_rate": 120.0},  # Wrong type (int)
+        {"date": None, "oil_rate": 130.0},  # None date
+        {
+            "date": "2023-01-05",
+            "oil_rate": 150.0,
+        },  # Valid one to ensure something can be inserted
     ]
 
     with caplog.at_level(logging.WARNING):
-        success = test_db_manager.insert_production_data(well_id, prod_data_invalid_dates)
+        success = test_db_manager.insert_production_data(
+            well_id, prod_data_invalid_dates
+        )
 
-    assert success is True # The method returns True if any valid data is processed or no new data needs inserting
+    assert (
+        success is True
+    )  # The method returns True if any valid data is processed or no new data needs inserting
 
     # Check logs for warnings about skipped records
-    assert "Invalid date format for record: {'date': '2023/01/01', 'oil_rate': 100.0}. Skipping." in caplog.text
-    assert "Invalid date format for record: {'date': 'not-a-date', 'oil_rate': 110.0}. Skipping." in caplog.text
-    assert "Invalid date type for record: {'date': 12345, 'oil_rate': 120.0}. Skipping." in caplog.text
-    assert "Invalid date type for record: {'date': None, 'oil_rate': 130.0}. Skipping." in caplog.text
+    assert (
+        "Invalid date format for record: {'date': '2023/01/01', 'oil_rate': 100.0}. Skipping."
+        in caplog.text
+    )
+    assert (
+        "Invalid date format for record: {'date': 'not-a-date', 'oil_rate': 110.0}. Skipping."
+        in caplog.text
+    )
+    assert (
+        "Invalid date type for record: {'date': 12345, 'oil_rate': 120.0}. Skipping."
+        in caplog.text
+    )
+    assert (
+        "Invalid date type for record: {'date': None, 'oil_rate': 130.0}. Skipping."
+        in caplog.text
+    )
 
     retrieved_data = test_db_manager.get_well_production_data(well_id)
-    assert len(retrieved_data) == 1 # Only the valid date should be inserted
+    assert len(retrieved_data) == 1  # Only the valid date should be inserted
     assert retrieved_data[0]["date"] == "2023-01-05"
     assert retrieved_data[0]["oil_rate"] == 150.0
 
@@ -360,11 +385,11 @@ def test_insert_production_data_no_new_data_to_insert(
 
     # Attempt to insert same data again, plus some invalid data
     data_to_try_insert = [
-        {"date": "2023-02-01", "oil_rate": 201.0}, # Duplicate date
-        {"date": "invalid-date", "oil_rate": 202.0}  # Invalid date
+        {"date": "2023-02-01", "oil_rate": 201.0},  # Duplicate date
+        {"date": "invalid-date", "oil_rate": 202.0},  # Invalid date
     ]
 
-    with caplog.at_level(logging.INFO): # To catch "No new production data"
+    with caplog.at_level(logging.INFO):  # To catch "No new production data"
         success = test_db_manager.insert_production_data(well_id, data_to_try_insert)
 
     assert success is True
@@ -372,7 +397,7 @@ def test_insert_production_data_no_new_data_to_insert(
 
     retrieved_data = test_db_manager.get_well_production_data(well_id)
     assert len(retrieved_data) == 1
-    assert retrieved_data[0]["oil_rate"] == 200.0 # Original data unchanged
+    assert retrieved_data[0]["oil_rate"] == 200.0  # Original data unchanged
 
 
 # --- Test DatabaseManager.close() ---
@@ -387,14 +412,16 @@ def test_db_manager_with_real_connect():
         os.remove("./test_close.db")
 
 
-def test_db_manager_close_connected(test_db_manager_with_real_connect: DatabaseManager, mocker):
+def test_db_manager_close_connected(
+    test_db_manager_with_real_connect: DatabaseManager, mocker
+):
     """Test that close() disposes the engine if connected."""
     # test_db_manager_with_real_connect is a fixture that ensures connect() was called.
     # We need to spy on engine.dispose.
     # Ensure engine exists first
     assert test_db_manager_with_real_connect.engine is not None
 
-    mock_dispose = mocker.spy(test_db_manager_with_real_connect.engine, 'dispose')
+    mock_dispose = mocker.spy(test_db_manager_with_real_connect.engine, "dispose")
 
     test_db_manager_with_real_connect.close()
 
@@ -405,14 +432,16 @@ def test_db_manager_close_not_connected(mocker):
     """Test that close() does not fail if engine is None (not connected)."""
     DatabaseManager.reset_instance()
     db_manager_no_engine = DatabaseManager()
-    assert db_manager_no_engine.engine is None # Engine is None by default
+    assert db_manager_no_engine.engine is None  # Engine is None by default
 
     # No need to mock dispose as it shouldn't be called if engine is None.
     # Just ensure calling close() doesn't raise an error.
     try:
         db_manager_no_engine.close()
     except Exception as e:
-        pytest.fail(f"DatabaseManager.close() raised an exception when not connected: {e}")
+        pytest.fail(
+            f"DatabaseManager.close() raised an exception when not connected: {e}"
+        )
 
 
 def test_production_data_well_date_unique_constraint(

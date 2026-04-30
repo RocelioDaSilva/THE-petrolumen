@@ -25,7 +25,7 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:8000",
         "tauri://localhost",
-        "http://tauri.localhost"
+        "http://tauri.localhost",
     ]
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: list[str] = ["*"]

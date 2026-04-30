@@ -7,7 +7,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 # Import Base and models from database_models.py
-from .database_models import Base, Well, ProductionData, User
+from ..models import Base, Well, ProductionData, User
+from ..models import WellDataRecord, AnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +334,91 @@ class DatabaseManager:
             session.rollback()
             logger.error(f"Error deleting user '{username}' from DB: {e}")
             return False
+        finally:
+            session.close()
+
+    def get_user_by_id(self, user_id: str) -> Optional[User]:
+        session = self.get_session()
+        try:
+            return session.query(User).filter(User.id == uuid.UUID(user_id)).first()
+        except Exception as e:
+            logger.error(f"Error fetching user by ID {user_id}: {e}")
+            return None
+        finally:
+            session.close()
+
+    def create_well_data_record(
+        self, user_id: uuid.UUID, well_name: str, data: List[Dict]
+    ) -> Optional[WellDataRecord]:
+        session = self.get_session()
+        try:
+            record = WellDataRecord(user_id=user_id, well_name=well_name, data=data)
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return record
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Error creating well data record: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_well_data_records_for_user(
+        self, user_id: uuid.UUID
+    ) -> List[WellDataRecord]:
+        session = self.get_session()
+        try:
+            return (
+                session.query(WellDataRecord)
+                .filter(WellDataRecord.user_id == user_id)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching records for user {user_id}: {e}")
+            return []
+        finally:
+            session.close()
+
+    def create_analysis_result(
+        self,
+        well_data_record_id: uuid.UUID,
+        analysis_type: str,
+        parameters: Dict,
+        forecast: List[Dict],
+    ) -> Optional[AnalysisResult]:
+        session = self.get_session()
+        try:
+            result = AnalysisResult(
+                well_data_record_id=well_data_record_id,
+                analysis_type=analysis_type,
+                parameters=parameters,
+                forecast=forecast,
+            )
+            session.add(result)
+            session.commit()
+            session.refresh(result)
+            return result
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Error creating analysis result: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_analysis_results_for_record(
+        self, well_data_record_id: uuid.UUID
+    ) -> List[AnalysisResult]:
+        session = self.get_session()
+        try:
+            return (
+                session.query(AnalysisResult)
+                .filter(AnalysisResult.well_data_record_id == well_data_record_id)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching analysis results: {e}")
+            return []
         finally:
             session.close()
 

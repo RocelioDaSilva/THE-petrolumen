@@ -7,6 +7,7 @@ from fastapi import (
     Depends,
     status,
     Body,
+    Request,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
@@ -18,6 +19,7 @@ import logging
 import os  # For environment variables
 import datetime
 import uuid
+import structlog
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
@@ -58,7 +60,7 @@ from gaia_genesis.core.data_uploader import DataUploader  # Moved up
 # Note: basicConfig should only be called once. If other modules also call it,
 # it might not reconfigure. It's better to configure logging based on settings early.
 logging.basicConfig(level=settings.LOG_LEVEL.upper())
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 app = FastAPI(
@@ -69,6 +71,34 @@ app = FastAPI(
     ),
     version=settings.APP_VERSION,
 )
+
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+
+    logger.info("request_started", method=request.method, path=request.url.path)
+
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+
+    logger.info("request_finished", status_code=response.status_code)
+    return response
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error("unhandled_error", error=str(exc), exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "request_id": structlog.contextvars.get_contextvars().get("request_id"),
+        },
+    )
+
 
 # Add CORS middleware to allow the Tauri frontend to communicate with the API
 # In production, origins should be restricted to the Tauri app's scheme/origin
@@ -166,39 +196,76 @@ os.makedirs(settings.AI_MODELS_DIR, exist_ok=True)
 
 # --- Import Custom Routers ---
 try:
-    from gaia_genesis.api_v1.endpoints import pvt_router, pvt_calculations as legacy_pvt_router
-    app.include_router(pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"])
-    app.include_router(legacy_pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - Legacy PVT"])
-    logger.info("Successfully included PVT routers.")
-except Exception as e:
-    logger.error(f"Error including PVT routers: {e}")
+    from gaia_genesis.api_v1.endpoints import (
+        pvt_router,
+        pvt_calculations as legacy_pvt_router,
+        dca_router,
+        rta_router,
+        nodal_router,
+        reservoir_router,
+        simulation_router,
+        economics_router,
+        ai_router,
+        auth_router,
+        surveillance_router,
+        reservoir_analysis_tools as gaia_reservoir_tools_router,
+        static_modeling_tools as gaia_static_modeling_router,
+    )
 
-try:
-    from gaia_genesis.api_v1.endpoints import reservoir_analysis_tools as gaia_reservoir_tools_router
-    app.include_router(gaia_reservoir_tools_router.router, prefix="/api/v1/gaia/reservoir-tools", tags=["Gaia - Reservoir Tools"])
-    logger.info("Successfully included Reservoir Tools router.")
-except Exception as e:
-    logger.error(f"Error including Reservoir Tools router: {e}")
-
-try:
-    from gaia_genesis.api_v1.endpoints import static_modeling_tools as gaia_static_modeling_router
-    app.include_router(gaia_static_modeling_router.router, prefix="/api/v1/gaia/static-modeling", tags=["Gaia - Static Modeling"])
-    logger.info("Successfully included Static Modeling router.")
-except Exception as e:
-    logger.error(f"Error including Static Modeling router: {e}")
-
-try:
-    from gaia_genesis.api_v1.endpoints import dca_router, rta_router, nodal_router, reservoir_router, simulation_router, economics_router, ai_router
-    app.include_router(dca_router.router, prefix="/api/v1/gaia/dca", tags=["Gaia - DCA"])
-    app.include_router(rta_router.router, prefix="/api/v1/gaia/rta", tags=["Gaia - RTA"])
-    app.include_router(nodal_router.router, prefix="/api/v1/gaia/nodal", tags=["Gaia - Nodal"])
-    app.include_router(reservoir_router.router, prefix="/api/v1/gaia/reservoir", tags=["Gaia - Reservoir"])
-    app.include_router(simulation_router.router, prefix="/api/v1/gaia/simulation", tags=["Gaia - Simulation"])
-    app.include_router(economics_router.router, prefix="/api/v1/gaia/economics", tags=["Gaia - Economics"])
+    app.include_router(
+        auth_router.router, prefix="/api/v1/auth", tags=["Authentication"]
+    )
+    app.include_router(
+        pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"]
+    )
+    app.include_router(
+        legacy_pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - Legacy PVT"]
+    )
+    app.include_router(
+        dca_router.router, prefix="/api/v1/gaia/dca", tags=["Gaia - DCA"]
+    )
+    app.include_router(
+        rta_router.router, prefix="/api/v1/gaia/rta", tags=["Gaia - RTA"]
+    )
+    app.include_router(
+        nodal_router.router, prefix="/api/v1/gaia/nodal", tags=["Gaia - Nodal"]
+    )
+    app.include_router(
+        reservoir_router.router,
+        prefix="/api/v1/gaia/reservoir",
+        tags=["Gaia - Reservoir"],
+    )
+    app.include_router(
+        simulation_router.router,
+        prefix="/api/v1/gaia/simulation",
+        tags=["Gaia - Simulation"],
+    )
+    app.include_router(
+        economics_router.router,
+        prefix="/api/v1/gaia/economics",
+        tags=["Gaia - Economics"],
+    )
     app.include_router(ai_router.router, prefix="/api/v1/gaia/ai", tags=["Gaia - AI"])
-    logger.info("Successfully included Engineering, Simulation, and AI routers.")
+    app.include_router(
+        surveillance_router.router,
+        prefix="/api/v1/gaia/surveillance",
+        tags=["Gaia - Surveillance"],
+    )
+    app.include_router(
+        gaia_reservoir_tools_router.router,
+        prefix="/api/v1/gaia/reservoir-tools",
+        tags=["Gaia - Reservoir Tools"],
+    )
+    app.include_router(
+        gaia_static_modeling_router.router,
+        prefix="/api/v1/gaia/static-modeling",
+        tags=["Gaia - Static Modeling"],
+    )
+
+    logger.info("Successfully included all API routers.")
 except Exception as e:
-    logger.error(f"Error including DCA/RTA routers: {e}")
+    logger.error(f"Error including API routers: {e}")
+
 
 # --- Pydantic Models for API ---
 class Token(BaseModel):
@@ -384,8 +451,6 @@ def dataframe_to_json_serializable(df: pd.DataFrame | None) -> Any:
     if df is None:
         return pd.DataFrame().to_dict(orient="records")  # Return empty list for None df
     return df.where(pd.notnull(df), None).to_dict(orient="records")
-
-
 
 
 from auth_utils import get_current_active_user, get_current_active_admin_user
@@ -946,7 +1011,8 @@ async def get_well_dca(
     data_dicts = db_manager.get_well_production_data(well.id)
     if not data_dicts or len(data_dicts) < 2:
         raise HTTPException(
-            status_code=400, detail="Not enough production data for DCA (minimum 2 points)"
+            status_code=400,
+            detail="Not enough production data for DCA (minimum 2 points)",
         )
 
     df = pd.DataFrame(data_dicts)
@@ -1015,7 +1081,10 @@ async def get_well_dca(
         well_name=well_name,
         method_used=method,
         fitted_params=DCAParams(
-            qi=params["qi"], Di=params["di"], b=params.get("b", 0), type=params["method"]
+            qi=params["qi"],
+            Di=params["di"],
+            b=params.get("b", 0),
+            type=params["method"],
         ),
         original_data=original_points,
         forecast_data=forecast_points,

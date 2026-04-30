@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 from typing import Dict, List  # Removed Any, Tuple, Optional, Union
@@ -145,7 +148,7 @@ class DataAnalytics:
 
         # Avaliar modelo
         score = model.evaluate(X_test, y_test)
-        print(f"Accuracy: {score[1]:.3f}")
+        logger.info(f"Accuracy: {score[1]:.3f}")
 
         self.models["seismic_classifier"] = model
 
@@ -272,7 +275,7 @@ class DataAnalytics:
 
         # Avaliar modelo
         score = model.evaluate(X_test, y_test)
-        print(f"MSE: {score:.3f}")
+        logger.info(f"MSE: {score:.3f}")
 
         self.models["reservoir_predictor"] = {
             "model": model,
