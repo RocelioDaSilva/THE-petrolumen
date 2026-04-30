@@ -60,7 +60,9 @@ async def calculate_z_factor_endpoint(
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
         if np.isnan(z):
-            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
+            raise ValueError(
+                "Calculation resulted in NaN. Check your input parameters."
+            )
         return ZFactorResponse(z_factor=z)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -104,7 +106,9 @@ async def calculate_fvf_endpoint(
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
         if np.isnan(fvf):
-            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
+            raise ValueError(
+                "Calculation resulted in NaN. Check your input parameters."
+            )
         return FormationVolumeFactorResponse(fvf=fvf)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -143,7 +147,9 @@ async def calculate_viscosity_endpoint(
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
         if np.isnan(viscosity):
-            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
+            raise ValueError(
+                "Calculation resulted in NaN. Check your input parameters."
+            )
         return ViscosityResponse(viscosity=viscosity)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -174,7 +180,9 @@ async def calculate_rs_endpoint(
             gas_specific_gravity=request_data.gas_specific_gravity,
         )
         if np.isnan(rs):
-            raise ValueError("Calculation resulted in NaN. Check your input parameters.")
+            raise ValueError(
+                "Calculation resulted in NaN. Check your input parameters."
+            )
         return SolutionGasRatioResponse(rs=rs)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))

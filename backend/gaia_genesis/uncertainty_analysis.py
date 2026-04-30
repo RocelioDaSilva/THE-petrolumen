@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 
@@ -300,7 +303,7 @@ class UncertaintyAnalysis:
             )
             df_export.to_csv(filename, index=False)
         except Exception as e:
-            print(
+            logger.info(
                 "Error exporting results to CSV, consider exporting parts "
                 f"separately: {e}"
             )
