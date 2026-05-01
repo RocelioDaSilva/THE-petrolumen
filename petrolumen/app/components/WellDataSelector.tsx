@@ -1,45 +1,62 @@
 "use client";
 
-import React from 'react';
+import React from "react";
+import { useAppStore } from "@/stores/appStore";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RefreshCw } from "lucide-react";
 
 interface WellDataSelectorProps {
   loadedWells: string[];
-  selectedWell: string;
-  onSelectedWellChange: (wellName: string) => void;
   onRefreshWells: () => void;
   isLoading: boolean;
 }
 
 export const WellDataSelector: React.FC<WellDataSelectorProps> = ({
   loadedWells,
-  selectedWell,
-  onSelectedWellChange,
   onRefreshWells,
   isLoading,
 }) => {
+  const { selectedWell, setSelectedWell } = useAppStore();
+
   return (
-    <div className="flex items-center space-x-2 mb-4">
-      <Label htmlFor="wellSelect" className="whitespace-nowrap">Select Well: </Label>
-      <Select
-        value={selectedWell}
-        onValueChange={onSelectedWellChange}
-        disabled={isLoading || loadedWells.length === 0}
+    <div className="flex flex-col sm:flex-row items-end gap-4 mb-6">
+      <div className="grid gap-2 flex-1 w-full">
+        <label htmlFor="well-select" className="text-sm font-medium">
+          Select Well
+        </label>
+        <Select
+          value={selectedWell || ""}
+          onValueChange={(value) => setSelectedWell(value === "" ? null : value)}
+          disabled={isLoading || loadedWells.length === 0}
+        >
+          <SelectTrigger id="well-select">
+            <SelectValue placeholder={loadedWells.length === 0 ? "No wells loaded" : "Select a well"} />
+          </SelectTrigger>
+          <SelectContent>
+            {loadedWells.map((well) => (
+              <SelectItem key={well} value={well}>
+                {well}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={onRefreshWells}
+        disabled={isLoading}
+        title="Refresh well list"
       >
-        <SelectTrigger className="w-[280px]">
-          <SelectValue placeholder={loadedWells.length === 0 ? "No wells loaded" : "Select a well"} />
-        </SelectTrigger>
-        <SelectContent>
-          {loadedWells.map((well) => (
-            <SelectItem key={well} value={well}>
-              {well}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button onClick={onRefreshWells} disabled={isLoading} variant="outline" size="sm">Refresh Well List</Button>
+        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+      </Button>
     </div>
   );
 };
