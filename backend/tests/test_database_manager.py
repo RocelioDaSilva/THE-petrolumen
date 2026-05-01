@@ -292,14 +292,16 @@ def test_db_manager_connect_failure():
     assert db_manager_fail.SessionLocal is None
 
 
-def test_create_tables_not_connected(caplog):
+def test_create_tables_not_connected(mocker):
     """Test create_tables fails if DB is not connected."""
     DatabaseManager.reset_instance()
     db_manager_no_connect = DatabaseManager(db_url="sqlite:///memory_no_connect.db")
     # Do not call connect()
-    with caplog.at_level(logging.ERROR):
-        assert db_manager_no_connect.create_tables() is False
-    assert "Cannot create tables: Database engine not initialized" in caplog.text
+    mock_logger = mocker.patch("gaia_genesis.core.database_manager.logger")
+    assert db_manager_no_connect.create_tables() is False
+    mock_logger.error.assert_called_with(
+        "Cannot create tables: Database engine not initialized. Call connect() first."
+    )
 
 
 def test_get_session_not_connected(caplog):
@@ -322,7 +324,7 @@ def test_get_session_not_connected(caplog):
 
 
 def test_insert_production_data_invalid_date_formats(
-    test_db_manager: DatabaseManager, clear_wells_and_production_data_tables, caplog
+    test_db_manager: DatabaseManager, clear_wells_and_production_data_tables, mocker
 ):
     """Test insert_production_data with various invalid date formats/types, ensuring they are skipped."""
     well_id = test_db_manager.insert_well("WellForInvalidDates")
@@ -339,31 +341,25 @@ def test_insert_production_data_invalid_date_formats(
         },  # Valid one to ensure something can be inserted
     ]
 
-    with caplog.at_level(logging.WARNING):
-        success = test_db_manager.insert_production_data(
-            well_id, prod_data_invalid_dates
-        )
+    mock_logger = mocker.patch("gaia_genesis.core.database_manager.logger")
+    success = test_db_manager.insert_production_data(well_id, prod_data_invalid_dates)
 
     assert (
         success is True
     )  # The method returns True if any valid data is processed or no new data needs inserting
 
     # Check logs for warnings about skipped records
-    assert (
+    mock_logger.warning.assert_any_call(
         "Invalid date format for record: {'date': '2023/01/01', 'oil_rate': 100.0}. Skipping."
-        in caplog.text
     )
-    assert (
+    mock_logger.warning.assert_any_call(
         "Invalid date format for record: {'date': 'not-a-date', 'oil_rate': 110.0}. Skipping."
-        in caplog.text
     )
-    assert (
+    mock_logger.warning.assert_any_call(
         "Invalid date type for record: {'date': 12345, 'oil_rate': 120.0}. Skipping."
-        in caplog.text
     )
-    assert (
+    mock_logger.warning.assert_any_call(
         "Invalid date type for record: {'date': None, 'oil_rate': 130.0}. Skipping."
-        in caplog.text
     )
 
     retrieved_data = test_db_manager.get_well_production_data(well_id)
@@ -373,7 +369,7 @@ def test_insert_production_data_invalid_date_formats(
 
 
 def test_insert_production_data_no_new_data_to_insert(
-    test_db_manager: DatabaseManager, clear_wells_and_production_data_tables, caplog
+    test_db_manager: DatabaseManager, clear_wells_and_production_data_tables, mocker
 ):
     """Test insert_production_data when all provided data already exists or is invalid."""
     well_id = test_db_manager.insert_well("WellForNoNewData")
@@ -389,11 +385,13 @@ def test_insert_production_data_no_new_data_to_insert(
         {"date": "invalid-date", "oil_rate": 202.0},  # Invalid date
     ]
 
-    with caplog.at_level(logging.INFO):  # To catch "No new production data"
-        success = test_db_manager.insert_production_data(well_id, data_to_try_insert)
+    mock_logger = mocker.patch("gaia_genesis.core.database_manager.logger")
+    success = test_db_manager.insert_production_data(well_id, data_to_try_insert)
 
     assert success is True
-    assert f"No new production data to insert for well ID {well_id}." in caplog.text
+    mock_logger.info.assert_any_call(
+        f"No new production data to insert for well ID {well_id}."
+    )
 
     retrieved_data = test_db_manager.get_well_production_data(well_id)
     assert len(retrieved_data) == 1

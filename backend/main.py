@@ -50,6 +50,7 @@ import numpy as np  # Added import
 
 from config import settings  # Import the settings instance # Moved up
 from gaia_genesis.core.data_uploader import DataUploader  # Moved up
+from database import initialize_database_schema
 
 # Load environment variables from .env file
 # This should be one of the first things to ensure .env is loaded before settings are initialized
@@ -135,6 +136,9 @@ if settings.DATABASE_URL == DEFAULT_DATABASE_URL:
     )
 
 
+# --- Initialize Database Schema ---
+initialize_database_schema()
+
 # --- Initialize Managers with configuration from settings ---
 db_manager = DatabaseManager.get_instance(db_url=settings.DATABASE_URL)
 # Ensure DB is connected and tables are created on startup
@@ -144,11 +148,6 @@ if not db_manager.connect():
         "on startup. Exiting."
     )
     exit(1)
-if not db_manager.create_tables():  # This will now also create the User table
-    logger.warning(
-        "Could not create database tables on startup (this might be okay if they "
-        "already exist or if there's a permissions issue)."
-    )
 
 auth_manager = AuthManager.get_instance(
     db_manager=db_manager,
