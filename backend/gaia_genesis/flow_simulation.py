@@ -50,6 +50,72 @@ class FlowSimulation:
     def add_well(self, **kwargs):
         pass
 
+    def calculate_capillary_pressure(self, saturation):
+        """Calculates capillary pressure using the Brooks-Corey model."""
+        # Model parameters
+        lambda_bc = 2.0  # Brooks-Corey exponent
+        pce = 5.0  # Entry capillary pressure (psi)
+        swc = 0.2  # Critical water saturation
+        sor = 0.2  # Residual oil saturation
+        sgc = 0.05  # Critical gas saturation
+
+        # Calculate capillary pressure for each pair of phases
+        pc = {}
+
+        # Oil-Water
+        sw = saturation["water"]
+        # Avoid division by zero and negative values
+        sw_norm = np.clip((sw - swc) / (1 - swc - sor), 1e-6, 1.0)
+        pc["oil_water"] = pce * (sw_norm ** (-1 / lambda_bc))
+
+        # Oil-Gas
+        sg = saturation.get("gas", np.zeros_like(sw))
+        sg_norm = np.clip((sg - sgc) / (1 - swc - sgc), 1e-6, 1.0)
+        pc["oil_gas"] = pce * (sg_norm ** (-1 / lambda_bc))
+
+        # Water-Gas
+        pc["water_gas"] = pc["oil_water"] + pc["oil_gas"]
+
+        return pc
+
+    def calculate_relative_permeability(self, saturation):
+        """Calculates relative permeability using the Stone II model."""
+        # Model parameters
+        n_o = 2.0  # Expoente para óleo
+        n_w = 2.0  # Expoente para água
+        n_g = 2.0  # Expoente para gás
+        sor = 0.2  # Saturação residual de óleo
+        swc = 0.2  # Saturação crítica de água
+        sgc = 0.05  # Saturação crítica de gás
+
+        # Calcular permeabilidade relativa base
+        kr_base = {}
+
+        # Água
+        sw = saturation["water"]
+        sw_norm = np.clip((sw - swc) / (1 - swc - sor), 0.0, 1.0)
+        kr_base["water"] = np.where(sw > swc, sw_norm**n_w, 0)
+
+        # Gás
+        sg = saturation.get("gas", np.zeros_like(sw))
+        sg_norm = np.clip((sg - sgc) / (1 - swc - sor - sgc), 0.0, 1.0)
+        kr_base["gas"] = np.where(sg > sgc, sg_norm**n_g, 0)
+
+        # Óleo (Stone II)
+        so = saturation["oil"]
+        so_norm = np.clip((so - sor) / (1 - swc - sor), 0.0, 1.0)
+        kr_base["oil"] = np.where(so > sor, so_norm**n_o, 0)
+
+        # Aplicar correção de Stone II
+        kr = {}
+        kr["water"] = kr_base["water"]
+        kr["gas"] = kr_base["gas"]
+
+        # Correção para óleo
+        kr["oil"] = kr_base["oil"] * (1 - kr_base["water"]) * (1 - kr_base["gas"])
+
+        return kr
+
     def run_simulation(self, end_time, dt, wells=None):
         """
         Runs a 1D reservoir simulation using an implicit pressure solver (Implicit scheme).

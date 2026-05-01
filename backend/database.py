@@ -50,6 +50,11 @@ def initialize_database_schema():
         logger.info(f"Using Alembic config from: {alembic_ini_path}")
         alembic_cfg = Config(str(alembic_ini_path))
 
+        # Explicitly set the absolute path for script_location
+        alembic_cfg.set_main_option(
+            "script_location", str(alembic_ini_path.parent / "alembic")
+        )
+
         # Override sqlalchemy.url from alembic.ini with the one from our settings,
         # ensuring it's correctly resolved (especially for SQLite absolute paths from
         # env.py logic). The get_db_url() in env.py should handle this, but
