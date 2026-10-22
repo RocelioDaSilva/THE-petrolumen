@@ -1,0 +1,14 @@
+
+
+
+
+
+[build]
+beforeDevCommand = "npm run dev"
+beforeBuildCommand = "npm run build"
+distDir = "../app/.next"
+devPath = "http://localhost:3000"
+
+
+
+
