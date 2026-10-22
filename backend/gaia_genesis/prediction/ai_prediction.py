@@ -19,7 +19,7 @@ class AIPrediction:
         self.best_model = None
         self.feature_columns = []
 
-    def prepare_data(self, df, target, features):
+    def prepare_data(self, df: pd.DataFrame, target: str, features: List[str]):
         self.feature_columns = features
         X = df[features]
         y = df[target]
@@ -32,58 +32,37 @@ class AIPrediction:
         self.best_model = "xgboost"
         self.models["xgboost"] = {
             "model": model,
-            "test_r2": r2_score(y_test, preds),
-            "test_rmse": np.sqrt(mean_squared_error(y_test, preds)),
+            "test_r2": float(r2_score(y_test, preds)),
+            "test_rmse": float(np.sqrt(mean_squared_error(y_test, preds))),
         }
 
-    def predict(self, df, model_name=None):
+    def predict(self, df: pd.DataFrame, model_name: Optional[str] = None) -> np.ndarray:
         name = model_name or self.best_model
+        if not name or name not in self.models:
+            raise ValueError(f"Model '{name}' not found.")
         return self.models[name]["model"].predict(df[self.feature_columns])
 
-    def save_model(self, path, model_name=None):
+    def save_model(self, path: str, model_name: Optional[str] = None):
         name = model_name or self.best_model
+        if not name or name not in self.models:
+            raise FileNotFoundError(f"Model '{name}' not found.")
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        joblib.dump(self.models[name], path)
+        model_data = {
+            "model": self.models[name]["model"],
+            "features": self.feature_columns,
+            "test_r2": self.models[name].get("test_r2"),
+            "test_rmse": self.models[name].get("test_rmse"),
+        }
+        joblib.dump(model_data, path)
 
-    def load_model(self, path):
+    def load_model(self, path: str) -> str:
         data = joblib.load(path)
         name = os.path.basename(path).replace(".joblib", "")
-        self.models[name] = data
+        if isinstance(data, dict) and "model" in data:
+            self.models[name] = data
+            self.feature_columns = data.get("features", [])
+        else:
+            self.models[name] = {"model": data}
+            self.feature_columns = []
         self.best_model = name
-        self.feature_columns = data.get("features", [])
         return name
-
-    def __init__(self, model_dir: str = "trained_ai_models"):
-        self.model_dir = model_dir
-        os.makedirs(self.model_dir, exist_ok=True)
-        self.model = None
-
-    def train_xgboost(self, df: pd.DataFrame, target: str, features: List[str]) -> Dict:
-        X = df[features]
-        y = df[target]
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-
-        self.model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5)
-        self.model.fit(X_train, y_train)
-
-        preds = self.model.predict(X_test)
-        rmse = np.sqrt(mean_squared_error(y_test, preds))
-        r2 = r2_score(y_test, preds)
-
-        return {"rmse": float(rmse), "r2": float(r2)}
-
-    def save_model(self, model_name: str):
-        if self.model:
-            joblib.dump(
-                self.model, os.path.join(self.model_dir, f"{model_name}.joblib")
-            )
-
-    def load_model(self, model_name: str):
-        self.model = joblib.load(os.path.join(self.model_dir, f"{model_name}.joblib"))
-
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
-        if self.model:
-            return self.model.predict(X)
-        return np.array([])
