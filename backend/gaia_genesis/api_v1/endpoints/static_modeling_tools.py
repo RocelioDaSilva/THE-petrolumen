@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends, Body, Request, Header
 import numpy as np
 import logging
 
@@ -27,6 +28,7 @@ try:
 
     # Auth dependency
     from auth_utils import get_current_active_user, UserResponse
+    from core.session_registry import get_engine_instance
 except ImportError as e:
     error_message = (
         f"Could not import dependencies for Static Modeling Tools router: {e}."
@@ -38,8 +40,23 @@ router = APIRouter()
 logger = logging.getLogger(__name__)  # Initialize logger for this module
 
 # Global instance of StaticModeling tool.
-# WARNING: This shares state across all users/requests.
+# Kept for legacy fallback when USE_SESSION_REGISTRY is False.
 static_model_analyzer = StaticModeling()
+
+
+async def get_static_analyzer(
+    request: Request,
+    current_user: UserResponse = Depends(get_current_active_user),
+    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+) -> StaticModeling:
+    """Dependency helper to retrieve session-scoped StaticModeling instance."""
+    return await get_engine_instance(
+        engine_name="static_model_analyzer",
+        factory_fn=StaticModeling,
+        request=request,
+        current_user=current_user,
+        session_id=session_id,
+    )
 
 
 # --- Grid and Data Setup Endpoints ---
@@ -48,15 +65,14 @@ static_model_analyzer = StaticModeling()
 )
 async def define_static_grid(
     grid_data: GridDefinition = Body(...),
+    analyzer: StaticModeling = Depends(get_static_analyzer),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Defines the 3D grid dimensions for the current static model in the shared analyzer.
-    WARNING: Modifies a shared global instance of the static model analyzer.
-    Not concurrency-safe.
+    Defines the 3D grid dimensions for the current static model analyzer.
     """
     try:
-        static_model_analyzer.create_3d_grid(
+        analyzer.create_3d_grid(
             nx=grid_data.nx,
             ny=grid_data.ny,
             nz=grid_data.nz,
@@ -83,11 +99,11 @@ async def define_static_grid(
 )
 async def add_static_well_data(
     well_data_request: StaticWellDataRequest = Body(...),
+    analyzer: StaticModeling = Depends(get_static_analyzer),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Adds well data to the shared static model analyzer.
-    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    Adds well data to the static model analyzer.
     """
     try:
         properties_for_class = {}
@@ -98,17 +114,11 @@ async def add_static_well_data(
             md_values = np.array(well_data_request.properties[first_prop_key].md)
         else:  # No properties provided, which might be an issue for some operations
             logger.warning("No properties provided in StaticWellDataRequest.")
-            # Depending on requirements, might raise error or proceed if only coords are
-            # needed for some step. For now, proceed but StaticModeling class might
-            # fail later if it expects properties.
 
         for prop_name, prop_data in well_data_request.properties.items():
             properties_for_class[prop_name] = np.array(prop_data.values)
-            # Could add a check here:
-            # if np.array(prop_data.md).tolist() != md_values.tolist():
-            # raise ValueError("MD mismatch")
 
-        static_model_analyzer.add_well_data(
+        analyzer.add_well_data(
             well_name=well_data_request.well_name,
             x=well_data_request.x_coord,
             y=well_data_request.y_coord,
@@ -146,13 +156,14 @@ async def add_static_well_data(
 )
 async def calculate_property_variogram(
     request_data: VariogramCalculationRequest = Body(...),
+    analyzer: StaticModeling = Depends(get_static_analyzer),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
     Calculates and fits a variogram for a specified well property.
     """
     try:
-        static_model_analyzer.calculate_variogram(
+        analyzer.calculate_variogram(
             property_name=request_data.property_name,
             variogram_model=request_data.variogram_model_type,
             direction=request_data.direction,
@@ -160,7 +171,7 @@ async def calculate_property_variogram(
             n_lags=request_data.number_of_lags,
         )
 
-        variogram_data = static_model_analyzer.variograms.get(
+        variogram_data = analyzer.variograms.get(
             request_data.property_name
         )
         if not variogram_data:
@@ -214,20 +225,21 @@ async def calculate_property_variogram(
 )
 async def perform_kriging_interpolation(
     request_data: KrigingRequest = Body(...),
+    analyzer: StaticModeling = Depends(get_static_analyzer),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
     Performs 2D kriging interpolation for a specified property.
     """
     try:
-        if not static_model_analyzer.grid:
+        if not analyzer.grid:
             raise ValueError(
                 "Grid not defined in static model analyzer. Please define grid first."
             )
 
         prop_found_in_wells = any(
             request_data.property_name in well.get("properties", {})
-            for well_name, well in static_model_analyzer.well_data.items()
+            for well_name, well in analyzer.well_data.items()
         )
         if not prop_found_in_wells:
             raise ValueError(
@@ -235,14 +247,14 @@ async def perform_kriging_interpolation(
                 "Please add well data first."
             )
 
-        static_model_analyzer.kriging_interpolation(
+        analyzer.kriging_interpolation(
             property_name=request_data.property_name
         )
 
-        interpolated_values = static_model_analyzer.properties.get(
+        interpolated_values = analyzer.properties.get(
             request_data.property_name
         )
-        std_dev_values = static_model_analyzer.properties.get(
+        std_dev_values = analyzer.properties.get(
             f"{request_data.property_name}_kriging_std"
         )
 
@@ -266,8 +278,8 @@ async def perform_kriging_interpolation(
             else std_dev_values
         )
         grid_dims = (
-            (static_model_analyzer.grid["nx"], static_model_analyzer.grid["ny"])
-            if static_model_analyzer.grid
+            (analyzer.grid["nx"], analyzer.grid["ny"])
+            if analyzer.grid
             else None
         )
 
@@ -298,19 +310,13 @@ async def perform_kriging_interpolation(
 )
 async def calculate_rock_physics_properties(
     request_data: RockPhysicsModels = Body(...),
+    analyzer: StaticModeling = Depends(get_static_analyzer),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
     Calculates saturated rock physics properties using Gassmann or Hertz-Mindlin models.
     """
     try:
-        # This section needs careful alignment with how
-        # StaticModeling.rock_physics_modeling is implemented and what parameters it
-        # truly expects and how it returns results. The current StaticModeling class
-        # uses hardcoded values mostly. For a functional endpoint, StaticModeling
-        # class needs to be refactored.
-
-        # Placeholder: Log the intent and the limitation
         logger.info(
             f"Received rock physics calculation request for model: "
             f"{request_data.model_type}. Note: Current "
@@ -318,25 +324,19 @@ async def calculate_rock_physics_properties(
             "fully utilize all request parameters."
         )
 
-        # Call the method (it might use its internal defaults or a mix)
-        static_model_analyzer.rock_physics_modeling(
+        analyzer.rock_physics_modeling(
             property_name=f"output_{request_data.model_type}",  # Dummy name for now
             model_type=request_data.model_type,
-            # Pass actual parameters if StaticModeling class is updated:
-            # **request_data.model_dump()
-            # if isinstance(request_data, (GassmannRequest, HertzMindlinRequest))
-            # else {}
         )
 
-        # Attempt to retrieve results based on how StaticModeling might store them
         result_key_specific = (
             f"output_{request_data.model_type}_{request_data.model_type}"
         )
         result_key_generic = f"output_{request_data.model_type}"
 
-        result_data = static_model_analyzer.properties.get(result_key_specific)
+        result_data = analyzer.properties.get(result_key_specific)
         if result_data is None:
-            result_data = static_model_analyzer.properties.get(result_key_generic)
+            result_data = analyzer.properties.get(result_key_generic)
 
         if result_data is None or not isinstance(result_data, dict):
             logger.error(
@@ -382,19 +382,20 @@ async def calculate_rock_physics_properties(
 )
 async def perform_nmr_analysis(
     request_data: NMRAnalysisRequest = Body(...),
+    analyzer: StaticModeling = Depends(get_static_analyzer),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
     Performs NMR T2 data analysis for a specified well.
     """
     try:
-        static_model_analyzer.analyze_nmr_data(
+        analyzer.analyze_nmr_data(
             well_name=request_data.well_name,
             t2_distribution=np.array(request_data.t2_distribution),
             t2_times=np.array(request_data.t2_times),
         )
 
-        nmr_results = static_model_analyzer.nmr_data.get(request_data.well_name)
+        nmr_results = analyzer.nmr_data.get(request_data.well_name)
         if not nmr_results:
             raise HTTPException(
                 status_code=404,
