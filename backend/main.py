@@ -243,7 +243,9 @@ try:
         pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"]
     )
     app.include_router(
-        legacy_pvt_router.router, prefix="/api/v1/gaia/pvt-legacy", tags=["Gaia - Legacy PVT"]
+        legacy_pvt_router.router,
+        prefix="/api/v1/gaia/pvt-legacy",
+        tags=["Gaia - Legacy PVT"],
     )
     app.include_router(
         dca_router.router, prefix="/api/v1/gaia/dca", tags=["Gaia - DCA"]
@@ -1116,24 +1118,55 @@ async def get_well_dca(
     )
 
 
-# --- Flow Simulation Endpoints ---
-# WARNING: Operations below use a global `res_simulator` instance.
-# This is NOT thread-safe for concurrent users modifying the same simulation setup.
-# Consider implementing session management or a task-based system for production.
-# A '/reset' endpoint is added as a minimal step for single-user workflow management.
+# --- Flow Simulation Endpoints & Dependency Helper ---
+
+
+async def get_res_simulator(
+    request: Request,
+    current_user: UserResponse = Depends(get_current_active_user),
+    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+) -> ReservoirSimulator:
+    """Dependency helper to get session-scoped ReservoirSimulator instance."""
+    return await get_engine_instance(
+        engine_name="res_simulator",
+        factory_fn=ReservoirSimulator,
+        request=request,
+        current_user=current_user,
+        session_id=session_id,
+    )
 
 
 @app.post(
     "/api/v1/reservoir/flowsim/reset", tags=["Reservoir Engineering", "Flow Simulation"]
 )
 async def reset_flow_simulation_instance(
+    request: Request,
     current_user: UserResponse = Depends(get_current_active_user),
+    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
 ):
     """
-    Resets the global flow simulator instance to its default initial state.
-    Useful for starting a new simulation setup in a single-user or controlled
-    environment. WARNING: This operation affects a global, shared instance.
+    Resets the flow simulator instance.
+    When USE_SESSION_REGISTRY is True, resets only the requesting user's session simulator instance.
+    When USE_SESSION_REGISTRY is False, resets the global shared res_simulator.
     """
+    if settings.USE_SESSION_REGISTRY:
+        registry: SessionRegistry = getattr(request.app.state, "session_registry", None)
+        if registry is not None:
+            session_key = (
+                f"{current_user.id}:{session_id}"
+                if session_id
+                else str(current_user.id)
+            )
+            await registry.reset_engine(
+                session_key=session_key, engine_type="res_simulator"
+            )
+            logger.info(
+                f"User '{current_user.username}' reset their session FlowSimulator instance."
+            )
+            return {
+                "message": "Session reservoir simulator reset successfully.",
+            }
+
     global res_simulator
     try:
         # Re-initialize with default parameters (same as on startup)
@@ -1163,20 +1196,19 @@ async def reset_flow_simulation_instance(
 )
 async def setup_simulation_grid(
     grid_data: SimGridRequest,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Sets up the grid for the global flow simulator instance.
-    WARNING: Modifies a shared global instance. Not concurrency-safe.
-    Call /reset to start a fresh setup.
+    Sets up the grid for the flow simulator instance.
     """
-    if res_simulator is None:
+    if simulator is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flow simulator is not available. Try resetting.",
         )
     try:
-        res_simulator.setup_1d_grid(
+        simulator.setup_1d_grid(
             grid_data.nx, grid_data.dx, grid_data.area
         )  # Example for 1D
         return {
@@ -1184,7 +1216,6 @@ async def setup_simulation_grid(
                 f"Grid setup: nx={grid_data.nx}, dx={grid_data.dx}, "
                 f"area={grid_data.area}"
             ),
-            "warning": "Stateful endpoint - not concurrency-safe.",
         }
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
@@ -1202,24 +1233,23 @@ async def setup_simulation_grid(
 )
 async def setup_simulation_fluid_properties(
     props: SimFluidPropsRequest,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Sets fluid properties for the global flow simulator instance.
-    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    Sets fluid properties for the flow simulator instance.
     """
-    if res_simulator is None:
+    if simulator is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flow simulator is not available. Try resetting.",
         )
     try:
-        res_simulator.set_fluid_properties(
+        simulator.set_fluid_properties(
             props.viscosity, props.compressibility, props.fvf
         )
         return {
             "message": "Fluid properties set.",
-            "warning": "Stateful endpoint - not concurrency-safe.",
         }
     except Exception as e:
         logger.error(f"Error setting fluid properties: {e}", exc_info=True)
@@ -1235,22 +1265,21 @@ async def setup_simulation_fluid_properties(
 )
 async def setup_simulation_rock_properties(
     props: SimRockPropsRequest,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Sets rock properties for the global flow simulator instance.
-    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    Sets rock properties for the flow simulator instance.
     """
-    if res_simulator is None:
+    if simulator is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flow simulator is not available. Try resetting.",
         )
     try:
-        res_simulator.set_rock_properties(props.permeability, props.porosity)
+        simulator.set_rock_properties(props.permeability, props.porosity)
         return {
             "message": "Rock properties set.",
-            "warning": "Stateful endpoint - not concurrency-safe.",
         }
     except (ValueError, TypeError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -1268,22 +1297,21 @@ async def setup_simulation_rock_properties(
 )
 async def setup_simulation_initial_conditions(
     cond: SimInitialConditionsRequest,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Sets initial conditions for the global flow simulator instance.
-    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    Sets initial conditions for the flow simulator instance.
     """
-    if res_simulator is None:
+    if simulator is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flow simulator is not available. Try resetting.",
         )
     try:
-        res_simulator.set_initial_conditions(cond.initial_pressure)
+        simulator.set_initial_conditions(cond.initial_pressure)
         return {
             "message": "Initial conditions set.",
-            "warning": "Stateful endpoint - not concurrency-safe.",
         }
     except (ValueError, TypeError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -1301,24 +1329,23 @@ async def setup_simulation_initial_conditions(
 )
 async def setup_simulation_boundary_conditions(
     bc: SimBoundaryConditionsRequest,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Sets boundary conditions for the global flow simulator instance.
-    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    Sets boundary conditions for the flow simulator instance.
     """
-    if res_simulator is None:
+    if simulator is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flow simulator is not available. Try resetting.",
         )
     try:
-        res_simulator.set_boundary_conditions(
+        simulator.set_boundary_conditions(
             bc.type_left, bc.value_left, bc.type_right, bc.value_right
         )
         return {
             "message": "Boundary conditions set.",
-            "warning": "Stateful endpoint - not concurrency-safe.",
         }
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
@@ -1336,19 +1363,19 @@ async def setup_simulation_boundary_conditions(
 )
 async def add_simulation_well(
     well_data: SimWellRequest,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Adds a well to the global flow simulator instance.
-    WARNING: Modifies a shared global instance. Not concurrency-safe.
+    Adds a well to the flow simulator instance.
     """
-    if res_simulator is None:
+    if simulator is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flow simulator is not available. Try resetting.",
         )
     try:
-        res_simulator.add_well(
+        simulator.add_well(
             name=well_data.name,
             location_index=well_data.location_index,
             well_type=well_data.well_type,
@@ -1359,7 +1386,6 @@ async def add_simulation_well(
         )
         return {
             "message": f"Well '{well_data.name}' added.",
-            "warning": "Stateful endpoint - not concurrency-safe.",
         }
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
@@ -1375,27 +1401,24 @@ async def add_simulation_well(
     "/api/v1/reservoir/flowsim/run",
     response_model=SimPressureResponse,
     tags=["Reservoir Engineering", "Flow Simulation"],
-)  # Simplified response for now
+)
 async def run_flow_simulation(
     params: SimRunParamsRequest,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
-    Runs the 1D flow simulation using the current state of the global simulator
-    instance. WARNING: Uses a global simulator instance; not suitable for
-    concurrent users without state management. Call /reset to start fresh.
+    Runs the 1D flow simulation using the current state of the simulator instance.
     """
-    if res_simulator is None:
+    if simulator is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flow simulator is not available. Try resetting.",
         )
     try:
-        # Ensure necessary setup has been done, or run_simulation handles partial setup.
-        # The FlowSimulation class methods might raise errors if setup is incomplete.
-        res_simulator.run_simulation(params.end_time, params.dt)
+        simulator.run_simulation(params.end_time, params.dt)
 
-        sim_status = res_simulator.simulation_results.get("status", "Unknown")
+        sim_status = simulator.simulation_results.get("status", "Unknown")
         if sim_status == "Failed: Singular matrix":
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1404,17 +1427,10 @@ async def run_flow_simulation(
                     "boundary conditions."
                 ),
             )
-        elif (
-            sim_status != "Completed"
-        ):  # Handle other non-completed statuses if defined by FlowSimulation
+        elif sim_status != "Completed":
             logger.warning(f"Simulation completed with status: {sim_status}")
 
-        # For simplicity, just return pressures for the first block or a summary
-        # A full pressure field response could be very large.
-        # This part needs to align with how FlowSimulation actually stores results.
-        pressures_vs_time = res_simulator.simulation_results.get(
-            "pressures_vs_time", []
-        )  # List of arrays
+        pressures_vs_time = simulator.simulation_results.get("pressures_vs_time", [])
         block0_pressures = (
             [
                 p_step[0]
@@ -1424,33 +1440,19 @@ async def run_flow_simulation(
             if pressures_vs_time
             else []
         )
-        time_array_list = res_simulator.simulation_results.get(
+        time_array_list = simulator.simulation_results.get(
             "time_array", np.array([])
         ).tolist()
 
         return SimPressureResponse(
             time_steps=time_array_list,
-            pressure_at_block={0: block0_pressures},  # Example: pressure for block 0
+            pressure_at_block={0: block0_pressures},
             status=sim_status,
-            # warning field could be added here too if SimPressureResponse model is
-            # updated
         )
-    except ValueError as ve:  # Catch specific ValueErrors from simulator logic
-        logger.error(f"ValueError during flow simulation run: {ve}", exc_info=True)
-
-        # For simplicity, just return pressures for the first block or a summary
-        # A full pressure field response could be very large.
-        pressures = res_simulator.simulation_results.get("pressures_vs_time", [])
-        block0_pressures = [p[0] for p in pressures if len(p) > 0] if pressures else []
-
-        return SimPressureResponse(
-            time_steps=res_simulator.simulation_results.get(
-                "time_array", np.array([])
-            ).tolist(),
-            pressure_at_block={0: block0_pressures},  # Example: pressure for block 0
-            status=res_simulator.simulation_results.get("status", "Unknown"),
-        )
+    except HTTPException:
+        raise
     except ValueError as ve:
+        logger.error(f"ValueError during flow simulation run: {ve}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
         logger.exception(f"Error during flow simulation run: {e}")
@@ -1466,25 +1468,27 @@ async def run_flow_simulation(
     tags=["Reservoir Engineering"],
 )
 async def get_simulation_well_rates(
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     if (
-        not res_simulator.simulation_results
-        or res_simulator.simulation_results.get("status") != "Completed"
+        not simulator.simulation_results
+        or simulator.simulation_results.get("status") != "Completed"
     ):
         raise HTTPException(
             status_code=400, detail="Simulation not run or not completed successfully."
         )
     return SimWellRateResponse(
-        time_steps=res_simulator.simulation_results.get(
+        time_steps=simulator.simulation_results.get(
             "time_array", np.array([])
         ).tolist(),
-        rates=res_simulator.simulation_results.get("well_rates_vs_time", {}),
-        status=res_simulator.simulation_results.get("status"),
+        rates=simulator.simulation_results.get("well_rates_vs_time", {}),
+        status=simulator.simulation_results.get("status"),
     )
 
 
 # --- AI Prediction Endpoints & Dependency Helper ---
+
 
 async def get_ai_predictor(
     request: Request,
@@ -1711,9 +1715,7 @@ async def predict_with_ai_models(
                 detail="No suitable model available for prediction. Train or load a model.",
             )
 
-        predictions_array = predictor.predict(
-            df_features, model_name=model_to_use_name
-        )
+        predictions_array = predictor.predict(df_features, model_name=model_to_use_name)
 
         serializable_predictions = {model_to_use_name: predictions_array.tolist()}
 
