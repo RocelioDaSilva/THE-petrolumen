@@ -86,6 +86,7 @@
     "@tauri-apps/cli": "2.6.2",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.0.0",
+    "@testing-library/user-event": "^14.6.8",
     "@types/jest": "^30.0.0",
     "@types/node": "22.15.34",
     "@types/react": "18.3.3",
