@@ -31,6 +31,7 @@ class User(Base):
         default=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
     well_data_records = relationship("WellDataRecord", back_populates="user")
+    jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
 
 
 class Well(Base):
@@ -98,3 +99,29 @@ class AnalysisResult(Base):
         default=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
     well_data_record = relationship("WellDataRecord", back_populates="analyses")
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status = Column(String, default="pending", nullable=False)
+    result = Column(JSON, nullable=True)
+    error = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    user = relationship("User", back_populates="jobs")
+
+    def __repr__(self):
+        return f"<Job(id={self.id}, user_id={self.user_id}, status='{self.status}')>"

@@ -9,6 +9,7 @@ from fastapi import (
     Body,
     Request,
     Header,
+    BackgroundTasks,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
@@ -31,6 +32,11 @@ from core.session_registry import SessionRegistry, get_engine_instance
 # from gaia_genesis.core.data_uploader import DataUploader # Moved down for E402
 from gaia_genesis.core.database_manager import DatabaseManager
 from gaia_genesis.core.auth_manager import AuthManager
+from gaia_genesis.models import Job
+from gaia_genesis.core.job_tasks import (
+    run_flowsim_background_task,
+    train_ai_background_task,
+)
 import auth_utils
 
 # Assuming these classes are directly available in the top-level reservoir_engineering.py now
@@ -234,8 +240,12 @@ try:
         surveillance_router,
         reservoir_analysis_tools as gaia_reservoir_tools_router,
         static_modeling_tools as gaia_static_modeling_router,
+        jobs as jobs_router,
     )
 
+    app.include_router(
+        jobs_router.router, prefix="/api/v1/jobs", tags=["Jobs"]
+    )
     app.include_router(
         auth_router.router, prefix="/api/v1/auth", tags=["Authentication"]
     )
@@ -1398,6 +1408,51 @@ async def add_simulation_well(
 
 
 @app.post(
+    "/api/v1/reservoir/flowsim/run_async",
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["Reservoir Engineering", "Flow Simulation"],
+)
+async def run_flow_simulation_async(
+    params: SimRunParamsRequest,
+    background_tasks: BackgroundTasks,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    if simulator is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Flow simulator is not available. Try resetting.",
+        )
+
+    session = DatabaseManager.get_instance().get_session()
+    try:
+        job = Job(user_id=current_user.id, status="pending")
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create job: {str(e)}",
+        )
+    finally:
+        session.close()
+
+    background_tasks.add_task(
+        run_flowsim_background_task,
+        job_id,
+        params.end_time,
+        params.dt,
+        simulator,
+        DatabaseManager.get_instance(),
+    )
+
+    return {"job_id": str(job_id), "status": "pending"}
+
+
+@app.post(
     "/api/v1/reservoir/flowsim/run",
     response_model=SimPressureResponse,
     tags=["Reservoir Engineering", "Flow Simulation"],
@@ -1503,6 +1558,76 @@ async def get_ai_predictor(
         current_user=current_user,
         session_id=session_id,
     )
+
+
+@app.post(
+    "/api/v1/reservoir/prediction/train_async",
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["Reservoir Engineering", "AI Prediction"],
+)
+async def train_ai_models_async(
+    request: AIPredictionDataRequest,
+    background_tasks: BackgroundTasks,
+    predictor: AIPrediction = Depends(get_ai_predictor),
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    if predictor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AIPrediction service is not available.",
+        )
+
+    df = pd.DataFrame(request.records)
+    if df.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No records provided for training.",
+        )
+
+    if not all(col in df.columns for col in request.feature_columns):
+        missing_cols = [
+            col for col in request.feature_columns if col not in df.columns
+        ]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Missing feature columns in provided records: {missing_cols}",
+        )
+    if request.target_column not in df.columns:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Target column '{request.target_column}' not found in "
+                "provided records."
+            ),
+        )
+
+    session = DatabaseManager.get_instance().get_session()
+    try:
+        job = Job(user_id=current_user.id, status="pending")
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create job: {str(e)}",
+        )
+    finally:
+        session.close()
+
+    background_tasks.add_task(
+        train_ai_background_task,
+        job_id,
+        request.records,
+        request.target_column,
+        request.feature_columns,
+        predictor,
+        DatabaseManager.get_instance(),
+    )
+
+    return {"job_id": str(job_id), "status": "pending"}
 
 
 @app.post(
