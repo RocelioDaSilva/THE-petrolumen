@@ -130,6 +130,13 @@ class SessionRegistry:
 
 def get_legacy_global_singleton(engine_name: str) -> Any:
     """Fallback helper to return global engine singletons when USE_SESSION_REGISTRY is False."""
+    if engine_name == "static_model_analyzer":
+        from gaia_genesis.api_v1.endpoints.static_modeling_tools import (
+            static_model_analyzer,
+        )
+
+        return static_model_analyzer
+
     import main  # Lazy import to avoid circular dependency
 
     if engine_name == "ai_predictor":
