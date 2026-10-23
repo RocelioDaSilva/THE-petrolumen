@@ -4,8 +4,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[portuguese]{babel}
-\usepackage{geometry}
-\geometry{a4paper, margin=2.5cm}
+\usepackage[a4paper,margin=2.5cm]{geometry}
 \usepackage{graphicx}
 \usepackage[table]{xcolor}
 \usepackage{titlesec}
@@ -14,203 +13,215 @@
 \usepackage{enumitem}
 \usepackage{hyperref}
 \usepackage{setspace}
+\usepackage{longtable}
+\usepackage{float}
 
 % --- DEFINIÇÃO DE CORES ---
-\definecolor{petrolblue}{RGB}{15, 50, 90}
-\definecolor{petrolgold}{RGB}{200, 160, 50}
-\definecolor{darkgray}{RGB}{50, 50, 50}
+\definecolor{petrolblue}{RGB}{15,50,90}
+\definecolor{petrolgold}{RGB}{200,160,50}
+\definecolor{darkgray}{RGB}{50,50,50}
+\definecolor{lightgray}{RGB}{245,247,250}
 
 % --- CONFIGURAÇÃO DE LINKS ---
-\hypersetup{
-    colorlinks=true,
-    linkcolor=petrolblue,
-    urlcolor=petrolblue,
-}
+\hypersetup{colorlinks=true,linkcolor=petrolblue,urlcolor=petrolblue}
 
 % --- FORMATAÇÃO DE TÍTULOS ---
-\titleformat{\section}
-  {\normalfont\Large\bfseries\color{petrolblue}}{\thesection}{1em}{}[\titlerule]
-\titleformat{\subsection}
-  {\normalfont\large\bfseries\color{darkgray}}{\thesubsection}{1em}{}
-
+\titleformat{\section}{\normalfont\Large\bfseries\color{petrolblue}}{\thesection}{1em}{}{\vspace{0.2em}}\titleformat{\subsection}{\normalfont\large\bfseries\color{darkgray}}{\thesubsection}{1em}{}
 \setlength{\parskip}{0.5em}
 \setlength{\parindent}{0pt}
 
 \begin{document}
 
-% --- CAPA ---
-\hypersetup{pageanchor=false}
 \begin{titlepage}
     \centering
-    \vspace*{2cm}
-    
-    {\Huge \textbf{\color{petrolblue} PETROLÚMEN}}\\[0.5cm]
-    {\Large \textbf{Sistema Integrado de Engenharia de Reservatórios e Previsão Preditiva}}\\[1.5cm]
-    
-    {\large \textit{“Transformar a análise de dados de petróleo e gás: substituir o caos do Excel por um ecossistema desktop inteligente, seguro e acessível.”}}\\[3cm]
-    
-    {\Large \textbf{Memorandum Estratégico e de Viabilidade Técnico-Financeira}}\\[2cm]
-    
+    \vspace*{1.8cm}
+
+    {\Huge\textbf{\color{petrolblue} PETROLÚMEN}}\\[0.5cm]
+    {\Large\textbf{Sistema Integrado de Engenharia de Reservatórios e Previsão Preditiva}}\\[1.3cm]
+
+    {\large\textit{“Transformar a análise de dados de petróleo e gás: substituir o caos do Excel por um ecossistema desktop inteligente, seguro e acessível.”}}\\[2.4cm]
+
+    {\Large\textbf{Memorandum Estratégico e de Viabilidade Técnico-Financeira}}\\[1.8cm]
+
     \begin{tabular}{rl}
-        \textbf{Versão:} & 1.0 — Documento de Submissão \\
+        \textbf{Versão:} & 1.0 — Candidatura GEOENERGY 2026 \\
         \textbf{Data:} & Outubro de 2026 \\
-        \textbf{Âmbito:} & Angola (Mercado B2B e B2C) \\
-        \textbf{Classificação:} & Candidatura GEOENERGY 2026 \\
+        \textbf{Âmbito:} & Angola e mercado regional de energia \\
+        \textbf{Categoria:} & Digitalização e Tecnologias Aplicadas às Geociências e Energia \\
+        \textbf{Classificação:} & Documento de submissão \\
     \end{tabular}
-    
+
     \vfill
-    
-    {\large \textbf{Equipa:}}\\
+
+    {\large\textbf{Equipa:}}\\
     Rocélio Da Silva (Proponente Principal)\\
     Derik Francisco\\
-    \textit{Estudantes de Engenharia de Petróleos - ISPTEC}
-    
+    \textit{Estudantes de Engenharia de Petróleos — ISPTEC}
+
     \vspace{1cm}
 \end{titlepage}
-\hypersetup{pageanchor=true}
 
-% --- ÍNDICE ---
 \tableofcontents
 \newpage
 
-% --- CONTEÚDO ---
 \section{Sumário Executivo}
-A indústria de petróleo e gás em Angola e na África Subsaariana enfrenta um gargalo tecnológico silencioso. Os engenheiros de reservatórios dividem-se entre o uso de folhas de Excel (propensas a erros e sem Inteligência Artificial) e softwares corporativos (como SLB Petrel ou Halliburton), cujas licenças custam dezenas de milhares de dólares por ano.
+A indústria de petróleo e gás em Angola e na África Subsaariana enfrenta um gargalo tecnológico silencioso: a maior parte do trabalho de engenharia de reservatórios é ainda apoiada por folhas de cálculo manual, ferramentas fragmentadas e software empresarial de elevado custo. O resultado é perda de tempo, risco de erros humanos e baixa capacidade de aplicar modelos preditivos em operações do dia a dia.
 
-O \textbf{PetroLúmen} é uma aplicação desktop (Software as a Service - SaaS) que resolve esta dualidade. Combinando um \textit{backend} robusto em Python (FastAPI) e um \textit{frontend} moderno (React/Tauri), o PetroLúmen executa simulações complexas localmente, garantindo segurança de dados, e integra nativamente modelos preditivos de Machine Learning.
+O \textbf{PetroLúmen} surge como resposta a este problema. Trata-se de uma plataforma desktop de engenharia de reservatórios, concebida para funcionar localmente, com arquitetura integrada em \textit{frontend} React/Next.js e \textit{backend} Python/FastAPI, apoiada por Tauri para distribuição nativa. O produto reúne PVT, análise de declínio, previsão de produção, simulação técnica e inteligência artificial num único ecossistema, com foco em usabilidade, segurança e acessibilidade.
 
-O elemento disruptivo é o \textbf{modelo de negócio \textit{asset-light}}: o produto já possui o seu núcleo de engenharia construído e validado por 177 testes automatizados, permitindo uma entrada no mercado com custos operacionais quase nulos.
+A análise do repositório confirma que a base tecnológica do produto já está materializada. O backend inclui módulos de PVT, análise de reservatórios, simulação, histórico, declínio e previsão; o frontend é uma aplicação web empacotada para desktop; e os testes automatizados do backend são um indicador claro de maturidade técnica. Assim, o valor do projeto em contexto GEOENERGY não está apenas na ideia, mas na combinação de solução realista, engenharia validada e potencial de implementação no mercado angolano e regional.
 
-\section{O Problema e a Oportunidade Estratégica}
+\section{Análise do Repositório e Evidência Técnica}
+A análise técnica do código revelou uma estrutura coerente e orientada para produto industrial:
 
-\subsection{O "Pesadelo do Excel" vs. O Custo Proibitivo}
 \begin{itemize}
-    \item \textbf{Upstream \& Midstream:} Engenheiros perdem dias a transitar dados entre folhas de Excel para calcular PVT, Análise Nodal ou Curvas de Declínio. Isto gera erros humanos e impede a implementação de modelos preditivos avançados.
-    \item \textbf{A Barreira Financeira:} As ferramentas \textit{Enterprise} estão desenhadas para grandes multinacionais. Consultores independentes, universidades e pequenas operadoras de \textit{marginal fields} estão excluídos do acesso a tecnologia de ponta.
+    \item \textbf{Frontend:} diretório \texttt{petrolumen/}, com aplicação Next.js, componentes UI e integração Tauri para desktop. O \texttt{package.json} confirma o uso de React, Next, Tailwind, shadcn/ui, Vitest e Tauri.
+    \item \textbf{Backend:} diretório \texttt{backend/}, com FastAPI, routers da API e uma estrutura modular baseada em \texttt{gaia	extunderscore genesis}. Os módulos incluem PVT, simulação, análise de produção, previsão, otimização, RTA (well testing), geomecânica e\ analysis.
+    \item \textbf{Testes automatizados:} a pasta \texttt{backend/tests/} inclui testes de auth, PVT, análise, simulação, background jobs e concorrentemente, mostrando um esforço real de validação funcional.
+    \item \textbf{Capacidade de produto:} o repositório contempla fluxos de upload de dados, estabilização de sessão, processamento assíncrono, análise de declínio, previsão com IA e documentação técnica organizada em \texttt{README.md}, \texttt{docs/} e \texttt{backend/docs	extunderscore sphinx/}.
 \end{itemize}
 
-\subsection{A Janela de Oportunidade}
-O poder de processamento dos computadores modernos permite correr simulações (como o modelo 1D IMPES) localmente, sem depender da nuvem (que tem custos de servidor elevados e riscos de confidencialidade). Há uma procura clara por parte de uma nova geração de engenheiros (nativos digitais) que exigem ferramentas modernas para executar o seu trabalho.
+Em termos de maturidade, o projeto apresenta uma base tecnológica suficiente para ser tratado como prova de conceito com potencial de desenvolvimento comercial em curto prazo, especialmente para um concurso académico com foco em produto e empreendedorismo.
 
-\section{Visão de Produto e Arquitetura}
+\section{O Problema e a Oportunidade Estratégica}
+\subsection{O "Pesadelo do Excel" e a falta de acesso a software especializado}
+\begin{itemize}
+    \item Engenheiros de reservatórios e estudantes perdem horas trabalhando com folhas Excel e cálculos dispersos.
+    \item Ferramentas enterprise são caras, pesadas e pouco acessíveis para pequenas empresas, consultores independentes e universidades.
+    \item A ausência de um ambiente integrado impede a adoção de modelos de previsão, análise de declínio e simulação local em contextos reais.
+\end{itemize}
 
+\subsection{A oportunidade}
+O mercado angolano e regional tem um espaço específico para uma solução acessível, local e orientada ao desempenho técnico. O PetroLúmen combina três elementos estratégicos: 
+\begin{enumerate}
+    \item software local e seguro, sem dependência de nuvem pública;
+    \item cálculo técnico robusto para PVT, DCA, RTA e simulação;
+    \item modelo de negócio escalável, começando por estudantes e consultores e evoluindo para empresas.
+\end{enumerate}
+
+\section{Visão de Produto e Modelo de Negócio}
 \subsection{Product Canvas do PetroLúmen}
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
-\renewcommand{\arraystretch}{1.3}
+\renewcommand{\arraystretch}{1.25}
 \begin{tabularx}{\textwidth}{|l|X|}
 \hline
-\rowcolor{petrolblue} \textcolor{white}{\textbf{Componente}} & \textcolor{white}{\textbf{Descrição}} \\
+\rowcolor{petrolblue}\textcolor{white}{\textbf{Componente}} & \textcolor{white}{\textbf{Descrição}} \\
 \hline
-\textbf{Para} & Engenheiros de reservatórios, consultores independentes e estudantes de engenharia. \\
+\textbf{Para} & Engenheiros de reservatórios, estudantes, consultores independentes e pequenas operadoras. \\
 \hline
-\textbf{Cujo} & Problema é a falta de ferramentas acessíveis, rápidas e seguras para análise diária de poços e simulação básica. \\
+\textbf{Cujo problema} & A análise técnica é feita em ferramentas fragmentadas, with Excel ou software caro e inacessível. \\
 \hline
-\textbf{O} & \textbf{PetroLúmen} é uma plataforma SaaS desktop de engenharia de reservatórios. \\
+\textbf{O produto} & PetroLúmen é uma plataforma desktop de engenharia de reservatórios, com módulos de PVT, análise de declínio, simulação, previsões e IA. \\
 \hline
-\textbf{Que} & Substitui o Excel e descentraliza o acesso a ferramentas avançadas, integrando IA. \\
+\textbf{Que oferece} & Segurança local, acessibilidade, rapidez e consistência nos cálculos. \\
 \hline
-\textbf{Diferentemente da} & SLB Petrel (caro e pesado) e do Excel (sem IA e propenso a erros). \\
+\textbf{Diferenciação} & Arquitetura local, pricing acessível, integração de IA e foco em uso diário de reservatórios. \\
 \hline
-\textbf{O nosso produto} & Entrega uma experiência \textit{desktop} nativa, 100\% offline e segura, com cálculos validados por engenharia rigorosa. \\
+\textbf{Modelo de negócio} & Freemium para estudantes, Pro para consultores e Enterprise para empresas. \\
 \hline
 \end{tabularx}
 \end{table}
 
-\subsection{Arquitetura Funcional da Plataforma}
+\subsection{Arquitetura funcional proposta}
 \begin{enumerate}
-    \item \textbf{Módulo PVT:} Equação de Estado de Peng-Robinson e correlações empíricas.
-    \item \textbf{Módulo de Simulação (IMPES):} Simulação numérica 1D/2D (bifásica) para previsão de recuperação.
-    \item \textbf{Módulo DCA:} Modelos Arps, Duong, PLE e SEPD.
-    \item \textbf{Módulo de IA:} Integração com XGBoost e Prophet para previsão de séries temporais de produção.
-    \item \textbf{Segurança:} Base de dados SQLite local. Os dados do poço do cliente nunca sobem para um servidor remoto.
+    \item \textbf{Módulo PVT:} cálculo de fatores de formação, viscosidade, compressibilidade e correlações empíricas.
+    \item \textbf{Módulo de Declínio:} modelos Arps, Duong, PLE e SEPD, com ajuste e previsão.
+    \item \textbf{Módulo de Simulação:} motores de reservatório, balance de materiais e análise de fluxo.
+    \item \textbf{Módulo de IA:} modelos para previsão de produção e séries temporais.
+    \item \textbf{Módulo de Gestão e Segurança:} dados locais, sessões isoladas e interface desktop segura.
 \end{enumerate}
 
-\section{Mercado e Clientes-Alvo}
-O PetroLúmen não concorre pelo mercado de modelação geológica 3D massiva (onde as \textit{Big Techs} dominam). O foco é o "dia-a-dia" da engenharia de reservatórios.
+\section{Mercado, Clientes-Alvo e Posicionamento}
+O PetroLúmen não pretende competir diretamente com plataformas 3D e geológicos de grande escala, mas sim com o problema operativo do dia a dia. O foco é claro:
+
 \begin{itemize}
-    \item \textbf{Mercado Primário (B2C):} Estudantes de Engenharia de Petróleos (ISPTEC, etc.) e investigadores. Estratégia: Adoção gratuita durante a formação para criar um \textit{lock-in} tecnológico para o futuro.
-    \item \textbf{Mercado Secundário (B2B):} Consultores independentes e Empresas Juniores em Angola.
-    \item \textbf{Mercado Terciário (Enterprise):} Departamentos de engenharia da Sonangol P\&P, Azule Energy e operadores de campos marginais.
+    \item \textbf{Mercado primário (B2C):} estudantes de Engenharia de Petróleos, investigadores e jovens profissionais.
+    \item \textbf{Mercado secundário (B2B):} consultores independentes, pequenas consultoras e operadores de campos marginais.
+    \item \textbf{Mercado terciário (Enterprise):} empresas nacionais e regionais com necessidade de segurança local e personalização.
 \end{itemize}
 
-\section{Viabilidade Técnica e Recursos}
+A estratégia é iniciar no mercado académico e consultivo, criar um ciclo de adoção e, depois, escalar para a operação empresarial. Esta abordagem reduz o risco, permite validação técnica e protege a eficiência do modelo de receitas.
+
+\section{Viabilidade Técnica e Recursos Necessários}
 \begin{itemize}
-    \item \textbf{Estado de Desenvolvimento:} O \textit{backend} científico (cálculos e simulação) já está operacional.
-    \item \textbf{Prova de Rigor:} O sistema passou por \textbf{177 testes de integração e unidade (pytest)}. Isto prova que os cálculos do PetroLúmen não são aproximações, mas sim matemática de engenharia rigorosa.
-    \item \textbf{Tecnologias Base:} Python (FastAPI), React.js, Rust (Tauri).
-    \item \textbf{Equipa:} Rocélio Da Silva e Derik Francisco (Engenharia de Petróleos - ISPTEC).
+    \item \textbf{Tecnologias base:} Python (FastAPI), React.js, Next.js, Tauri e SQLite/PostgreSQL.
+    \item \textbf{Estado do repositório:} arquitetura e módulos já implementados em várias áreas da engenharia de reservatórios.
+    \item \textbf{Validação:} a pasta \texttt{backend/tests/} evidencia um esforço real de validação funcional, com foco em endpoints, cálculo, concorrência e simulações.
+    \item \textbf{Recursos da equipa:} dois estudantes de Engenharia de Petróleos do ISPTEC, com perfil técnico complementar e capacidade de desenvolvimento aplicando engenharia e empreendedorismo.
 \end{itemize}
 
-\section{Modelo de Receitas (Monetização SaaS)}
-A estratégia comercial assenta em três níveis, sem custos de infraestrutura física (\textit{asset-light}):
+\section{Modelo de Receitas}
+O modelo de negócio do PetroLúmen assenta em três níveis:
 \begin{enumerate}
-    \item \textbf{Freemium (Estudantes):} Versão gratuita com limites de exportação de relatórios e funcionalidades básicas (PVT e DCA).
-    \item \textbf{Pro (Consultores):} Subscrição mensal de US\$ 30 a US\$ 50. Acesso total a todos os módulos (incluindo Simulação e IA) e exportação ilimitada.
-    \item \textbf{Enterprise (Operadoras):} Licença anual de US\$ 2.000 a US\$ 5.000. Instalação local (On-Premise) com customização de modelos de IA e suporte técnico dedicado.
+    \item \textbf{Freemium (estudantes):} acesso gratuito com limitação de exportação e uso de alguns módulos.
+    \item \textbf{Pro (consultores):} mensalidade entre US\$ 30 e US\$ 50 para acesso completo.
+    \item \textbf{Enterprise:} licença anual de US\$ 2.000 a US\$ 5.000 para uso local, customização e apoio especializado.
 \end{enumerate}
+
+Este modelo é consistente com a lógica de mercado regional: baixo custo de aquisição, foco em produtividade e uma arquitetura local que reduz a dependência de infraestrutura física e de cloud.
 
 \section{Estimativa Económico-Financeira Preliminar}
-Premissas: Entrada no mercado em 2027. Custos operacionais focados em servidores de licenciamento e marketing digital.
-
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \renewcommand{\arraystretch}{1.3}
 \begin{tabularx}{\textwidth}{X|ccc}
 \toprule
 \textbf{Indicador} & \textbf{Ano 1} & \textbf{Ano 2} & \textbf{Ano 3} \\
 \midrule
-Subscrições Pro (B2C) & 50 & 150 & 350 \\
-Licenças Enterprise (B2B) & 0 & 2 & 5 \\
-Receita Anual (USD) & $\sim$\$24.000 & $\sim$\$76.000 & $\sim$\$196.000 \\
-Custos Fixos (USD) & $\sim$\$5.000 & $\sim$\$12.000 & $\sim$\$25.000 \\
-Resultado Operacional (USD) & $\sim$\$19.000 & $\sim$\$64.000 & $\sim$\$171.000 \\
-Ponto de Equilíbrio & Mês 8 & Consolidado & Consolidado \\
+Subscrições Pro & 50 & 150 & 350 \\
+Licenças Enterprise & 0 & 2 & 5 \\
+Receita anual (USD) & 24.000 & 76.000 & 196.000 \\
+Custos fixos (USD) & 5.000 & 12.000 & 25.000 \\
+Resultado operacional (USD) & 19.000 & 64.000 & 171.000 \\
+Ponto de equilíbrio & 8º mês & consolidado & consolidado \\
 \bottomrule
 \end{tabularx}
-\caption{Projeção financeira a 3 anos.}
+\caption{Projeção financeira preliminar para 3 anos.}
 \end{table}
-\textit{Nota: Nenhuma receita de créditos de carbono ou subsídios está a ser contabilizada. O modelo é autossustentável.}
+
+A premissa base assume entrada no mercado em 2027, com custos operacionais reduzidos e foco em crescimento orgânico e consultivo. A natureza \textit{asset-light} do projeto reforça a viabilidade financeira e neta simulação.
 
 \section{Matriz de Riscos e Mitigação}
-
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
-\renewcommand{\arraystretch}{1.3}
+\renewcommand{\arraystretch}{1.2}
 \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X|c|c|>{\raggedright\arraybackslash}X}
 \toprule
 \textbf{Risco} & \textbf{Prob.} & \textbf{Impacto} & \textbf{Mitigação} \\
 \midrule
-Resistência à mudança (Excel) & Média & Alto & Interface familiar; Importação direta de Excel; Versão gratuita. \\
-Pirataria / Quebra de licenças & Alta & Médio & Sistema de licenciamento encriptado (Rust/Tauri) e validação de hardware. \\
-Guerra de preços das Big Techs & Baixa & Médio & Foco no mercado local e na segurança On-Premise (não forçamos a nuvem). \\
-Adoção B2B lenta & Média & Alto & Focar primeiro no B2C (consultores) para gerar fluxo de caixa rápido. \\
+Resistência à mudança para Excel & Média & Alto & Interface amigável e importação direta de dados. \\
+Custo de aquisição do cliente & Alto & Médio & Modelo Freemium + Pro incluso. \\
+Concorrência de software enterprise & Média & Alto & Foco em acessibilidade e segurança local. \\
+Adoção lenta no mercado empresarial & Média & Alto & Primeiro foco em consultores e estudantes. \\
 \bottomrule
 \end{tabularx}
-\caption{Matriz de riscos estratégicos e operacionais.}
+\caption{Riscos estratégicos e operacionais.}
 \end{table}
 
 \section{Impacto Socioeconómico e Ambiental}
 \begin{itemize}
-    \item \textbf{Socioeconómico:} Criação de Propriedade Intelectual (IP) Angolana. O software é desenvolvido por estudantes do ISPTEC, retendo talento altamente qualificado no país e provando a capacidade técnica nacional.
-    \item \textbf{Ambiental:} A otimização de curvas de declínio e a precisão da simulação de reservatórios permitem uma gestão mais eficiente do reservatório. Isto reduz a necessidade de perfurações desnecessárias e otimiza a extração, diminuindo o desperdício de recursos e a intensidade carbónica das operações.
+    \item \textbf{Impacto socioeconómico:} criação de propriedade intelectual angolana, retenção de talento e fortalecimento da inovação local no setor energético.
+    \item \textbf{Impacto ambiental:} melhoria da eficiência operacional, redução de desperdícios e aumento da precisão na gestão de reservatórios, com potencial para reduzir extração excessiva e otimizar decisões de desenvolvimento.
 \end{itemize}
 
 \section{Guião de Pitch de 5 Minutos (GEOENERGY)}
-\begin{enumerate}
-    \item \textbf{O Gancho (30s):} \textit{"Boa tarde. Quantos de vocês aqui já passaram horas a fio a lutar com fórmulas de Excel para calcular a produção de um poço, ou já foram impedidos de usar o Petrel porque a licença custa o orçamento de um projeto inteiro?"}
-    \item \textbf{O Problema (45s):} \textit{"A engenharia de reservatórios está dividida. O Excel é barato mas perigoso. O software Enterprise custa dezenas de milhares de dólares. Consultores e estudantes ficam sem opções."}
-    \item \textbf{A Solução (60s):} \textit{"Apresentamos o PetroLúmen. Uma aplicação desktop que instala no vosso computador. Cálculos PVT, Análise Nodal e Simulação 1D. Tudo offline. E com modelos de Inteligência Artificial integrados para prever a produção."}
-    \item \textbf{Prova Técnica e Modelo (60s):} \textit{"O nosso backend já tem 177 testes de engenharia a passar. O nosso modelo é SaaS. Estudantes usam de graça, consultores pagam 40 dólares por mês, e empresas pagam licenças anuais para ter os dados seguros na sua própria infraestrutura."}
-    \item \textbf{Impacto e Call to Action (45s):} \textit{"O PetroLúmen é feito por angolanos, para o mercado global. Vamos retê-los no país e otimizar a extração de recursos. Pedimos ao GEOENERGY a mentoria e a rede de contactos para darmos o salto do ISPTEC para o mercado corporativo."}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Gancho (30s):} “Quantos de vocês já passaram horas a tentar calcular produção com Excel ou ficaram impossibilitados de utilizar software de reservatórios porque a licença custa mais do que o orçamento do projeto?”
+    \item \textbf{Problema (45s):} “A engenharia de reservatórios continua dependente de ferramentas fragmentadas e caras. Pequenos consultores e estudantes não têm acesso profissional a soluções robustas, rápidas e certeiras.”
+    \item \textbf{Solução (60s):} “O PetroLúmen é uma plataforma desktop que integra PVT, análise de declínio, simulação e IA em uma única interface. Funciona localmente, importa dados rapidamente e entrega decisões mais rápidas.”
+    \item \textbf{Prova e modelo (60s):} “O repositório já inclui backend em Python/FastAPI, frontend em React e Tauri, e uma base de testes automatizados. O modelo de negócio parte por estudantes, segue para consultores e depois escala para empresas.”
+    \item \textbf{Impacto e CTA (45s):} “O PetroLúmen é um projeto feito por angolanos, para o mercado global. Pedimos ao GEOENERGY mentoria, rede e apoio para transformar esta ideia numa solução exportável e relevante para a indústria energética.”
 \end{enumerate}
 
-\section{Auto-Auditoria e Correções Estratégicas}
-\textit{Esta secção regista as iterações e as autocríticas da equipa.}
-\begin{enumerate}
-    \item \textbf{Correção de Rota (Foco da UI):} A versão inicial do PetroLúmen focava-se apenas em "código para engenheiros". A auditoria interna percebeu que, para bater o Excel, o \textbf{Design da Interface (UI/UX)} é tão importante quanto a matemática. O roadmap incluiu investimento no \textit{frontend}.
-    \item \textbf{O Mito do "Tudo na Nuvem":} A equipa considerou inicialmente construir uma plataforma 100\% Web. Contudo, operadoras petrolíferas têm restrições severas contra colocar dados de poços na nuvem pública. \textbf{Decisão estratégica:} Mudar para uma arquitetura Desktop (Tauri), onde o software é instalado localmente. Isto transformou uma fraqueza (não ser Web) na maior vantagem competitiva (Segurança On-Premise).
-    \item \textbf{Foco Financeiro:} Foram eliminadas as projeções otimistas de atingir contratos com a Sonangol no Ano 1. O foco financeiro foi reajustado para ser realista: começar pequeno com consultores individuais (B2C), gerar receita base e usar esses casos de sucesso para vender o Tier Enterprise (B2B).
-\end{enumerate}
+\section{Conformidade com o Regulamento GEOENERGY}
+A proposta cumpre a lógica do regulamento porque:
+\begin{itemize}
+    \item enquadra-se na categoria \textbf{Digitalização e Tecnologias Aplicadas às Geociências e Energia};
+    \item tem equipa com até 5 elementos e um proponente principal identificado;
+    \item descreve problema, solução, valor para o cliente, mercado, viabilidade técnica e potencial de impacto;
+    \item segue a estrutura recomendada para o Modelo de Negócio (Anexo I)
+    \item apresenta uma proposta em formato PDF, conforme a exigência de submissão.
+\end{itemize}
 
 \end{document}

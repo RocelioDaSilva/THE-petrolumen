@@ -1,0 +1,365 @@
+\documentclass[12pt,a4paper]{article}
+
+% ============================================================
+% PetroLúmen - Memorando Estratégico e Técnico (Versão 1.0)
+% Compilação recomendada: pdfLaTeX (executar duas vezes para atualizar o sumário)
+% ============================================================
+
+% ------------------------------------------------------------
+% PACOTES
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,top=2.7cm,bottom=2.5cm,left=2.6cm,right=2.4cm,headheight=15pt]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{makecell}
+\usepackage{colortbl}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{eurosym}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{hyperref}
+
+% ------------------------------------------------------------
+% PALETA DE CORES INSTITUCIONAL (Baseado no audit report)
+% ------------------------------------------------------------
+\definecolor{primary}{RGB}{12,45,85}      % Azul escuro
+\definecolor{secondary}{RGB}{0,120,110}   % Verde tecnológico
+\definecolor{accent}{RGB}{200,80,20}      % Laranja destaque
+\definecolor{lightgray}{RGB}{245,247,249}
+\definecolor{tableheader}{RGB}{12,45,85}
+
+% ------------------------------------------------------------
+% CONFIGURAÇÕES DE LINKS E TÍTULOS
+% ------------------------------------------------------------
+\hypersetup{
+  colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary,
+  pdftitle={PetroLúmen - Plataforma de Engenharia de Reservatórios},
+  pdfauthor={PetroLúmen Team},
+  pdfsubject={Auditoria de Arquitetura e Validação Técnica de Software de Reservatórios},
+  pdfcreator={LaTeX}
+}
+
+\titleformat{\section}{\Large\bfseries\color{primary}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries\color{secondary}}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{accent}}{\thesubsubsection}{0.8em}{}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\setlength{\emergencystretch}{3em}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.15}
+\setlist[itemize]{leftmargin=*,topsep=3pt,itemsep=2pt}
+\setlist[enumerate]{leftmargin=*,topsep=3pt,itemsep=3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{primary}{PetroLúmen}}
+\fancyhead[R]{\small\textcolor{primary}{Memorando Estratégico e Técnico | Rev. 1.0}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{
+  \fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}
+}
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+
+% ------------------------------------------------------------
+% COMANDOS PERSONALIZADOS
+% ------------------------------------------------------------
+\newcommand{\usd}{US\$}
+\newcommand{\statusvalidar}{\textcolor{accent}{\textbf{A validar}}}
+
+% ============================================================
+% DOCUMENTO
+% ============================================================
+\sloppy
+\tolerance=3000
+\hbadness=10000
+\vbadness=10000
+\raggedbottom
+
+\begin{document}
+
+% ------------------------------------------------------------
+% CAPA
+% ------------------------------------------------------------
+\begin{titlepage}
+  \thispagestyle{empty}
+  \centering
+  \vspace*{1.8cm}
+  {\Huge\bfseries\color{primary} PetroLúmen\par}
+  \vspace{0.6cm}
+  {\Large\color{secondary} Plataforma Avançada de Engenharia de Reservatórios\par}
+  \vspace{1.4cm}
+  \rule{\textwidth}{1.4pt}\\[0.45cm]
+  {\large\bfseries Memorando Estratégico, Arquitetura Técnica e Validação de Escalabilidade\par}
+  \rule{\textwidth}{1.4pt}\\[1.5cm]
+  \begin{minipage}{0.86\textwidth}
+    \centering\large
+    \textit{``Análise computacional de alta performance, com isolamento de sessão e motores de simulação determinísticos.''}
+  \end{minipage}
+  \vfill
+  \begin{tabular}{rl}
+    \textbf{Versão:} & 1.0 --- Pós-Auditoria de Concorrência \\[0.35em]
+    \textbf{Data:} & 23 de Outubro de 2026 \\[0.35em]
+    \textbf{Âmbito:} & Backend FastAPI, Frontend Tauri/React \\[0.35em]
+    \textbf{Classificação:} & Documento Técnico Interno
+  \end{tabular}
+  \vspace{1.1cm}
+  \begin{minipage}{0.9\textwidth}
+    \small\textit{Este documento apresenta o estado atual da plataforma PetroLúmen após a implementação de infraestrutura assíncrona e correção de vulnerabilidades críticas de concorrência. Os dados de mercado e projeções de utilização continuam sujeitos a validação.}
+  \end{minipage}
+\end{titlepage}
+
+% ------------------------------------------------------------
+% SUMÁRIO
+% ------------------------------------------------------------
+\tableofcontents
+\clearpage
+
+% ------------------------------------------------------------
+% SUMÁRIO EXECUTIVO
+% ------------------------------------------------------------
+\section*{Sumário Executivo}
+\addcontentsline{toc}{section}{Sumário Executivo}
+
+O setor de engenharia de reservatórios de petróleo e gás debate-se com a fragmentação de ferramentas de software, dependência de folhas de cálculo complexas e a falta de integração entre análise de dados, modelação geológica e simulação de fluxo. O \textbf{PetroLúmen} surge como uma resposta a este problema, oferecendo uma aplicação desktop nativa (Tauri + React) apoiada por um backend de alta performance (Python + FastAPI).
+
+A presente versão do PetroLúmen representa um marco crítico: \textbf{a transição de um protótipo funcional para uma arquitetura preparada para multi-utilizador}. Durante o último ciclo de desenvolvimento, a infraestrutura do backend foi substancialmente reestruturada para eliminar falhas de concorrência. Anteriormente, os motores de simulação (IMPES, AI Predictor, Geostatística) partilhavam instâncias globais, o que causava "state-bleed" (contaminação de dados entre diferentes sessões). 
+
+Com a implementação do \textbf{Session Registry} e de \textbf{Background Jobs} assíncronos, o PetroLúmen isola agora o estado computacional de cada utilizador. Isto permite que múltiplos engenheiros executem simulações e treinos de modelos de Machine Learning simultaneamente, sem risco de corrupção de resultados.
+
+\textbf{O objetivo do produto} é reduzir o tempo de ciclo entre a ingestão de dados de poços (LAS/CSV) e a tomada de decisão técnica, integrando no mesmo ambiente: PVT, Declínio de Produção (DCA), Análise de Pressão (RTA), Simulação Numérica 1D (IMPES) e previsões baseadas em Inteligência Artificial (XGBoost/Prophet).
+
+\subsection*{Decisão Recomendada}
+
+A recomendação para a próxima fase (Fase 4) é focar na \textbf{Internacionalização (i18n)}, refinamento de UX/UI e na preparação da infraestrutura para implementação Cloud (SaaS). A robustez do backend (184 testes passados e cobertura de concorrência) permite que a equipa avance para a validação com utilizadores reais (Beta fechado) sem receio de falhas críticas de arquitetura.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.4cm} X}
+\toprule
+\rowcolor{tableheader}\multicolumn{2}{c}{\textcolor{white}{\textbf{Resumo da Proposta de Valor PetroLúmen}}}\\
+\midrule
+Produto & Plataforma Desktop (Tauri) e API (FastAPI) para engenharia de reservatórios.\\
+Cliente-alvo & Engenheiros de reservatórios, geocientistas e analistas de dados da indústria Oil \& Gas.\\
+Diferencial Técnico & Motores de cálculo nativos (Python) integrados com UI moderna (React) e isolamento garantido por \textit{Session Registry}.\\
+Estado Atual & Backend refatorado (184 testes a passar), concorrência resolvida, tarefas assíncronas (Background Jobs) implementadas.\\
+Próximos Passos & Tradução de interface (i18n), testes E2E com Playwright e validação do modelo de negócio (licenciamento).\\
+\bottomrule
+\end{tabularx}
+\caption{Resumo executivo da arquitetura e estado do PetroLúmen}
+\end{table}
+
+\newpage
+
+% ------------------------------------------------------------
+% 1. CONTEXTO E JUSTIFICATIVA
+% ------------------------------------------------------------
+\section{Contexto e Justificativa}
+
+\subsection{O Desafio Operacional na Engenharia de Reservatórios}
+
+A engenharia de reservatórios exige a integração de disciplinas complexas: petrofísica, geologia, mecânica dos fluidos e economia. Historicamente, as equipas dependem de software legado (pesado, muitas vezes baseado em licenças locais) ou de folhas de cálculo fragmentadas. O resultado é um elevado esforço de reconciliação de dados e uma latência elevada entre a análise e a decisão.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Análise PVT (Pressure-Volume-Temperature):} Cálculos de Z-Factor e EOS (Peng-Robinson) frequentemente isolados de dados de produção.
+    \item \textbf{Simulação Numérica:} Ferramentas de simulação de fluxo (IMPES) exigem setups morosos e carecem de interfaces amigáveis.
+    \item \textbf{Previsão (ML):} Modelos de previsão (XGBoost, Prophet) requerem pipelines de dados que os engenheiros não têm tempo para construir.
+\end{itemize}
+
+\subsection{A Janela de Oportunidade Estratégica}
+
+A modernização da indústria (Digital Oilfield) exige ferramentas que corram nativamente no \textit{desktop} do engenheiro, mas que tenham a flexibilidade de uma aplicação web moderna. O PetroLúmen resolve esta lacuna ao empacotar o frontend em Rust/Tauri (baixo consumo de memória) e o backend em Python (acesso nativo a SciPy, NumPy, Scikit-Learn).
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{>{\bfseries}l X}
+\toprule
+\rowcolor{tableheader}
+\multicolumn{2}{c}{\textcolor{white}{\textbf{Forças que Impulsionam a Plataforma PetroLúmen}}} \\
+\midrule
+Performance Local & Tauri permite binários leves, eliminando a latência de aplicações Electron.\\
+Isolamento de Cálculo & O novo \textit{SessionRegistry} garante que simulações massivas não bloqueiam o servidor e não se misturam.\\
+Integração de Motores & Unificação de DCA, RTA, Nodal Analysis, IMPES e PVT numa única API documentada (OpenAPI).\\
+\bottomrule
+\end{tabularx}
+\caption{Forças impulsionadoras do projeto PetroLúmen}
+\end{table}
+
+% ------------------------------------------------------------
+% 2. VISÃO DO PRODUTO E ARQUITETURA
+% ------------------------------------------------------------
+\section{Arquitetura do Sistema}
+
+O PetroLúmen adota uma arquitetura cliente-servidor desacoplada, otimizada para o ambiente de trabalho do engenheiro.
+
+\subsection{Arquitetura Técnica e Stack}
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.5cm} X}
+\toprule
+\rowcolor{tableheader}
+\multicolumn{2}{c}{\textcolor{white}{\textbf{Stack Tecnológico do PetroLúmen}}} \\
+\midrule
+Frontend (Desktop) & Next.js 15, React 19, TypeScript, Zustand (Estado Global), Recharts, Tauri v2.\\
+Backend (API) & Python 3.12, FastAPI, Uvicorn, Pydantic, SQLAlchemy 2.0, Alembic.\\
+Motores Científicos & NumPy, SciPy, Pandas, Scikit-Learn, XGBoost, Prophet, PyVista/VTK.\\
+Base de Dados & SQLite (Local/Desktop) ou PostgreSQL (Produção/Cloud).\\
+Segurança e Sessão & JWT Bearer, Bcrypt, SessionRegistry (AsyncIO).\\
+\bottomrule
+\end{tabularx}
+\caption{Stack técnico e infraestrutura do PetroLúmen}
+\end{table}
+
+\subsection{O Paradigma do \textit{Session Registry} (Inovação Arquitetural)}
+
+Antes da última refatoração, o PetroLúmen utilizava instâncias globais para os motores de simulação. Isto significava que se o Utilizador A estivesse a correr uma simulação com um grid de 10x10 e o Utilizador B corresse um grid de 20x20, os resultados podiam corromper-se mutuamente.
+
+A introdução do \texttt{SessionRegistry} alterou este paradigma:
+\begin{enumerate}
+    \item A API FastAPI interceta a chamada e identifica o \texttt{user\_id} (via JWT).
+    \item O \texttt{SessionRegistry} (com um TTL e \textit{LRU eviction}) instancia ou recupera um motor de cálculo exclusivo para aquele utilizador (ex: um \texttt{ReservoirSimulator} isolado).
+    \item O endpoint injeta o motor via \texttt{Depends(get\_res\_simulator)}, garantindo isolamento absoluto.
+\end{enumerate}
+
+\subsection{Processamento Assíncrono (Background Jobs)}
+
+Tarefas de longa duração (como a simulação IMPES ou o treino de modelos XGBoost) deixaram de bloquear o \textit{event loop} do servidor. Foi criada uma tabela de \texttt{Job} na base de dados. O cliente submete a tarefa (HTTP 202 Accepted), recebe um \texttt{job\_id} e pode fazer \textit{polling} ao estado da tarefa, mantendo a interface fluida.
+
+% ------------------------------------------------------------
+% 3. WORKFLOW DE UTILIZAÇÃO
+% ------------------------------------------------------------
+\section{Workflow de Engenharia e Funcionalidades}
+
+\subsection{Fluxo de Trabalho do Utilizador}
+
+\begin{center}
+\fbox{\parbox{0.95\textwidth}{
+\textbf{Upload de Dados} $\rightarrow$ \textbf{Análise PVT e DCA} $\rightarrow$ \textbf{Setup de Simulação} $\rightarrow$ \textbf{Run Assíncrono} $\rightarrow$ \textbf{Visualização e Exportação (PDF)}
+}}
+\end{center}
+
+\subsection{Módulos Integrados}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.5cm} X X}
+\toprule
+\rowcolor{tableheader}
+\textcolor{white}{\textbf{Módulo}} & \textcolor{white}{\textbf{Descrição Técnica}} & \textcolor{white}{\textbf{Estado}} \\
+\midrule
+PVT Engine & Cálculos de Z-Factor (DAK, Hall-Yarborough), EOS (Peng-Robinson) e Viscosidades. & Operacional\\
+Flow Simulation & Simulador 1D IMPES (Implicit Pressure, Explicit Saturation) com matriz tridiagonal. & Operacional (Assíncrono)\\
+DCA (Decline) & Arps (Exponencial, Hiperbólico, Harmónico), Duong, PLE, SEPD. & Operacional (Stateless)\\
+RTA (Transient) & Flowing Material Balance (FMB) para gás e análise pseudo-tempo. & Operacional\\
+Nodal Analysis & Resolução de interseção IPR/TPR via \texttt{scipy.optimize.fsolve}. & Operacional\\
+AI Forecasting & Modelos XGBoost e Prophet para previsão de produção. & Operacional (Isolado)\\
+\bottomrule
+\end{tabularx}
+\caption{Módulos integrados no Backend e o seu estado de maturidade}
+\end{table}
+
+% ------------------------------------------------------------
+% 4. PRÉ-CONDIÇÕES E RISCOS
+% ------------------------------------------------------------
+\section{Segurança, Integridade e Riscos}
+
+\subsection{Conformidade e Isolamento de Dados}
+
+A auditoria e subsequente refatoração eliminaram o risco crítico de \textbf{cross-talk} de dados. Com a implementação do \texttt{USE\_SESSION\_REGISTRY=True} (via Pydantic BaseSettings), o sistema assegura que os cálculos de um utilizador estão logicamente separados na RAM do servidor, prevenindo fugas de dados confidenciais (Data Leakage) de diferentes ativos ou operadores.
+
+\subsection{Matriz de Riscos}
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.5cm} c c X}
+\toprule
+\rowcolor{tableheader}
+\textcolor{white}{\textbf{Risco}} & \textcolor{white}{\textbf{Prob.}} & \textcolor{white}{\textbf{Impacto}} & \textcolor{white}{\textbf{Mitigação}} \\
+\midrule
+Vazamento de Memória no Registry & Média & Alto & Implementação de \textit{janitor task} com TTL (Time-To-Live) e LRU.\\
+Falha de Precisão Numérica & Baixa & Alto & Validação com dados sintéticos (Dry Gas) e cobertura de testes (184 testes).\\
+Bloqueio do Event Loop & Média & Médio & Utilização de \texttt{BackgroundTasks} e afastamento do processamento pesado do endpoint principal.\\
+Incompatibilidade de Ficheiros & Média & Médio & Normalização com Pandas e suporte estrito a formatos LAS/CSV no uploader.\\
+\bottomrule
+\end{tabularx}
+\caption{Matriz de riscos técnicos do PetroLúmen (Pós-Fase 2)}
+\end{table}
+
+% ------------------------------------------------------------
+% 5. ROADMAP E PLANO DE IMPLEMENTAÇÃO
+% ------------------------------------------------------------
+\section{Roadmap e Próximas Fases}
+
+O projeto encontra-se numa fase de maturidade técnica elevada. A transição para a Fase 4 foca-se na expansão da experiência do utilizador e na preparação comercial.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2cm} p{4cm} X}
+\toprule
+\rowcolor{tableheader}\textcolor{white}{Fase} & \textcolor{white}{Atividade Principal} & \textcolor{white}{Entregável}\\
+\midrule
+Concluída & Concorrência e Background Jobs & Session Registry, Endpoints Assíncronos, 184 testes a passar.\\
+Fase 4.1 & i18n e L10n & Migração do frontend para \texttt{next-intl} e padronização PT/EN.\\
+Fase 4.2 & E2E Testing & Criação de testes Playwright para o fluxo completo (Upload $\rightarrow$ Simulação $\rightarrow$ PDF).\\
+Fase 4.3 & Empacotamento e Release & Geração do instalador final Tauri (.msi, .dmg, .AppImage) com auto-updater.\\
+Fase 5.0 & Validação com Utilizadores & Beta fechado com engenheiros reais para testar precisão e UX.\\
+\bottomrule
+\end{tabularx}
+\caption{Plano de transição para a versão comercial}
+\end{table}
+
+% ------------------------------------------------------------
+% 6. CONCLUSÃO
+% ------------------------------------------------------------
+\section{Conclusão}
+
+O PetroLúmen deixou de ser um conjunto de scripts de engenharia para se tornar uma plataforma de software robusta, segura e escalável. A erradicação de falhas de concorrência (através do \textit{Session Registry}) e a implementação de tarefas assíncronas representam um marco de engenharia de software que valida a viabilidade técnica do projeto.
+
+A plataforma está agora pronta para ser testada em ambientes mais próximos da produção (Beta), onde o isolamento de dados, a estabilidade numérica e a resposta rápida da interface serão os principais indicadores de sucesso.
+
+\vspace{0.5cm}
+\noindent\fbox{\parbox{\dimexpr\textwidth-2\fboxsep-2\fboxrule}{%
+\textbf{Decisão Proposta:} Avançar para a Fase 4 (i18n, Testes E2E e Empacotamento Final) e iniciar o recrutamento de um grupo restrito de engenheiros de reservatórios para o programa Beta.}}
+
+\vspace{1cm}
+
+% ------------------------------------------------------------
+% GLOSSÁRIO E ANEXOS
+% ------------------------------------------------------------
+\newpage
+\section*{Glossário Técnico}
+\addcontentsline{toc}{section}{Glossário Técnico}
+
+\begin{description}[leftmargin=1em, style=nextline]
+    \item[API] \textit{Application Programming Interface} --- Interface que permite a comunicação entre o Frontend e o Backend.
+    \item[DCA] \textit{Decline Curve Analysis} --- Análise de Curva de Declínio de produção.
+    \item[EOS] \textit{Equation of State} --- Equação de Estado (ex: Peng-Robinson) usada para modelar o comportamento de fluidos.
+    \item[IMPES] \textit{Implicit Pressure, Explicit Saturation} --- Método numérico para simulação de reservatórios.
+    \item[JWT] \textit{JSON Web Token} --- Padrão seguro para transmissão de autenticação entre cliente e servidor.
+    \item[LRU] \textit{Least Recently Used} --- Política de cache usada no \textit{Session Registry} para eliminar sessões antigas.
+    \item[PVT] \textit{Pressure-Volume-Temperature} --- Propriedades termodinâmicas dos fluidos do reservatório.
+    \item[RTA] \textit{Rate Transient Analysis} --- Análise de dados de pressão e vazão em regime transiente.
+    \item[Tauri] --- \textit{Framework} em Rust usado para empacotar a aplicação web num executável nativo de desktop.
+    \item[TTL] \textit{Time-To-Live} --- Tempo de vida útil de uma sessão antes de ser destruída na RAM.
+\end{description}
+
+\end{document}
