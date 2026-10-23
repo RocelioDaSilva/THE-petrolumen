@@ -71,6 +71,7 @@ def test_db_manager(test_engine):
     manager.SessionLocal = sessionmaker(
         autocommit=False, autoflush=False, bind=test_engine
     )
+    Base.metadata.create_all(bind=test_engine)
     return manager
 
 @pytest.fixture(scope="function")
