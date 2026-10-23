@@ -8,18 +8,22 @@ from fastapi import (
     status,
     Body,
     Request,
+    Header,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
 from typing import Dict, List, Any, Tuple, Optional, Literal
+from contextlib import asynccontextmanager
 from pydantic import BaseModel, EmailStr
 import logging
 import os  # For environment variables
 import datetime
 import uuid
 import structlog
+
+from core.session_registry import SessionRegistry, get_engine_instance
 
 # Updated imports to point to the new 'core' modules for data/auth management
 # and directly to reservoir_engineering.py for tools.
@@ -64,6 +68,26 @@ logging.basicConfig(level=settings.LOG_LEVEL.upper())
 logger = structlog.get_logger(__name__)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize SessionRegistry
+    registry = SessionRegistry(
+        default_ttl=settings.SESSION_TTL_SECONDS,
+        max_capacity=settings.SESSION_MAX_ENTRIES,
+        cleanup_interval=settings.SESSION_CLEANUP_INTERVAL_SECONDS,
+    )
+    await registry.start_janitor_task()
+    app.state.session_registry = registry
+    logger.info("SessionRegistry initialized and Janitor cleanup task started.")
+
+    yield
+
+    # Shutdown: Clean up background tasks and release active sessions
+    await registry.stop_janitor_task()
+    await registry.clear_all()
+    logger.info("SessionRegistry shut down successfully.")
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     description=(
@@ -71,6 +95,7 @@ app = FastAPI(
         "Configuration via Pydantic BaseSettings."
     ),
     version=settings.APP_VERSION,
+    lifespan=lifespan,
 )
 
 
@@ -1459,9 +1484,21 @@ async def get_simulation_well_rates(
     )
 
 
-# --- AI Prediction Endpoints ---
-# Also uses a global instance `ai_predictor`, subject to same concurrency/state
-# issues as simulator.
+# --- AI Prediction Endpoints & Dependency Helper ---
+
+async def get_ai_predictor(
+    request: Request,
+    current_user: UserResponse = Depends(get_current_active_user),
+    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+) -> AIPrediction:
+    """Dependency helper to get session-scoped AIPrediction instance."""
+    return await get_engine_instance(
+        engine_name="ai_predictor",
+        factory_fn=AIPrediction,
+        request=request,
+        current_user=current_user,
+        session_id=session_id,
+    )
 
 
 @app.post(
@@ -1471,9 +1508,10 @@ async def get_simulation_well_rates(
 )
 async def train_ai_models(
     request: AIPredictionDataRequest,
+    predictor: AIPrediction = Depends(get_ai_predictor),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
-    if ai_predictor is None:  # Should not happen if instantiation is successful
+    if predictor is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AIPrediction service is not available.",
@@ -1486,7 +1524,6 @@ async def train_ai_models(
                 detail="No records provided for training.",
             )
 
-        # Ensure feature_columns and target_column are valid for the df
         if not all(col in df.columns for col in request.feature_columns):
             missing_cols = [
                 col for col in request.feature_columns if col not in df.columns
@@ -1504,23 +1541,20 @@ async def train_ai_models(
                 ),
             )
 
-        X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
+        X_train, X_test, y_train, y_test = predictor.prepare_data(
             df, request.target_column, request.feature_columns
         )
-        # train_models in AIPrediction now stores trained models in self.models
-        ai_predictor.train_models(X_train, y_train, X_test, y_test)
+        predictor.train_models(X_train, y_train, X_test, y_test)
 
-        trained_model_names = list(ai_predictor.models.keys())
+        trained_model_names = list(predictor.models.keys())
         if not trained_model_names:
-            # This case might indicate an issue within train_models if it doesn't
-            # populate self.models
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Model training did not result in any models.",
             )
 
         performance = {}
-        for name, info in ai_predictor.models.items():
+        for name, info in predictor.models.items():
             performance[name] = {
                 "r2": info.get("test_r2", 0),
                 "rmse": info.get("test_rmse", 0),
@@ -1530,8 +1564,10 @@ async def train_ai_models(
             message="Models trained successfully. Best model selected based on R2 score.",
             trained_models=trained_model_names,
             performance=performance,
-            best_model=ai_predictor.best_model,
+            best_model=predictor.best_model,
         )
+    except HTTPException:
+        raise
     except ValueError as ve:
         logger.error(f"ValueError during AI model training: {ve}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
@@ -1552,12 +1588,13 @@ async def train_well_ai_models(
     well_name: str = Path(..., title="The name of the well"),
     target_column: str = Body(..., embed=True),
     feature_columns: List[str] = Body(..., embed=True),
+    predictor: AIPrediction = Depends(get_ai_predictor),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
     """
     Fetches production data for a well and trains AI models to predict production.
     """
-    if ai_predictor is None:
+    if predictor is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AIPrediction service is not available.",
@@ -1575,13 +1612,11 @@ async def train_well_ai_models(
         )
 
     df = pd.DataFrame(data_dicts)
-    # Basic feature engineering: days from start
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
     start_date = df["date"].min()
     df["days_from_start"] = (df["date"] - start_date).dt.days.astype(float)
 
-    # Ensure columns exist
     available_cols = df.columns.tolist()
     if target_column not in available_cols:
         raise HTTPException(
@@ -1594,13 +1629,13 @@ async def train_well_ai_models(
             )
 
     try:
-        X_train, X_test, y_train, y_test = ai_predictor.prepare_data(
+        X_train, X_test, y_train, y_test = predictor.prepare_data(
             df, target_column, feature_columns
         )
-        ai_predictor.train_models(X_train, y_train, X_test, y_test)
+        predictor.train_models(X_train, y_train, X_test, y_test)
 
         performance = {}
-        for name, info in ai_predictor.models.items():
+        for name, info in predictor.models.items():
             performance[name] = {
                 "r2": info.get("test_r2", 0),
                 "rmse": info.get("test_rmse", 0),
@@ -1608,10 +1643,12 @@ async def train_well_ai_models(
 
         return AITrainResponse(
             message=f"Models for well '{well_name}' trained successfully.",
-            trained_models=list(ai_predictor.models.keys()),
+            trained_models=list(predictor.models.keys()),
             performance=performance,
-            best_model=ai_predictor.best_model,
+            best_model=predictor.best_model,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"AI training failed for well {well_name}: {e}")
         raise HTTPException(status_code=500, detail=f"AI training failed: {str(e)}")
@@ -1624,9 +1661,10 @@ async def train_well_ai_models(
 )
 async def predict_with_ai_models(
     request: AIPredictRequest,
+    predictor: AIPrediction = Depends(get_ai_predictor),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
-    if ai_predictor is None:
+    if predictor is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AIPrediction service is not available.",
@@ -1639,9 +1677,7 @@ async def predict_with_ai_models(
                 detail="No records provided for prediction.",
             )
 
-        # Ensure the feature_columns provided in request match what the model was
-        # trained on (stored in ai_predictor.feature_columns)
-        if not ai_predictor.feature_columns:
+        if not predictor.feature_columns:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -1650,14 +1686,10 @@ async def predict_with_ai_models(
                 ),
             )
 
-        # The AIPrediction.predict method now takes the DataFrame and uses its stored
-        # feature_columns. The request.feature_columns can be used for validation if
-        # desired, but the model internally uses its trained features.
-        # For robustness, ensure all necessary columns are present in df_features.
-        if not all(col in df_features.columns for col in ai_predictor.feature_columns):
+        if not all(col in df_features.columns for col in predictor.feature_columns):
             missing_cols = [
                 col
-                for col in ai_predictor.feature_columns
+                for col in predictor.feature_columns
                 if col not in df_features.columns
             ]
             raise HTTPException(
@@ -1668,30 +1700,26 @@ async def predict_with_ai_models(
                 ),
             )
 
-        # The predict method in AIPrediction handles selection of best model if
-        # model_name is not specified. And it scales the input internally.
-        # It returns a single array of predictions from the best model
-        # (or specified model). The AIPredictResponse expects a Dict[str, List[float]].
-        # We'll adapt.
-
         model_to_use_name = (
-            request.model_name if request.model_name else ai_predictor.best_model
+            getattr(request, "model_name", None)
+            if getattr(request, "model_name", None)
+            else predictor.best_model
         )
-        if not model_to_use_name or model_to_use_name not in ai_predictor.models:
+        if not model_to_use_name or model_to_use_name not in predictor.models:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No suitable model available for prediction. Train or load a model.",
             )
 
-        predictions_array = ai_predictor.predict(
+        predictions_array = predictor.predict(
             df_features, model_name=model_to_use_name
         )
 
-        # AIPredictResponse expects a dictionary of predictions.
-        # If predict returns one array, we wrap it.
         serializable_predictions = {model_to_use_name: predictions_array.tolist()}
 
         return AIPredictResponse(predictions=serializable_predictions)
+    except HTTPException:
+        raise
     except ValueError as ve:
         logger.error(f"ValueError during AI prediction: {ve}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
@@ -1708,34 +1736,26 @@ async def predict_with_ai_models(
     tags=["Reservoir Engineering", "AI Prediction"],
 )
 async def save_ai_model(
-    request: AISaveModelRequest,  # Contains model_name and path (relative to AI_MODELS_DIR)
+    request: AISaveModelRequest,
+    predictor: AIPrediction = Depends(get_ai_predictor),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
-    if ai_predictor is None:
+    if predictor is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AIPrediction service is not available.",
         )
 
-    # Path in request is relative to settings.AI_MODELS_DIR
-    # AISaveModelRequest.path is the sub-path / filename.joblib
-    # The AIPrediction.save_model method expects a full path.
-
-    # Basic path validation to prevent directory traversal
     if ".." in request.path or request.path.startswith("/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid path specified. Path should be relative and not contain '..'.",
         )
 
-    # Construct full path. settings.AI_MODELS_DIR is the base.
-    # request.path could be "my_model_dir/my_model.joblib" or just "my_model.joblib"
     full_save_path = Path(settings.AI_MODELS_DIR) / request.path
 
     try:
-        # The save_model method in AIPrediction now handles creating parent dirs
-        # and appending a default filename if path is a directory.
-        ai_predictor.save_model(str(full_save_path), model_name=request.model_name)
+        predictor.save_model(str(full_save_path), model_name=request.model_name)
         return {
             "message": (
                 f"Model '{request.model_name}' saved successfully to "
@@ -1743,12 +1763,10 @@ async def save_ai_model(
             ),
             "saved_path": str(full_save_path),
         }
-    except (
-        FileNotFoundError
-    ) as fnfe:  # e.g. model_name not found in ai_predictor.models
+    except FileNotFoundError as fnfe:
         logger.error(f"Save AI Model Error: {fnfe}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(fnfe))
-    except ValueError as ve:  # e.g. no best model trained
+    except ValueError as ve:
         logger.error(f"Save AI Model Error: {ve}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
@@ -1764,18 +1782,17 @@ async def save_ai_model(
     tags=["Reservoir Engineering", "AI Prediction"],
 )
 async def load_ai_model(
-    request: AILoadModelRequest,  # Contains path (relative to AI_MODELS_DIR)
-    # model_name in request is not used by AIPrediction.load_model; it uses name
-    # from file.
+    request: AILoadModelRequest,
+    predictor: AIPrediction = Depends(get_ai_predictor),
     current_user: UserResponse = Depends(get_current_active_user),
 ):
-    if ai_predictor is None:
+    if predictor is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AIPrediction service is not available.",
         )
 
-    if ".." in request.path or request.path.startswith("/"):  # Basic path validation
+    if ".." in request.path or request.path.startswith("/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid path specified. Path should be relative and not contain '..'.",
@@ -1790,7 +1807,7 @@ async def load_ai_model(
         )
 
     try:
-        loaded_model_name = ai_predictor.load_model(str(full_load_path))
+        loaded_model_name = predictor.load_model(str(full_load_path))
         return {
             "message": (
                 f"Model '{loaded_model_name}' loaded successfully from "
