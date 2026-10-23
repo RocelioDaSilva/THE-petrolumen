@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true, // Enables global APIs like describe, it, expect
     environment: 'jsdom', // Use JSDOM for DOM-related tests
     setupFiles: './vitest.setup.ts', // Path to setup file for extending expect, etc.
+    exclude: ['**/node_modules/**', '**/e2e/**'],
     css: true, // If your components import CSS files
     alias: {
       '@': path.resolve(__dirname, './'), // To match Next.js path alias for @/*
