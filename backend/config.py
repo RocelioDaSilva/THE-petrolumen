@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # Directory for saving/loading AI models
     AI_MODELS_DIR: str = "./trained_ai_models"
 
+    # --- Session Registry Settings ---
+    USE_SESSION_REGISTRY: bool = True
+    SESSION_TTL_SECONDS: int = 3600
+    SESSION_MAX_ENTRIES: int = 100
+    SESSION_CLEANUP_INTERVAL_SECONDS: int = 300
+
     # Pydantic settings configuration
     # This tells Pydantic to load .env files.
     # By default, it looks for a file named ".env".
