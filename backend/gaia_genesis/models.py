@@ -12,52 +12,9 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship
 
-Base = declarative_base()
-
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    full_name = Column(String, nullable=True)
-    role = Column(String, default="user", nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-    )
-    well_data_records = relationship("WellDataRecord", back_populates="user")
-
-
-class Well(Base):
-    __tablename__ = "wells"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
-    field = Column(String, nullable=True)
-    latitude = Column(Float, nullable=True)
-    longitude = Column(Float, nullable=True)
-    created_at = Column(
-        DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
-    )
-    production_data = relationship(
-        "ProductionData", back_populates="well", cascade="all, delete-orphan"
-    )
-
-
-class ProductionData(Base):
-    __tablename__ = "production_data"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    well_id = Column(UUID(as_uuid=True), ForeignKey("wells.id"), nullable=False)
-    date = Column(Date, nullable=False)
-    oil_rate = Column(Float, nullable=True)
-    gas_rate = Column(Float, nullable=True)
-    water_rate = Column(Float, nullable=True)
-    well = relationship("Well", back_populates="production_data")
-    __table_args__ = (UniqueConstraint("well_id", "date", name="_well_date_uc"),)
+from gaia_genesis.core.database_models import Base, User, Well, ProductionData, Job
 
 
 class WellDataRecord(Base):
@@ -80,6 +37,9 @@ class WellDataRecord(Base):
         back_populates="well_data_record",
         cascade="all, delete-orphan",
     )
+
+
+User.well_data_records = relationship("WellDataRecord", back_populates="user")
 
 
 class AnalysisResult(Base):
