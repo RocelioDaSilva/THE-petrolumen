@@ -9,6 +9,7 @@ from fastapi import (
     Body,
     Request,
     Header,
+    BackgroundTasks,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
@@ -234,10 +235,19 @@ try:
         surveillance_router,
         reservoir_analysis_tools as gaia_reservoir_tools_router,
         static_modeling_tools as gaia_static_modeling_router,
+        jobs as jobs_router,
     )
+    from gaia_genesis.api_v1.endpoints.jobs import (
+        run_flowsim_task,
+        run_prediction_train_task,
+    )
+    from gaia_genesis.core.database_models import Job
 
     app.include_router(
         auth_router.router, prefix="/api/v1/auth", tags=["Authentication"]
+    )
+    app.include_router(
+        jobs_router.router, prefix="/api/v1/jobs", tags=["Jobs"]
     )
     app.include_router(
         pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"]
@@ -1462,6 +1472,59 @@ async def run_flow_simulation(
         )
 
 
+@app.post(
+    "/api/v1/reservoir/flowsim/run_async",
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["Reservoir Engineering", "Flow Simulation"],
+)
+async def run_flow_simulation_async(
+    params: SimRunParamsRequest,
+    background_tasks: BackgroundTasks,
+    simulator: ReservoirSimulator = Depends(get_res_simulator),
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    """
+    Submits a flow simulation run as an asynchronous background job.
+    Returns 202 Accepted with job_id immediately.
+    """
+    if simulator is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Flow simulator is not available.",
+        )
+
+    db_mgr = DatabaseManager.get_instance()
+    session = db_mgr.get_session()
+    try:
+        new_job = Job(
+            user_id=uuid.UUID(str(current_user.id)),
+            status="pending",
+        )
+        session.add(new_job)
+        session.commit()
+        session.refresh(new_job)
+        job_id = str(new_job.id)
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error creating job for flowsim_async: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not create background job.",
+        )
+    finally:
+        session.close()
+
+    background_tasks.add_task(
+        run_flowsim_task,
+        job_id=job_id,
+        simulator=simulator,
+        end_time=params.end_time,
+        dt=params.dt,
+    )
+
+    return {"job_id": job_id, "status": "pending"}
+
+
 @app.get(
     "/api/v1/reservoir/flowsim/results/well_rates",
     response_model=SimWellRateResponse,
@@ -1581,6 +1644,60 @@ async def train_ai_models(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error during AI training: {str(e)}",
         )
+
+
+@app.post(
+    "/api/v1/reservoir/prediction/train_async",
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["Reservoir Engineering", "AI Prediction"],
+)
+async def train_ai_models_async(
+    request: AIPredictionDataRequest,
+    background_tasks: BackgroundTasks,
+    predictor: AIPrediction = Depends(get_ai_predictor),
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    """
+    Submits an AI model training run as an asynchronous background job.
+    Returns 202 Accepted with job_id immediately.
+    """
+    if predictor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AIPrediction service is not available.",
+        )
+
+    db_mgr = DatabaseManager.get_instance()
+    session = db_mgr.get_session()
+    try:
+        new_job = Job(
+            user_id=uuid.UUID(str(current_user.id)),
+            status="pending",
+        )
+        session.add(new_job)
+        session.commit()
+        session.refresh(new_job)
+        job_id = str(new_job.id)
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error creating job for train_async: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not create background job.",
+        )
+    finally:
+        session.close()
+
+    background_tasks.add_task(
+        run_prediction_train_task,
+        job_id=job_id,
+        predictor=predictor,
+        records=request.records,
+        target_column=request.target_column,
+        feature_columns=request.feature_columns,
+    )
+
+    return {"job_id": job_id, "status": "pending"}
 
 
 @app.post(
