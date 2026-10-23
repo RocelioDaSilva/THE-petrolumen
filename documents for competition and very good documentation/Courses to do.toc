@@ -1,0 +1,12 @@
+\babel@toc {portuguese}{}\relax 
+\contentsline {section}{Legenda de Dificuldade}{2}{section*.2}%
+\contentsline {section}{Legenda de Certificados}{2}{section*.3}%
+\contentsline {section}{Nota sobre Carga Horária}{2}{section*.4}%
+\contentsline {section}{Nível 1 --- Muito Fácil (0--3 horas)}{3}{section*.5}%
+\contentsline {section}{Nível 2 --- Fácil (3--8 horas)}{4}{section*.6}%
+\contentsline {section}{Nível 3 --- Médio (8--30 horas ou 4--8 semanas)}{5}{section*.7}%
+\contentsline {section}{Nível 4 --- Difícil (12+ semanas ou especializado)}{6}{section*.8}%
+\contentsline {section}{Nível 5 --- Muito Difícil (300+ horas ou nível de licenciatura)}{7}{section*.9}%
+\contentsline {section}{Plano de Ação Sugerido (Começar pelos Mais Fáceis)}{8}{section*.10}%
+\contentsline {section}{Recursos Adicionais (Sem Certificado Formal)}{9}{section*.16}%
+\contentsline {section}{Notas Finais sobre Certificados}{9}{section*.17}%
