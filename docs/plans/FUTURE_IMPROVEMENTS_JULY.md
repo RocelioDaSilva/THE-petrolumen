@@ -25,7 +25,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **Configuration Management (Advanced):**
     *   For complex configurations or different environments (dev, staging, prod), consider more robust configuration management (e.g., Pydantic settings for Python, environment-specific config files for Next.js).
 *   **Dependency Management & Security:**
-    *   Regularly audit dependencies for vulnerabilities (`npm audit`, `pip-audit`). [DONE by Jules - July 2024 - Performed initial audit and created DEPENDENCY_AUDIT_REPORT.md.]
+    *   Regularly audit dependencies for vulnerabilities (`pnpm audit`, `pip-audit`). [DONE by Jules - July 2024 - Performed initial audit and created docs/audits/DEPENDENCY_AUDIT_REPORT.md.]
     *   Consider Dependabot for automated dependency updates. [DONE by Jules - July 2024 - Created .github/dependabot.yml file.]
     *   Pin dependency versions strictly. [DONE by Jules - July 2024 - Pinned backend and frontend dependencies]
 *   **Code Duplication Review:**
@@ -35,7 +35,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
 *   **Scalability Considerations (Backend):**
     *   Review backend components for performance bottlenecks if high load is expected. Consider asynchronous task processing for long-running operations.
 *   **Internationalization (i18n) and Localization (l10n):**
-    *   Plan for i18n/l10n if the application targets a global audience. [DONE by Jules - July 2024 - Created I18N_L10N_PLAN.md with strategy outline.]
+    *   Plan for i18n/l10n if the application targets a global audience. [DONE by Jules - July 2024 - Created docs/plans/I18N_L10N_PLAN.md with strategy outline.]
 *   **Feature Toggles/Flags:**
     *   Implement a system for feature toggles for controlled rollouts and A/B testing.
 *   **Comprehensive Logging and Monitoring Strategy:**
@@ -53,7 +53,7 @@ This document lists potential improvements for the PetroLúmen repository, compi
     *   Use Sphinx for Python docstrings-to-HTML. [PARTIALLY DONE by Jules - July 2024 - Added .gitignore entry for Sphinx output and docs build instructions to backend/README.md. Actual generation via 'make html' requires dev environment setup.]
     *   Use JSDoc/TSDoc/Storybook for frontend component docs. [DONE by Jules - July 2024 - Added example JSDoc to Button/Card, added 'Component Documentation' section to petrolumen/README.md.]
 *   **Developer Onboarding Documentation:**
-    *   Create a dedicated onboarding guide for new developers. [DONE by Jules - July 2024 - Created DEVELOPER_ONBOARDING.md at root.]
+    *   Create a dedicated onboarding guide for new developers. [DONE by Jules - July 2024 - Created docs/DEVELOPER_ONBOARDING.md.]
 *   **Chaos Engineering (Advanced):**
     *   Consider chaos engineering practices for mature, high-reliability applications.
 *   **Code Ownership Model:**

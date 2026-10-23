@@ -5,40 +5,40 @@ This document provides guidelines and instructions for AI agents working with th
 ## General Guidelines
 
 *   Familiarize yourself with the project structure:
-    *   `petrolumen/`: Frontend (Next.js, Tauri)
-    *   `backend/`: Backend (Python, FastAPI)
+    *   `petrolumen/`: Frontend (Next.js 15, React 19, Tauri v2, TypeScript)
+    *   `backend/`: Backend (Python 3.12, FastAPI, SQLAlchemy 2)
 *   Refer to the `README.md` files in the root, `petrolumen/`, and `backend/` directories for specific setup and architectural details.
 *   Ensure any code changes are accompanied by relevant tests.
-*   Follow standard coding conventions for the respective languages (JavaScript/TypeScript for frontend, Python for backend).
+*   Follow standard coding conventions for the respective languages (TypeScript for frontend, Python for backend).
 
 ## General Principles for AI Agents
 
 *   **Clarity and Readability:** Prioritize writing clear, understandable, and maintainable code.
 *   **Comments:** Add comments to explain complex logic, assumptions, or non-obvious decisions.
-*   **Testing:** Strive to add or update tests for any new features or bug fixes (supplements existing guideline).
+*   **Testing:** Strive to add or update tests for any new features or bug fixes.
 *   **Incremental Changes:** Prefer smaller, incremental commits over large, monolithic ones.
 *   **Consult `AGENTS.md` in Subdirectories:** Be aware that subdirectories (e.g., `petrolumen/`, `backend/`) may contain their own `AGENTS.md` files with more specific instructions. Always check for and adhere to the guidance in the most specific `AGENTS.md` file applicable to the files you are modifying.
-*   **Future Improvements:** Refer to `FUTURE_IMPROVEMENTS_JULY.md` in the root directory for a broader list of potential enhancements to the repository.
+*   **Future Improvements:** Refer to `docs/plans/FUTURE_IMPROVEMENTS_JULY.md` for a broader list of potential enhancements to the repository.
 
 ## Working with the Frontend (`petrolumen/`)
 
-*   The frontend is built with React/Next.js and packaged natively using Tauri.
+*   The frontend is built with Next.js 15 / React 19 and packaged natively using Tauri v2.
+*   **Package Manager:** Always use `pnpm` for package management in `petrolumen/`.
 *   **Installation:**
     *   Navigate to the `petrolumen/` directory.
-    *   Run `npm install` (or `yarn install` / `pnpm install`). Ensure you use only one package manager consistently.
+    *   Run `pnpm install`.
 *   **Development Mode:**
-    *   Run `npm run tauri dev` (or `yarn tauri dev` / `pnpm tauri dev`) from the `petrolumen/` directory. This starts the Tauri app with hot-reloading for the web interface.
-    *   The frontend will attempt to connect to the backend API (expected at `http://localhost:8000`).
+    *   Run `pnpm tauri dev` (or `pnpm dev` for web-only) from the `petrolumen/` directory. This starts the application with hot-reloading.
+    *   The frontend connects to the backend API at `http://localhost:8000`.
 *   **Building for Production:**
-    *   Run `npm run build` from the `petrolumen/` directory to build the Next.js application.
-*   **Packaging for Windows:**
-    *   Run `npm run desktop:build` (or `tauri build`) from the `petrolumen/` directory.
-    *   The installer (`.exe`) will be located in `petrolumen/src-tauri/target/release/bundle/windows/`.
-    *   Alternatively, a PowerShell script `scripts/build-windows.ps1` can automate this process.
+    *   Run `pnpm build` from the `petrolumen/` directory to build the Next.js application.
+*   **Packaging Desktop Application:**
+    *   Run `pnpm tauri build` from the `petrolumen/` directory.
+    *   The installer will be located in `petrolumen/src-tauri/target/release/bundle/`.
 
 ## Working with the Backend (`backend/`)
 
-*   The backend is a Python application using FastAPI.
+*   The backend is a Python application using FastAPI and SQLAlchemy 2.
 *   **Setup:**
     1.  Navigate to the `backend/` directory.
     2.  Create a virtual environment: `python -m venv venv`.
@@ -46,14 +46,14 @@ This document provides guidelines and instructions for AI agents working with th
         *   Linux/macOS: `source venv/bin/activate`
         *   Windows: `venv\\Scripts\\activate`
     4.  Install dependencies: `pip install -r requirements.txt`.
-    5.  Configure environment variables: Copy `backend/.env.example` to `backend/.env` and update as needed (e.g., `DATABASE_URL`, `SECRET_KEY`).
+    5.  Configure environment variables: Copy `backend/.env.example` to `backend/.env` and update as needed (`DATABASE_URL`, `SECRET_KEY`).
     6.  Set up the database: Run `alembic upgrade head` from the `backend/` directory to apply database migrations.
 *   **Running the Development Server:**
     *   From the `backend/` directory (with venv activated): `uvicorn main:app --reload --host 0.0.0.0 --port 8000`.
 *   **API Documentation:**
     *   Swagger UI: `http://localhost:8000/docs`
     *   ReDoc: `http://localhost:8000/redoc`
-*   **Core Logic:** The main application logic is located within the `backend/gaia_genesis/` directory.
+*   **Core Logic:** Main application domain logic is in `backend/gaia_genesis/`.
 
 ## Code Conventions
 
@@ -64,13 +64,14 @@ This document provides guidelines and instructions for AI agents working with th
 ## Running Tests
 
 *   **Frontend (`petrolumen/`):**
-    *   From the `petrolumen/` directory: `npm run test` (which executes `vitest run`).
+    *   Unit/Component tests: `pnpm test` (executes `vitest run`).
+    *   End-to-End tests: `pnpm test:e2e` (executes Playwright test suite).
 *   **Backend (`backend/`):**
     *   From the `backend/` directory (with venv activated): `pytest`.
-    *   To generate a coverage report: `pytest --cov=gaia_genesis --cov-report=html` (from `backend/` directory).
+    *   To generate coverage: `pytest --cov=gaia_genesis --cov-report=html`.
 
 ## Important Notes
 
 *   The backend uses Alembic for database schema migrations. Ensure migrations are run after any database model changes or when setting up the environment.
 *   The backend's core functionalities are organized within the `gaia_genesis` Python package.
-*   For detailed setup and architectural information, always refer to the `README.md` files in the root, `petrolumen/`, and `backend/` directories.
+*   For detailed setup and architectural information, refer to `README.md` files in root, `petrolumen/`, and `backend/`.

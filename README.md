@@ -1,72 +1,87 @@
 # PetroLúmen - Engenharia de Reservatórios
 
-Welcome to the PetroLúmen project! This document provides a high-level overview of the project structure and how to get started.
+Welcome to **PetroLúmen**, a comprehensive reservoir engineering platform combining a modern desktop frontend with a high-performance Python backend for data analysis, numerical simulation, and predictive modeling in the oil and gas industry.
 
-## Project Overview
+## Tech Stack
 
-PetroLúmen is a comprehensive application designed for reservoir engineering. It combines a modern desktop frontend with a powerful backend to deliver a suite of tools for data analysis, simulation, and prediction in the oil and gas industry.
+- **Frontend:** Next.js 15 / React 19 / Tauri v2 / TypeScript (located in `petrolumen/`)
+- **Backend:** Python 3.12 / FastAPI / SQLAlchemy 2 (located in `backend/`)
 
 ## Project Structure
 
-This project is organized into the following main components:
+This repository is organized into the following main components:
 
-*   **Frontend (`petrolumen/`):** A desktop application built with React/Next.js and packaged natively using Tauri. It provides the user interface for interacting with the reservoir engineering tools. For detailed information about the frontend, its features, and how to run it, please refer to the [frontend README](./petrolumen/README.md).
-*   **Backend (`backend/`):** A Python application using FastAPI that handles data processing, simulations, and API services. It includes functionalities from the integrated `gaia_genesis` library.
+- **Frontend (`petrolumen/`):** Desktop application built with Next.js 15, React 19, and packaged natively using Tauri v2. Uses `pnpm` as the required package manager. For detailed frontend instructions, refer to the [frontend README](./petrolumen/README.md).
+- **Backend (`backend/`):** Python application powered by FastAPI and SQLAlchemy 2 that handles data processing, 1D IMPES numerical reservoir simulations, PVT calculations, DCA/RTA analysis, and RESTful API endpoints via the `gaia_genesis` core domain library.
+- **Documentation (`docs/`):** Centralized documentation hub containing audit reports ([`docs/audits/`](./docs/audits/)), development plans and roadmaps ([`docs/plans/`](./docs/plans/)), and onboarding guides ([`docs/DEVELOPER_ONBOARDING.md`](./docs/DEVELOPER_ONBOARDING.md)).
 
 ## Getting Started
 
-To get the full application running, you will typically need to set up both the frontend and the backend.
+### Prerequisites
 
-1.  **Frontend Setup:**
-    *   Navigate to the `petrolumen` directory.
-    *   Follow the instructions in the [frontend README](./petrolumen/README.md) for installation and running the application.
+- **Node.js** (v18+) & **pnpm** (`corepack enable` or `npm install -g pnpm`)
+- **Python** (3.12+)
+- **Rust** (required for Tauri native desktop builds)
 
-2.  **Backend Setup:**
-    *   The backend is located in the `backend/` directory.
-    *   Ensure you have Python installed (typically 3.9+).
-    *   Create a virtual environment: `python -m venv venv` and activate it (e.g., `source venv/bin/activate` on Linux/macOS, `venv\\Scripts\\activate` on Windows).
-    *   Install dependencies: `pip install -r backend/requirements.txt`.
-    *   Set up necessary environment variables (e.g., by creating a `.env` file in the `backend/` directory based on `.env.example`). This includes `DATABASE_URL` and `SECRET_KEY`.
-    *   Initialize the database: If using Alembic for migrations, run `alembic upgrade head` from within the `backend/` directory.
-    *   Run the backend server: `uvicorn main:app --reload --host 0.0.0.0 --port 8000` from within the `backend/` directory.
-    *   The backend API documentation (Swagger UI) will be available at `http://localhost:8000/docs`.
+### 1. Frontend Setup
+
+```bash
+cd petrolumen
+pnpm install
+pnpm dev
+```
+
+#### Frontend Testing & Quality Verification:
+- **Unit & Component Tests:** `pnpm test`
+- **End-to-End (E2E) Tests:** `pnpm test:e2e` (executes Playwright test suite)
+- **Linting & Type Checking:** `pnpm lint` and `pnpm typecheck`
+
+### 2. Backend Setup
+
+```bash
+cd backend
+python -m venv venv
+
+# On Linux/macOS:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The interactive API documentation (Swagger UI) will be accessible at `http://localhost:8000/docs`.
 
 ## Key Features
 
-PetroLúmen offers a range of functionalities, including:
+- **Authentication & Security:** Bearer JWT header-based authentication, role-based access control (RBAC), and bcrypt password hashing.
+- **Data Management:** Well log and production data upload, database storage (SQLite / PostgreSQL via SQLAlchemy 2), and retrieval.
+- **PVT Calculations:** Black-oil correlations (Standing, Glaso, Vasquez-Beggs) and Peng-Robinson EOS flash solver.
+- **Decline Curve Analysis (DCA):** Advanced DCA fitting models (Arps Exponential/Hyperbolic/Harmonic, Duong, PLE, SEPD) using `scipy.optimize`.
+- **Reservoir Simulation:** 1D two-phase (oil-water) and dry gas IMPES numerical flow simulator utilizing the Thomas algorithm.
+- **Rate Transient & Nodal Analysis:** Flowing Material Balance (FMB) and numerical IPR/TPR inflow solver (`fsolve`).
+- **AI & ML Forecasting:** Time-series forecasting with Meta Prophet, SVR, and XGBoost models.
+- **Unit Management:** Global unit conversion system supporting Field (US Customary) and Metric (SI) units via Zustand store.
 
-*   User authentication (JWT-based).
-*   Well data upload, storage (via PostgreSQL or SQLite), and retrieval.
-*   Basic PVT (Pressure-Volume-Temperature) calculations via API:
-    *   Z-Factor
-    *   Formation Volume Factor (Oil & Gas)
-    *   Viscosity (Oil & Gas)
-    *   Solution Gas-Oil Ratio
-    *   (Refer to the API documentation at `/docs` on the running backend for details on these endpoints under the "Gaia - PVT Calculations" tag).
-*   Decline curve analysis (Exponential, Hyperbolic, Harmonic) via API.
-*   Reservoir simulation capabilities (partially integrated, ongoing).
-*   AI-based prediction models (placeholder, integration ongoing).
-*   Interactive data visualization (primarily via frontend).
-*   Database integration for data management using SQLAlchemy and Alembic migrations.
+## Known Limitations
 
-(For a more detailed list of features, especially concerning the frontend application, please see the [frontend README](./petrolumen/README.md).)
+- **Synchronous Workloads:** Heavy computational tasks (such as 1D IMPES numerical simulation grid updates and model training) currently run synchronously within FastAPI request handlers, though asynchronous background execution (`BackgroundTasks` with `/api/v1/jobs/{job_id}` status polling) is being adopted across endpoints.
+- **Mocked E2E Tests:** Frontend Playwright End-to-End (E2E) integration tests currently mock the backend REST API endpoints rather than requiring a live running backend server.
+
+## Documentation
+
+- **Audit Reports:** Located in [`docs/audits/`](./docs/audits/) (includes backend, dependency, and repository audits).
+- **Development Plans & Roadmaps:** Located in [`docs/plans/`](./docs/plans/) (includes future improvements and i18n/l10n strategy).
+- **Developer Onboarding:** See [`docs/DEVELOPER_ONBOARDING.md`](./docs/DEVELOPER_ONBOARDING.md).
+- **Frontend Architecture:** See [`petrolumen/README.md`](./petrolumen/README.md).
+- **Backend Architecture:** See [`backend/README.md`](./backend/README.md).
 
 ## Contributing
 
-We welcome contributions to PetroLúmen! Please follow these general guidelines:
-1.  **Fork the repository** and create a new branch for your feature or bug fix.
-2.  **Follow existing coding styles.** For Python, we aim for PEP 8 compliance. For TypeScript/React, follow common community best practices.
-3.  **Write tests** for new features and bug fixes.
-4.  **Ensure all tests pass** before submitting a pull request.
-5.  **Keep pull requests focused** on a single feature or bug fix.
-6.  **Provide clear commit messages** and a descriptive pull request title and body.
-(Further details on specific linters, code formatting tools, and detailed PR procedures can be added here as the project matures.)
+Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, code formatting standards, and PR procedures.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-(A `LICENSE` file containing the standard MIT License text should be added to the root of the repository.)
-
----
-
-*This README provides a general guide to the PetroLúmen project. For more specific details on the frontend application, please consult the `petrolumen/README.md` file.*
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
