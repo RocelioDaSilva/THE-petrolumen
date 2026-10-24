@@ -1,0 +1,12 @@
+\babel@toc {portuguese}{}\relax 
+\contentsline {section}{\numberline {1}Identificação da equipa e do proponente principal}{2}{section.1}%
+\contentsline {section}{\numberline {2}Título da ideia de negócio}{2}{section.2}%
+\contentsline {section}{\numberline {3}Problema ou oportunidade identificada}{2}{section.3}%
+\contentsline {section}{\numberline {4}Solução proposta e proposta de valor}{2}{section.4}%
+\contentsline {section}{\numberline {5}Mercado e clientes-alvo}{3}{section.5}%
+\contentsline {section}{\numberline {6}Diferencial competitivo e análise sumária da concorrência}{3}{section.6}%
+\contentsline {section}{\numberline {7}Modelo de receitas ou mecanismo de criação de valor}{4}{section.7}%
+\contentsline {section}{\numberline {8}Viabilidade técnica e recursos necessários}{4}{section.8}%
+\contentsline {section}{\numberline {9}Estimativa económico-financeira preliminar}{5}{section.9}%
+\contentsline {section}{\numberline {10}Impacto socioeconómico e ambiental}{5}{section.10}%
+\contentsline {section}{\numberline {11}Plano preliminar de implementação, principais riscos e medidas de mitigação}{6}{section.11}%

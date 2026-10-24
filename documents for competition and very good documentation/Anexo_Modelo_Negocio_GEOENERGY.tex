@@ -1,0 +1,345 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage[a4paper,margin=2.25cm,headheight=14pt]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+
+\definecolor{petrolblue}{RGB}{15,50,90}
+\definecolor{petrolgold}{RGB}{200,160,50}
+\definecolor{lightgray}{RGB}{245,247,250}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=petrolblue,
+  urlcolor=petrolblue,
+  pdftitle={PetroLúmen — Modelo de Negócio GEOENERGY 2026},
+  pdfsubject={Anexo I — Modelo de Negócio},
+  pdfauthor={Equipa PetroLúmen}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{petrolblue}{PetroLúmen}}
+\fancyhead[R]{\small\textcolor{petrolblue}{GEOENERGY 2026}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\arraystretch}{1.18}
+\setlist[itemize]{leftmargin=*,topsep=2pt,itemsep=2pt}
+\setlist[enumerate]{leftmargin=*,topsep=2pt,itemsep=3pt}
+
+\newcommand{\usd}{US\$}
+\newcommand{\confirmar}{\textit{(a confirmar pela equipa)}}
+
+\begin{document}
+
+\pagenumbering{gobble}
+\begin{titlepage}
+  \thispagestyle{empty}
+  \centering
+  \vspace*{1.7cm}
+  {\Large\textcolor{petrolgold}{GEOENERGY — 2.ª EDIÇÃO 2026}\par}
+  \vspace{1.5cm}
+  {\Huge\bfseries\textcolor{petrolblue}{PETROLÚMEN}\par}
+  \vspace{0.5cm}
+  {\Large Plataforma de Engenharia de Reservatórios\par}
+  \vspace{1.5cm}
+  \rule{\textwidth}{1.2pt}\par
+  \vspace{0.4cm}
+  {\LARGE\bfseries Modelo de Negócio\par}
+  \vspace{0.4cm}
+  \rule{\textwidth}{1.2pt}\par
+  \vspace{1.2cm}
+  {\large Anexo I — estrutura recomendada no Regulamento GEOENERGY\par}
+  \vfill
+  \begin{tabularx}{0.82\textwidth}{>{\bfseries}l X}
+    Equipa & Rocélio Da Silva; Derik Francisco; Davidaldo Belchior; Mafra Tito \\
+    Proponente principal & Rocélio Da Silva \\
+    Instituição indicada no material da candidatura & ISPTEC \\
+    Categoria proposta & Digitalização e Tecnologias Aplicadas às Geociências e Energia \\
+    Data & Outubro de 2026 \\
+  \end{tabularx}
+  \vfill
+  \begin{minipage}{0.86\textwidth}
+    \small
+    \textit{Documento de candidatura. Os dados de elegibilidade da equipa, a procura,
+    os preços, os custos e as projeções são hipóteses preliminares e devem ser
+    confirmados pelos proponentes antes da submissão.}
+  \end{minipage}
+  \vspace{0.8cm}
+\end{titlepage}
+\clearpage
+\pagenumbering{arabic}
+
+\section{Identificação da equipa e do proponente principal}
+
+\begin{tabularx}{\textwidth}{>{\bfseries}p{4.1cm} X}
+  Proponente principal & Rocélio Da Silva \\
+  Membros da equipa & Derik Francisco; Davidaldo Belchior; Mafra Tito \\
+  Instituição & ISPTEC \\
+  Curso declarado no rascunho & Engenharia de Petróleos \\
+  Contactos e números de matrícula & A indicar na ficha de inscrição \\
+\end{tabularx}
+
+O material de candidatura identifica os proponentes como estudantes de Engenharia de
+Petróleos do ISPTEC. A equipa deve confirmar a situação académica, os números de
+matrícula e que o proponente principal satisfaz os requisitos de elegibilidade do
+regulamento. A candidatura deve ser subscrita por todos os membros.
+
+\section{Título da ideia de negócio}
+
+\textbf{PetroLúmen — Plataforma Integrada de Engenharia de Reservatórios.}
+
+O nome é curto e diretamente associado à energia e à engenharia. A equipa deve
+verificar a disponibilidade do nome comercial e dos identificadores digitais antes
+de iniciar a exploração comercial.
+
+\section{Problema ou oportunidade identificada}
+
+Estudantes, engenheiros e consultores de reservatórios recorrem frequentemente a
+folhas de cálculo, scripts independentes e ferramentas que não partilham dados nem
+fluxos de trabalho. Esta fragmentação torna análises repetitivas, aumenta o esforço
+de verificação e dificulta a utilização consistente de métodos de engenharia.
+
+As soluções comerciais especializadas podem estar fora do alcance de estudantes,
+consultores independentes e pequenas organizações. Existe, por isso, uma oportunidade
+para uma ferramenta de apoio à análise técnica que seja acessível, modular e adaptada
+a fluxos de trabalho de engenharia de reservatórios.
+
+Esta oportunidade é uma hipótese de negócio, não uma medição de mercado. Deve ser
+validada por entrevistas a utilizadores, docentes, consultores e potenciais clientes
+em Angola.
+
+\section{Solução proposta e proposta de valor}
+
+O PetroLúmen é uma aplicação de engenharia de reservatórios que reúne ferramentas de
+análise num ambiente de trabalho comum. A base de código existente combina uma
+interface em React/Next.js, empacotamento desktop com Tauri e um backend Python/FastAPI.
+O repositório inclui módulos e endpoints para cálculos PVT, análise de produção e
+declínio, análise nodal/RTA, simulação de reservatórios, previsão e gestão de dados.
+
+\textbf{Valor proposto:} reduzir a fragmentação do trabalho analítico, tornar
+ferramentas de engenharia mais acessíveis e facilitar a repetibilidade dos fluxos
+de análise. O software destina-se a apoiar o trabalho técnico; os resultados devem
+ser revistos por profissionais qualificados e não substituem validação de engenharia.
+
+\textbf{Diferencial pretendido:} foco em tarefas frequentes de reservatórios, interface
+integrada, evolução modular e possibilidade de implantação local. A operação
+completamente offline, a segurança de dados e a integração de todos os módulos devem
+ser demonstradas em testes e pilotos antes de serem anunciadas como garantias.
+
+\section{Mercado e clientes-alvo}
+
+\begin{itemize}
+  \item \textbf{Estudantes e instituições de ensino:} uso pedagógico, exercícios e
+  demonstrações de análise de reservatórios.
+  \item \textbf{Engenheiros e consultores independentes:} apoio a análises de rotina,
+  preparação de cenários e elaboração de resultados técnicos.
+  \item \textbf{Pequenas consultoras e operadores:} ferramenta modular para equipas
+  que necessitam de fluxos de análise acessíveis e configuráveis.
+  \item \textbf{Empresas de maior dimensão:} possibilidade futura de implantação
+  local, sujeita a requisitos de segurança, integração, suporte e validação.
+\end{itemize}
+
+A entrada no mercado deve começar por entrevistas e demonstrações junto da comunidade
+académica e de profissionais locais. O número de utilizadores potencialmente
+interessados, a disposição para pagar e os requisitos de aquisição empresarial ainda
+precisam de ser medidos. Não se assume qualquer contrato ou parceria existente.
+
+\section{Diferencial competitivo e análise sumária da concorrência}
+
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.2cm} X X}
+  \toprule
+  Alternativa & Vantagem percebida & Espaço de diferenciação do PetroLúmen \\
+  \midrule
+  Folhas de cálculo e scripts próprios
+    & Flexíveis e já conhecidos pelos utilizadores
+    & Reunir fluxos de análise, facilitar reutilização e reduzir tarefas manuais \\
+  Ferramentas científicas de código aberto
+    & Acesso ao código e possibilidade de adaptação
+    & Oferecer interface de produto e fluxos mais orientados ao utilizador \\
+  Suites comerciais especializadas
+    & Funcionalidades maduras e suporte estabelecido
+    & Explorar acessibilidade, modularidade e necessidades do contexto local \\
+  \bottomrule
+\end{tabularx}
+
+Esta comparação é qualitativa e não substitui uma análise de preços, licenças,
+funcionalidades e desempenho de concorrentes específicos. A diferenciação deverá ser
+confirmada com utilizadores e não deve assentar apenas em alegações de menor custo ou
+maior precisão.
+
+\section{Modelo de receitas ou mecanismo de criação de valor}
+
+O modelo de receitas é uma hipótese escalonada, ainda por validar:
+
+\begin{enumerate}
+  \item \textbf{Plano académico:} versão gratuita ou de baixo custo para estudantes,
+  com limites de utilização ou exportação a definir.
+  \item \textbf{Plano profissional:} subscrição para consultores e profissionais,
+  com acesso a funcionalidades avançadas e suporte.
+  \item \textbf{Plano organizacional:} licença ou contrato anual para organizações,
+  potencialmente com implantação local, configuração e formação.
+\end{enumerate}
+
+O rascunho comercial considera, para simulação, \usd 40 por mês no plano profissional
+e \usd 4\,000 por ano no plano organizacional. Estes valores são referências
+hipotéticas, não preços aprovados nem validados por clientes. O mecanismo de
+licenciamento, faturação, suporte e conformidade deverá ser definido antes do
+lançamento.
+
+\section{Viabilidade técnica e recursos necessários}
+
+\textbf{Base existente no repositório:}
+\begin{itemize}
+  \item frontend em React/Next.js e configuração de aplicação desktop Tauri;
+  \item backend FastAPI organizado em API e módulos Python de engenharia;
+  \item funcionalidades de cálculo PVT, análise/declínio de produção, previsão,
+  simulação e endpoints relacionados;
+  \item testes automatizados organizados em \texttt{backend/tests/} e testes de
+  interface configurados com Vitest.
+\end{itemize}
+
+A existência de código e testes não equivale, por si só, a certificação científica,
+prontidão industrial ou validação independente dos cálculos. Antes de um piloto,
+deverão ser verificados os resultados contra exemplos de referência, a integração
+entre a aplicação desktop e o backend, o tratamento de dados, a documentação de
+limitações e a experiência de utilização.
+
+\textbf{Recursos necessários:} tempo de desenvolvimento da equipa; revisão técnica
+por docentes e engenheiros de reservatórios; equipamentos de desenvolvimento e
+demonstração; testes com dados sintéticos ou autorizados; apoio de UX, validação de
+segurança e orientação comercial. Dados reais de poços só devem ser utilizados com
+autorização e controlos adequados de confidencialidade.
+
+\section{Estimativa económico-financeira preliminar}
+
+A tabela seguinte é um cenário de referência, não uma previsão garantida. Assume
+subscrições profissionais ao preço hipotético de \usd 40/mês durante 12 meses e
+licenças organizacionais de \usd 4\,000/ano. Os custos são estimativas preliminares
+do rascunho e carecem de cotações. Não incluem remuneração integral dos fundadores,
+impostos, comissões, custos financeiros nem contingências.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabularx}{\textwidth}{X r r r}
+  \toprule
+  \textbf{Indicador} & \textbf{Ano 1} & \textbf{Ano 2} & \textbf{Ano 3} \\
+  \midrule
+  Subscrições profissionais (contas-ano) & 50 & 150 & 350 \\
+  Receita profissional (\usd) & 24\,000 & 72\,000 & 168\,000 \\
+  Licenças organizacionais (unidades-ano) & 0 & 2 & 5 \\
+  Receita organizacional (\usd) & 0 & 8\,000 & 20\,000 \\
+  \textbf{Receita bruta modelada (\usd)} & \textbf{24\,000} & \textbf{80\,000} & \textbf{188\,000} \\
+  Custos operacionais preliminares (\usd) & 5\,000 & 12\,000 & 25\,000 \\
+  \textbf{Saldo operacional simplificado (\usd)} & \textbf{19\,000} & \textbf{68\,000} & \textbf{163\,000} \\
+  \bottomrule
+\end{tabularx}
+\caption{Cenário ilustrativo baseado em hipóteses ainda não validadas.}
+\end{table}
+
+O saldo simplificado corresponde apenas à receita bruta menos os custos indicados;
+não deve ser interpretado como lucro líquido. As quantidades de clientes, preços,
+custos e calendário de aquisição devem ser revistos com dados de entrevistas, pilotos
+e cotações. Não se afirma um mês de equilíbrio financeiro sem um fluxo de caixa
+mensal validado.
+
+\section{Impacto socioeconómico e ambiental}
+
+\textbf{Socioeconómico:} o desenvolvimento local de software técnico pode fortalecer
+competências digitais e de engenharia, criar propriedade intelectual e abrir
+oportunidades de prestação de serviços e emprego qualificado. Estes impactos
+dependem da adoção, continuidade do produto e capacidade de gerar receitas.
+
+\textbf{Ambiental:} ferramentas de análise podem apoiar a comparação de cenários e
+decisões de gestão de reservatórios. O software não reduz emissões ou perfurações
+por si só; qualquer benefício ambiental deve ser medido num piloto, com indicadores
+definidos e atribuição prudente dos resultados.
+
+\textbf{Sustentabilidade e responsabilidade:} a proposta pretende criar valor
+económico através de receitas recorrentes que financiem manutenção, validação e
+suporte, e valor social através do desenvolvimento de competências locais. A
+utilização deve respeitar a confidencialidade dos dados, a segurança dos utilizadores,
+a responsabilidade profissional e a protecção ambiental. Estes resultados dependem
+da implementação e serão acompanhados por indicadores de adopção, continuidade das
+receitas, actividades de formação e evidência dos pilotos.
+
+\section{Plano preliminar de implementação, riscos e mitigação}
+
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.5cm} X X}
+  \toprule
+  Fase & Actividades e resultado esperado & Critério de avanço \\
+  \midrule
+  1. Validação
+    & Entrevistar utilizadores, escolher tarefas prioritárias e confirmar requisitos
+    & Problemas recorrentes e utilizadores-piloto identificados \\
+  2. Consolidação técnica
+    & Rever cálculos, integração, documentação, importação/exportação e estabilidade
+    & Casos de referência reproduzidos e limitações documentadas \\
+  3. Piloto académico
+    & Demonstrar fluxos selecionados com dados autorizados ou sintéticos
+    & Feedback recolhido, erros prioritários tratados \\
+  4. Preparação comercial
+    & Testar preços, suporte, licenciamento e custos de implantação
+    & Interesse e disposição para pagar avaliados \\
+  5. Lançamento gradual
+    & Disponibilizar versão inicial e acompanhar utilização e suporte
+    & Indicadores de uso, retenção e custos acompanhados \\
+  Preparação para exposição
+    & Preparar banner e demonstração segura dentro do espaço atribuído; levar os
+    equipamentos necessários e solicitar autorização prévia para demonstrações
+    & Cumprimento das instruções da organização e dos requisitos de segurança \\
+  \bottomrule
+\end{tabularx}
+
+\vspace{0.5em}
+\textbf{Principais riscos e mitigação:}
+\begin{itemize}
+  \item \textbf{Resultados técnicos incorretos:} testar contra exemplos de referência,
+  rever unidades e hipóteses e apresentar limitações junto dos resultados.
+  \item \textbf{Baixa adesão ou disposição para pagar:} validar necessidades e preços
+  com entrevistas e pilotos antes de investir no lançamento.
+  \item \textbf{Atrasos de integração e estabilidade:} reduzir o âmbito inicial a
+  fluxos prioritários e manter testes de regressão.
+  \item \textbf{Exposição de dados confidenciais:} começar com dados sintéticos ou
+  autorizados, limitar acessos e validar armazenamento, transferência e eliminação.
+  \item \textbf{Dependência da equipa e falta de recursos:} documentar o produto,
+  priorizar entregas e procurar mentoria técnica e empresarial.
+  \item \textbf{Custos e receitas diferentes das hipóteses:} obter cotações, rever
+  periodicamente o orçamento e condicionar a expansão à validação comercial.
+\end{itemize}
+
+\section*{Declaração e subscrição da equipa}
+\addcontentsline{toc}{section}{Declaração e subscrição da equipa}
+
+Os proponentes abaixo identificados declaram que leram e aceitam o Regulamento
+GEOENERGY 2026, que as informações fornecidas nesta candidatura são verdadeiras
+segundo o seu conhecimento e que assumem conjuntamente a responsabilidade pela
+proposta. Confirmam também que a equipa e a elegibilidade cumprem os requisitos
+aplicáveis do regulamento. Cada membro deverá assinar antes da submissão.
+
+\vspace{1em}
+\begin{tabularx}{\textwidth}{X X}
+  \textbf{Proponente principal} & \textbf{Membro da equipa} \\
+  Nome: Rocélio Da Silva & Nome: Derik Francisco \\
+  Assinatura: \hrulefill & Assinatura: \hrulefill \\
+  Data: \hrulefill & Data: \hrulefill \\
+\end{tabularx}
+
+\vspace{1em}
+\textit{Se houver outros membros, acrescentar os respectivos nomes, assinaturas e
+datas. A candidatura deve ser subscrita por todos os elementos da equipa.}
+
+\end{document}

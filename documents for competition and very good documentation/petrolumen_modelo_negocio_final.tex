@@ -1,0 +1,265 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\definecolor{petrolblue}{RGB}{13,42,80}
+\definecolor{petrolgold}{RGB}{214,169,70}
+\definecolor{petrolgreen}{RGB}{17,111,102}
+\definecolor{lightgray}{RGB}{245,247,250}
+\definecolor{softgray}{RGB}{236,239,244}
+
+\hypersetup{colorlinks=true,linkcolor=petrolblue,urlcolor=petrolblue}
+\titleformat{\section}{\normalfont\Large\bfseries\color{petrolblue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{petrolgreen}}{\thesubsection}{1em}{}
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.2}
+\setlist[itemize]{leftmargin=1.2em,itemsep=0.3em,topsep=0.3em}
+\setlist[enumerate]{leftmargin=1.5em,itemsep=0.25em,topsep=0.3em}
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    {\Huge\textbf{\color{petrolblue} PETROLÚMEN}}\\[0.35cm]
+    {\large\textbf{Plataforma Digital de Engenharia de Reservatórios}}\\[1.4cm]
+
+    {\Large\textbf{Modelo de Negócio}}\\[1.2cm]
+
+    \begin{tabular}{rl}
+        \textbf{Categoria:} & Digitalização e Tecnologias Aplicadas às Geociências e Energia \\
+        \textbf{Proponente principal:} & Rocélio Da Silva \\
+        \textbf{Equipa:} & Rocélio Da Silva, Derik Francisco, Davidaldo Belchior e Mafra Tito \\
+        \textbf{Instituição:} & ISPTEC \\
+        \textbf{Data:} & Outubro de 2026 \\
+    \end{tabular}
+
+    \vfill
+    \begin{minipage}{0.82\textwidth}
+        \centering
+        \small\textit{Projeto em desenvolvimento para apoiar estudantes, investigadores e profissionais na análise e tomada de decisão em engenharia de reservatórios, com foco em acessibilidade, portabilidade e integração de ferramentas técnicas.}
+    \end{minipage}
+\end{titlepage}
+
+\noindent\textit{Este documento foi estruturado em conformidade com o Anexo I do Regulamento GEOENERGY (2026). A extensão recomendada é até 10 páginas, excluindo capa e anexos. O material será submetido em formato PDF.}
+
+\tableofcontents
+\newpage
+
+\section{Identificação da equipa e do proponente principal}
+O proponente principal do projeto é \textbf{Rocélio Da Silva}, estudante/profissional em formação nas áreas de engenharia de petróleo e tecnologia aplicada ao setor energético. A equipa inclui ainda \textbf{Derik Francisco}, \textbf{Davidaldo Belchior} e \textbf{Mafra Tito}, com complementaridade técnica, operacional e de implementação do produto. A proposta encontra-se alinhada com o contexto académico do \textbf{ISPTEC}, instituição de ensino reconhecida no setor petrolífero e geológico em Angola.
+
+A equipa assume uma estrutura leve e multidisciplinar, com foco em desenvolvimento técnico, validação de hipóteses de mercado e adaptação do produto ao contexto regional. De acordo com o regulamento, a equipa deve ter no máximo cinco elementos, sendo o proponente principal obrigatório estudante ou alumnus de Engenharia de Petróleos ou Geofísica, e os restantes elementos devem respeitar a composição elegível da candidatura.
+
+\section{Título da ideia de negócio}
+\textbf{PetroLúmen — Plataforma Digital de Engenharia de Reservatórios}
+
+\section{Problema ou oportunidade identificada}
+O setor de petróleo e gás continua a depender de ferramentas fragmentadas e pouco integradas: folhas de cálculo, scripts isolados, programas especializados e dados distribuídos por múltiplas plataformas. Esta realidade gera:
+
+\begin{itemize}
+    \item perda de tempo em tarefas repetitivas;
+    \item maior risco de erros manuais e inconsistências de resultados;
+    \item dificuldade de rastreabilidade e reprodutibilidade das análises;
+    \item limites de acesso para estudantes, investigadores e pequenas consultoras;
+    \item alta dependência de software empresarial caro e pouco adaptado ao contexto local.
+\end{itemize}
+
+A oportunidade identificada é desenvolver uma plataforma acessível, local e modular, que reúna funções técnicas de engenharia de reservatórios em um único ambiente digital. O mercado alvo inicial inclui universidades, laboratórios e pequenos profissionais que necessitam de ferramentas úteis, seguras e economicamente viáveis.
+
+\section{Solução proposta e proposta de valor}
+O PetroLúmen é uma plataforma digital em desenvolvimento para apoiar a análise de reservatórios e a tomada de decisão técnica. O projeto combina:
+
+\begin{itemize}
+    \item interface desktop moderna, orientada ao utilizador;
+    \item backend em Python \textit{(FastAPI)} para processamento e cálculo técnico;
+    \item arquitetura modular para integração de módulos variados;
+    \item gestão local de dados, reduzindo dependência de infraestrutura externa;
+    \item suporte a tarefas frequentes de engenharia, como PVT, análise de declínio, previsão e simulação.
+\end{itemize}
+
+A proposta de valor do produto é clara:
+
+\begin{enumerate}
+    \item \textbf{Integração de fluxos de trabalho:} reduzir a fragmentação entre ferramentas e arquivos;
+    \item \textbf{Acessibilidade:} abrir caminho para estudantes e pequenas equipas que não têm acesso a soluções premium;
+    \item \textbf{Rastreabilidade:} melhorar a organização, validação e comparação de resultados;
+    \item \textbf{Produtividade:} automatizar tarefas repetitivas e acelerar a análise técnica;
+    \item \textbf{Escalabilidade:} permitir a evolução do produto com feedback real dos utilizadores.
+\end{enumerate}
+
+Importante destacar que o PetroLúmen é uma ferramenta de apoio à engenharia. Os resultados produzidos devem ser validados por profissionais qualificados e comparados com referências técnicas e dados específicos antes de serem usados em decisões operacionais ou industriais.
+
+\section{Mercado e clientes-alvo}
+O mercado inicial é prioritariamente nacional e regional, em especial em Angola, com potencial para expansão para países da África Austral e mercados de energia em desenvolvimento. Os segmentos principais são:
+
+\begin{itemize}
+    \item \textbf{Estudantes e docentes} de Engenharia de Petróleos, Geofísica e áreas afins;
+    \item \textbf{Investigadores e laboratórios acadêmicos};
+    \item \textbf{Consultores independentes e pequenas empresas de serviços};
+    \item \textbf{Operadores e entidades de energia} em fase posterior, após validação técnica e institucional.
+\end{itemize}
+
+\textbf{Cliente ideal:} profissionais e estudantes que trabalham com dados técnicos, necessidade de análise crítica e que procuram reduzir o tempo entre a coleta de dados e a formulação de hipóteses, cenários e decisões.
+
+A validação do mercado será feita por meio de entrevistas, testes com protótipos e envolvimento de utilizadores selecionados do contexto académico e técnico local. A estratégia inicial deve priorizar a adoção em universidades e consultores pequenos antes de expansão para clientes maiores.
+
+\section{Diferencial competitivo e análise sumária da concorrência}
+O ambiente de concorrência inclui ferramentas internas em Excel, scripts desenvolvidos localmente, softwares acadêmicos e plataformas comerciais de engenharia. Essas alternativas podem ser úteis, mas apresentam limitações comuns:
+
+\begin{itemize}
+    \item custo elevado;
+    \item curva de aprendizagem alta;
+    \item baixa integração de módulos;
+    \item pouca adequação ao contexto de utilização local e académico;
+    \item dependência de licenças e infraestruturas complexas.
+\end{itemize}
+
+O diferencial competitivo proposto do PetroLúmen é baseado na combinação de:
+
+\begin{itemize}
+    \item foco em tarefas de reservatórios e análise técnica relevante para o contexto local;
+    \item arquitetura moderna, modular e de fácil adaptação;
+    \item distribuição desktop/local, com potencial de funcionamento seguro e isolado;
+    \item modelo de entrada gradual e acessível, começando com estudantes e consultores;
+    \item possibilidade de evolução com feedback dos utilizadores.
+\end{itemize}
+
+O PetroLúmen não deve ser apresentado como substituto imediato de plataformas empresariais altamente consolidadas. O seu posicionamento mais realista é o de uma solução acessível e progressiva, voltada para produtividade, validação e adoção inicial em mercados ainda pouco atendidos.
+
+\section{Modelo de receitas ou mecanismo de criação de valor}
+O modelo de receitas proposto segue uma lógica gradual, testável e ajustável ao mercado:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X|X}
+\toprule
+\textbf{Linha de negócio} & \textbf{Descrição} \\
+\midrule
+Estudantes e académicos & Versão de demonstração ou gratuita com limites de uso e exportação. \\
+Profissionais e consultores & Plano de assinatura mensal ou anual, com acesso completo às ferramentas relevantes. \\
+Organizações & Licença ou contrato de suporte para equipas, com personalização e suporte específico. \\
+Serviços complementares & Formação, configuração, consultoria e suporte técnico. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Hipótese de preços para validação:}
+\begin{itemize}
+    \item \textbf{Plano profissional:} US\$ 30 a US\$ 50 por utilizador/mês;
+    \item \textbf{Licença organizacional:} US\$ 2.000 a US\$ 5.000 por ano;
+    \item \textbf{Versão académica:} gratuita ou com custos simbólicos.
+\end{itemize}
+
+Estas cifras devem ser confirmadas por pesquisa de mercado, estudo de poder de compra local, custos de suporte e disponibilidade de pagamento dos clientes. O objetivo é validar um preço proporcional ao valor gerado em produtividade e qualidade técnica, sem comprometer a adoção inicial.
+
+\section{Viabilidade técnica e recursos necessários}
+O projeto já apresenta uma base técnica consistente para desenvolvimento e validação. A arquitetura do repositório indica a presença de:
+
+\begin{itemize}
+    \item \textbf{Frontend:} aplicação web/desktop baseada em React/Next.js com empacotamento via Tauri;
+    \item \textbf{Backend:} API em Python/FastAPI com módulos de cálculo e processamento;
+    \item \textbf{Estrutura modular:} componentes relacionados com PVT, declínio, simulação, análise e previsão;
+    \item \textbf{Testes automatizados:} evidência de esforço de validação funcional e reforço de qualidade.
+\end{itemize}
+
+\textbf{Recursos necessários:}
+\begin{itemize}
+    \item equipa técnica com capacidade de desenvolvimento em Python, JavaScript/TypeScript e arquitetura de software;
+    \item ambiente de desenvolvimento e testes local ou em nuvem;
+    \item documentação de requisitos e casos de uso;
+    \item validação com usuários reais e feedback técnico;
+    \item recursos para design, UX/UI e suporte inicial de clientes.
+\end{itemize}
+
+A viabilidade técnica é reforçada pela maturidade da base tecnológica e pela possibilidade de desenvolver uma solução incremental. A estratégia ideal é validar primeiro os módulos de maior valor percebido, como análise de PVT e declínio de produção, antes de ampliar a oferta para simulação e inteligência artificial.
+
+\section{Estimativa económico-financeira preliminar}
+A projeção abaixo é uma hipótese orientativa, sujeita a validação com pesquisa de mercado e pilotos reais.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X|c|c|c}
+\toprule
+\textbf{Indicador} & \textbf{Ano 1} & \textbf{Ano 2} & \textbf{Ano 3} \\
+\midrule
+Subscrições profissionais & 50 & 150 & 350 \\
+Licenças empresariais & 0 & 2 & 5 \\
+Receita anual (USD) & 24.000 & 76.000 & 196.000 \\
+Custos fixos (USD) & 5.000 & 12.000 & 25.000 \\
+Resultado operacional (USD) & 19.000 & 64.000 & 171.000 \\
+Ponto de equilíbrio & 8º mês & consolidado & consolidado \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Este cenário presume uma entrada gradual no mercado, com foco em adoção por estudantes, freelancers e pequenas consultoras. A estrutura do projeto permite baixos custos fixos e razoável escalabilidade, especialmente quanto a software, manutenção e suporte digital.
+
+\section{Impacto socioeconómico e ambiental}
+\textbf{Impacto socioeconómico:}
+\begin{itemize}
+    \item contribuir para a formação e capacitação de jovens profissionais em engenharia e tecnologia;
+    \item estimular a inovação local no setor energético;
+    \item apoiar a criação de conhecimento técnico com relevância para a indústria angolana;
+    \item reduzir a dependência de ferramentas importadas e de alto custo.
+\end{itemize}
+
+\textbf{Impacto ambiental:}
+\begin{itemize}
+    \item melhorar a eficiência da análise técnica e da tomada de decisão;
+    \item favorecer uma gestão mais precisa de recursos e produção;
+    \item contribuir para decisões que reduzam desperdícios e maximizem a eficiência operacional.
+\end{itemize}
+
+O PetroLúmen, portanto, gera valor não só económico mas também institucional e formativo, ao reforçar a capacidade técnica local e apoiar a transformação digital do setor energético.
+
+\section{Plano preliminar de implementação, principais riscos e medidas de mitigação}
+\textbf{Plano preliminar de implementação}
+\begin{enumerate}
+    \item \textbf{Fase 1 — Validação e desenho do núcleo:} confirmar necessidades dos utilizadores, priorizar módulos e definir fluxos essenciais.
+    \item \textbf{Fase 2 — Protótipo funcional:} desenvolver versão inicial com importação de dados, módulos básicos e interface amigável.
+    \item \textbf{Fase 3 — Pilotos com utilizadores:} validar em contextos académicos e consultivos, recolher feedback e ajustar o produto.
+    \item \textbf{Fase 4 — Expansão comercial:} lançar versões profissionais, suporte e contratos para equipas e organizações.
+\end{enumerate}
+
+\textbf{Principais riscos e mitigação}
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X|c|c|X}
+\toprule
+\textbf{Risco} & \textbf{Prob.} & \textbf{Impacto} & \textbf{Mitigação} \\
+\midrule
+Adoção lenta por parte dos utilizadores & Média & Alto & Pilotos, demonstrações e feedback contínuo. \\
+Concorrência de software empresarial & Média & Alto & Diferenciação por acessibilidade e foco local. \\
+Resistência à mudança de ferramentas tradicionais & Média & Médio & Interface intuitiva e validação prática. \\
+Dependência de conhecimento técnico específico & Média & Médio & Formação e suporte inicial aos clientes. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Uma gestão prudente do risco deve combinar validação técnica, proposição de valor defendida por casos de uso reais e execução gradual de expansão, evitando compromissos prematuros com produtos e modelos de negócio demasiado amplos.
+
+
+
+A estratégia recomendada é iniciar por um mercado de baixa fricção, onde o produto pode demonstrar utilidade imediata e criar reputação. Com validação contínua, a plataforma pode evoluir para uma solução relevante, escalável e inovadora no mercado de energia e geociências em Angola e na região.
+
+\end{document}
