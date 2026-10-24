@@ -2,13 +2,14 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WellFileUploadForm } from './WellFileUploadForm';
-import { uploadWellData, UploadResponse } from '@/lib/backendClient';
+import { uploadWellData, uploadLasFile, UploadResponse, LasUploadResponse } from '@/lib/backendClient';
 
 vi.mock('@/lib/backendClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/backendClient')>();
   return {
     ...actual,
     uploadWellData: vi.fn(),
+    uploadLasFile: vi.fn(),
   };
 });
 
@@ -91,6 +92,47 @@ describe('WellFileUploadForm Component', () => {
       });
 
       expect(screen.getByText('File uploaded successfully!')).toBeInTheDocument();
+    });
+
+    it('handles LAS file selection and submits to uploadLasFile successfully', async () => {
+      const mockLasResponse: LasUploadResponse = {
+        message: 'LAS file uploaded successfully!',
+        well_id: 'Well-LAS-01',
+        filename: 'well_log.las',
+        metadata: { WELL: { value: 'Well-LAS-01' } },
+        curves: { GR: { unit: 'GAPI', description: 'Gamma Ray', data: [50, 60] } },
+        data: [{ DEPT: 1000, GR: 50 }, { DEPT: 1001, GR: 60 }],
+      };
+
+      vi.mocked(uploadLasFile).mockResolvedValueOnce(mockLasResponse);
+
+      const { container } = render(
+        <WellFileUploadForm
+          onUploadSuccess={mockOnUploadSuccess}
+          setIsLoadingGlobal={mockSetIsLoadingGlobal}
+          setErrorGlobal={mockSetErrorGlobal}
+          isLoadingGlobal={false}
+        />
+      );
+
+      const wellNameInput = screen.getByLabelText(/well name:/i);
+      fireEvent.change(wellNameInput, { target: { value: 'Well-LAS-01' } });
+
+      const file = new File(['~Version\nVERS. 2.0:\n'], 'well_log.las', { type: 'text/plain' });
+      const fileInput = screen.getByLabelText(/select csv file\(s\):/i);
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const form = container.querySelector('form')!;
+      fireEvent.submit(form);
+
+      await waitFor(() => {
+        expect(mockSetIsLoadingGlobal).toHaveBeenCalledWith(true);
+        expect(mockSetErrorGlobal).toHaveBeenCalledWith('');
+        expect(uploadLasFile).toHaveBeenCalledWith('Well-LAS-01', expect.anything());
+        expect(mockOnUploadSuccess).toHaveBeenCalled();
+      });
+
+      expect(screen.getByText('LAS file uploaded successfully!')).toBeInTheDocument();
     });
   });
 

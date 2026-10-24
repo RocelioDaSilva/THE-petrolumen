@@ -52,6 +52,9 @@ from gaia_genesis.prediction import AIPrediction  # Import AIPrediction
 
 import pandas as pd
 import numpy as np  # Added import
+import numpy_financial as npf
+import io
+import lasio
 
 from config import settings  # Import the settings instance # Moved up
 from gaia_genesis.core.data_uploader import DataUploader  # Moved up
@@ -471,6 +474,22 @@ class AIPredictResponse(BaseModel):
     error: Optional[str] = None
 
 
+# --- Economics Analysis Models ---
+class EconomicsAnalyzeRequest(BaseModel):
+    production_profile: List[float]
+    oil_price: float
+    opex: float
+    capex: float
+    discount_rate: float
+
+
+class EconomicsAnalyzeResponse(BaseModel):
+    npv: float
+    irr: float
+    cash_flows: List[float]
+    cumulative_cash_flow: List[float]
+
+
 class AISaveModelRequest(BaseModel):
     model_name: str
     path: str  # Path where model should be saved on server
@@ -840,6 +859,112 @@ async def list_wells_with_data(
     logger.info(f"User '{current_user.username}' listing all wells.")
     wells = data_uploader.list_loaded_wells()  # This now returns list of dicts from DB
     return JSONResponse(content=jsonable_encoder({"wells": wells}))
+
+
+@app.post("/api/v1/wells/{well_id}/upload-las", tags=["Well Data Management"])
+async def upload_las_file(
+    well_id: str = Path(..., title="The ID or name of the well"),
+    file: UploadFile = File(..., description="The LAS file to upload"),
+    current_user: UserResponse = Depends(get_current_active_user),
+) -> JSONResponse:
+    """
+    Parses an uploaded .las file using lasio and returns curves and metadata.
+    Requires authentication.
+    """
+    logger.info(
+        f"User '{current_user.username}' uploading LAS file for well '{well_id}'."
+    )
+    try:
+        content_bytes = await file.read()
+        content_str = content_bytes.decode("utf-8", errors="ignore")
+        las = lasio.read(io.StringIO(content_str))
+
+        metadata = {}
+        for item in las.well:
+            metadata[item.mnemonic] = {
+                "value": item.value,
+                "unit": item.unit,
+                "descr": item.descr,
+            }
+
+        curves_info = {}
+        for curve in las.curves:
+            curve_data = [
+                None if np.isnan(val) else float(val) for val in las[curve.mnemonic]
+            ]
+            curves_info[curve.mnemonic] = {
+                "unit": curve.unit,
+                "description": curve.descr,
+                "data": curve_data,
+            }
+
+        df_records = dataframe_to_json_serializable(las.df().reset_index())
+
+        return JSONResponse(
+            content=jsonable_encoder(
+                {
+                    "message": f"Successfully parsed LAS file '{file.filename}'.",
+                    "well_id": well_id,
+                    "filename": file.filename,
+                    "metadata": metadata,
+                    "curves": curves_info,
+                    "data": df_records,
+                }
+            )
+        )
+    except Exception as e:
+        logger.error(f"Error parsing LAS file '{file.filename}': {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse LAS file: {str(e)}",
+        )
+    finally:
+        await file.close()
+
+
+@app.post(
+    "/api/v1/economics/analyze",
+    response_model=EconomicsAnalyzeResponse,
+    tags=["Economics"],
+)
+async def analyze_economics(
+    data: EconomicsAnalyzeRequest,
+    current_user: UserResponse = Depends(get_current_active_user),
+):
+    """
+    Analyzes economics given a production profile, oil price, OPEX, CAPEX, and discount rate.
+    Uses numpy_financial to calculate NPV and IRR.
+    """
+    try:
+        net_cash_flows = [-abs(data.capex)]
+
+        for vol in data.production_profile:
+            if data.opex < data.oil_price and vol > 0:
+                net_cf = vol * (data.oil_price - data.opex)
+            else:
+                net_cf = (vol * data.oil_price) - data.opex
+            net_cash_flows.append(net_cf)
+
+        npv_val = npf.npv(data.discount_rate, net_cash_flows)
+        irr_val = npf.irr(net_cash_flows)
+
+        npv_float = float(npv_val) if npv_val is not None and not np.isnan(npv_val) else 0.0
+        irr_float = float(irr_val) if irr_val is not None and not np.isnan(irr_val) else 0.0
+
+        cum_cash_flow = np.cumsum(net_cash_flows).tolist()
+
+        return EconomicsAnalyzeResponse(
+            npv=npv_float,
+            irr=irr_float,
+            cash_flows=net_cash_flows,
+            cumulative_cash_flow=cum_cash_flow,
+        )
+    except Exception as e:
+        logger.error(f"Error in economics analysis: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Economics calculation failed: {str(e)}",
+        )
 
 
 # Admin endpoint - example of role-based access (conceptual, AuthManager doesn't
