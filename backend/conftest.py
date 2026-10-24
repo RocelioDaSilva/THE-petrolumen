@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 import os
 import sys
 import logging
@@ -39,16 +40,21 @@ from main import (
 
 from gaia_genesis.core.auth_manager import AuthManager as CoreAuthManager
 
-TEST_DATABASE_URL = "sqlite:///./test_temp_app.db"
+TEST_DATABASE_URL = "sqlite://"
 
 @pytest.fixture(scope="session")
 def test_engine():
-    engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-    if os.path.exists("./test_temp_app.db"):
-        os.remove("./test_temp_app.db")
+    try:
+        yield engine
+    finally:
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 @pytest.fixture(scope="function")
 def TestingSessionLocal(test_engine):
@@ -91,9 +97,19 @@ def client(test_db_manager, test_auth_manager, db_session):
         )
 
     from main import data_uploader as main_data_uploader
+    import main as main_module
+    import auth_utils
+
     original_auth_db_manager = main_auth_manager.db_manager
-    main_auth_manager.db_manager = test_db_manager
+    original_auth_manager = main_module.auth_manager
+    original_auth_utils_manager = auth_utils.auth_manager
     original_data_uploader_db_manager = main_data_uploader.db_manager
+    original_main_db_manager = main_module.db_manager
+
+    main_auth_manager.db_manager = test_db_manager
+    main_module.auth_manager = test_auth_manager
+    auth_utils.auth_manager = test_auth_manager
+    main_module.db_manager = test_db_manager
     main_data_uploader.db_manager = test_db_manager
 
     with TestClient(app) as c:
@@ -101,6 +117,9 @@ def client(test_db_manager, test_auth_manager, db_session):
 
     app.dependency_overrides = {}
     main_auth_manager.db_manager = original_auth_db_manager
+    main_module.auth_manager = original_auth_manager
+    auth_utils.auth_manager = original_auth_utils_manager
+    main_module.db_manager = original_main_db_manager
     main_data_uploader.db_manager = original_data_uploader_db_manager
 
 @pytest.fixture(scope="function")
