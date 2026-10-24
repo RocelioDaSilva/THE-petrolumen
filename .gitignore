@@ -59,6 +59,10 @@ src-tauri/target
 # Logs
 logs
 *.log
+backend/pytest_analysis_fail.txt
+
+# Backend virtual environment
+backend/venv/
 
 # Sphinx documentation output
 backend/docs_sphinx/_build/

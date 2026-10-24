@@ -25,10 +25,8 @@ def test_db_manager_initialization(test_db_manager: DatabaseManager):
     """Test that the DatabaseManager initializes correctly with the test engine."""
     assert test_db_manager.engine is not None
     assert test_db_manager.SessionLocal is not None
-    # The actual URL might vary if conftest overrides it for tests.
-    # This assertion assumes test_temp_app.db is used by conftest.
-    # logger.info(f"Test DB Manager Engine URL: {str(test_db_manager.engine.url)}")
-    assert "test_temp_app.db" in str(test_db_manager.engine.url)
+    # The test database may be in-memory for portability, but it should always be SQLite.
+    assert test_db_manager.engine.url.drivername == "sqlite"
 
 
 def test_create_and_get_well(

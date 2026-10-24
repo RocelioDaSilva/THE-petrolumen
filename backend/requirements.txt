@@ -41,7 +41,7 @@ mypy_extensions==1.1.0
 narwhals==1.46.0
 nodeenv==1.9.1
 numpy==2.3.1
-nvidia-nccl-cu12==2.27.5
+nvidia-nccl-cu12==2.27.5; platform_system != "Windows"
 packaging==25.0
 pandas==2.3.1
 passlib==1.7.4
@@ -93,7 +93,7 @@ typing_extensions==4.14.1
 tzdata==2025.2
 urllib3==2.5.0
 uvicorn==0.35.0
-uvloop==0.21.0
+uvloop==0.21.0; platform_system != "Windows"
 virtualenv==20.31.2
 vtk==9.5.0
 watchfiles==1.1.0
