@@ -24,6 +24,30 @@ export interface UploadResponse {
   data_preview_first_5_rows?: WellDataPreview[];
 }
 
+export interface LasUploadResponse {
+  message: string;
+  well_id: string;
+  filename: string;
+  metadata: Record<string, any>;
+  curves: Record<string, { unit: string; description: string; data: (number | null)[] }>;
+  data: Record<string, any>[];
+}
+
+export interface EconomicsAnalyzeRequest {
+  production_profile: number[];
+  oil_price: number;
+  opex: number;
+  capex: number;
+  discount_rate: number;
+}
+
+export interface EconomicsAnalyzeResponse {
+  npv: number;
+  irr: number;
+  cash_flows: number[];
+  cumulative_cash_flow: number[];
+}
+
 export interface ApiErrorData {
   detail: string | Array<{ loc: string[]; msg: string; type: string }>;
 }
@@ -117,6 +141,34 @@ export const uploadWellData = async (
   });
 
   return handleApiResponse<UploadResponse>(response);
+};
+
+export const uploadLasFile = async (
+  wellId: string,
+  file: File
+): Promise<LasUploadResponse> => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetchWithAuth(
+    `${API_BASE_URL}/wells/${encodeURIComponent(wellId)}/upload-las`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  return handleApiResponse<LasUploadResponse>(response);
+};
+
+export const analyzeEconomics = async (
+  data: EconomicsAnalyzeRequest
+): Promise<EconomicsAnalyzeResponse> => {
+  const response = await fetchWithAuth(`${API_BASE_URL}/economics/analyze`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<EconomicsAnalyzeResponse>(response);
 };
 
 /**
@@ -657,6 +709,8 @@ export const performNMRAnalysis = async (data: NMRAnalysisRequestData): Promise<
 // Export all functions as part of a backendClient object for backward compatibility with some imports
 export const backendClient = {
     uploadWellData,
+    uploadLasFile,
+    analyzeEconomics,
     getWellDataPreview,
     getWellStatistics,
     listLoadedWells,
