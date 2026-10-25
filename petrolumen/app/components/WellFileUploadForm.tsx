@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UploadResponse, uploadWellData } from '@/lib/backendClient'; // Import uploadWellData here
+import { UploadResponse, uploadWellData, uploadLasFile } from '@/lib/backendClient';
+import { toast } from 'sonner';
 
 interface WellFileUploadFormProps {
   onUploadSuccess: (response: UploadResponse, uploadedWellName: string) => void;
@@ -36,17 +37,30 @@ export const WellFileUploadForm: React.FC<WellFileUploadFormProps> = ({
     setErrorGlobal("");
     setUploadStatus("");
     try {
-      // This needs to be adapted if uploadWellData is not directly importable here easily
-      // Or if backendClient needs specific setup (e.g. token) that should be managed by a parent
-      const response: UploadResponse = await uploadWellData(wellNameToUpload, filesToUpload);
-      setUploadStatus(response.message || "Upload successful!");
-      onUploadSuccess(response, wellNameToUpload);
-    } catch (err) {
-      if (err instanceof Error) {
-        setErrorGlobal(`Upload error: ${err.message}`);
+      const isLasFile = filesToUpload[0]?.name.toLowerCase().endsWith('.las');
+      if (isLasFile) {
+        const lasResponse = await uploadLasFile(wellNameToUpload, filesToUpload[0]);
+        const msg = lasResponse.message || "LAS file upload successful!";
+        setUploadStatus(msg);
+        toast.success(msg);
+        const mappedResponse: UploadResponse = {
+          message: msg,
+          well_name: wellNameToUpload,
+          files_processed: [lasResponse.filename || filesToUpload[0].name],
+          data_preview_first_5_rows: lasResponse.data?.slice(0, 5)
+        };
+        onUploadSuccess(mappedResponse, wellNameToUpload);
       } else {
-        setErrorGlobal("Upload error: An unexpected error occurred.");
+        const response: UploadResponse = await uploadWellData(wellNameToUpload, filesToUpload);
+        const msg = response.message || "Upload successful!";
+        setUploadStatus(msg);
+        toast.success(msg);
+        onUploadSuccess(response, wellNameToUpload);
       }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setErrorGlobal(`Upload error: ${errMsg}`);
+      toast.error(`Upload failed: ${errMsg}`);
       setUploadStatus("Upload failed.");
       console.error("Error in handleFileUpload:", err);
     } finally {
@@ -79,7 +93,7 @@ export const WellFileUploadForm: React.FC<WellFileUploadFormProps> = ({
               id="fileUpload"
               type="file"
               multiple
-              accept=".csv"
+              accept=".csv,.las"
               onChange={(e) => setFilesToUpload(e.target.files)}
               required
               className="max-w-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"

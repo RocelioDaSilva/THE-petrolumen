@@ -674,3 +674,48 @@ def test_admin_delete_well_with_no_production_data(
     list_resp_after = client.get("/api/v1/wells", headers=admin_auth_headers)
     assert well_name_no_data not in [w["name"] for w in list_resp_after.json()["wells"]]
     assert test_db_manager.get_well_by_name(well_name_no_data) is None
+
+
+def test_upload_las_file_success(client: TestClient, user_auth_headers):
+    """Test uploading a valid .las file and verifying parsing."""
+    las_content = (
+        "~Version Information\n"
+        "VERS.                  2.0:   CWLS log format version 2.0\n"
+        "WRAP.                   NO:   One line per depth step\n"
+        "~Well Information\n"
+        "WELL.             TestWell123:   WELL NAME\n"
+        "~Curve Information\n"
+        "DEPT .M                   :   DEPTH\n"
+        "GR   .GAPI                :   GAMMA RAY\n"
+        "RHOB .G/C3                :   BULK DENSITY\n"
+        "~Ascii\n"
+        "1000.0 50.0 2.3\n"
+        "1000.5 55.0 2.35\n"
+        "1001.0 60.0 2.4\n"
+    )
+    files = {"file": ("test_well.las", las_content.encode("utf-8"), "application/x-las")}
+    response = client.post(
+        "/api/v1/wells/TestWell123/upload-las",
+        files=files,
+        headers=user_auth_headers,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["well_id"] == "TestWell123"
+    assert data["filename"] == "test_well.las"
+    assert "curves" in data
+    assert "GR" in data["curves"]
+    assert "RHOB" in data["curves"]
+    assert data["curves"]["GR"]["data"] == [50.0, 55.0, 60.0]
+    assert data["curves"]["RHOB"]["data"] == [2.3, 2.35, 2.4]
+    assert "metadata" in data
+    assert "WELL" in data["metadata"]
+    assert data["metadata"]["WELL"]["value"] == "TestWell123"
+
+
+def test_upload_las_file_unauthenticated(client: TestClient):
+    """Test uploading a .las file without authentication returns 401."""
+    las_content = "~Version Information\nVERS. 2.0:\n~Ascii\n1000.0 50.0 2.3\n"
+    files = {"file": ("test.las", las_content.encode("utf-8"), "text/plain")}
+    response = client.post("/api/v1/wells/UnauthWell/upload-las", files=files)
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
