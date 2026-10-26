@@ -21,9 +21,15 @@ const AuthInitializer: React.FC = () => {
       // The `setToken` action from the store is no longer relevant for managing the actual token string.
       // `currentTokenInStore` is also less relevant as the source of truth is the cookie.
 
+      const savedToken = localStorage.getItem('access_token') || currentTokenInStore;
+      if (!savedToken) {
+        setIsInitializing(false);
+        return;
+      }
+
+      setToken(savedToken);
+
       try {
-        // Attempt to fetch current user.
-        // backendClient.getCurrentUser() will automatically send the HttpOnly cookie.
         const userProfileData = await backendClient.getCurrentUser();
 
         const userToStore: UserProfile = {
@@ -36,20 +42,12 @@ const AuthInitializer: React.FC = () => {
         };
 
         if (userToStore.is_active) {
-          // Login action in store now only takes userData, token is implicit via cookie
-          login(userToStore);
+          login(userToStore, savedToken);
         } else {
-          // User is inactive, treat as logged out
-          // logout action in store now also calls backendClient.logoutUser() to clear cookie
           await logout();
         }
       } catch (error) {
-        // If getCurrentUser fails (e.g., 401 Unauthorized), it means no valid session.
-        // ApiErrorResponse might be thrown by backendClient
-        console.warn("Auth initialization: No active session or token validation failed.", error);
-        // Ensure client state is logged out.
-        // logout() already handles clearing store state.
-        // If error is not due to auth (e.g. network error), user remains logged out on client.
+        console.warn("Auth initialization: Token validation failed.", error);
         await logout();
       }
       setIsInitializing(false);
