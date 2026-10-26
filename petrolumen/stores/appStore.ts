@@ -18,7 +18,7 @@ interface AppState {
   user: UserProfile | null;
   token: string | null;
   selectedWell: string | null;
-  login: (user: UserProfile) => void;
+  login: (user: UserProfile, token?: string | null) => void;
   logout: () => void;
   setToken: (token: string | null) => void;
   setSelectedWell: (wellName: string | null) => void;
@@ -35,7 +35,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedWell: null,
 
   // Actions
-  login: (userData, userToken) => {
+  login: (userData: UserProfile, userToken?: string | null) => {
     if (typeof window !== 'undefined' && userToken) {
       localStorage.setItem('access_token', userToken);
     }
