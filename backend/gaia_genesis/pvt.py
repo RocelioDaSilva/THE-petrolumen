@@ -150,8 +150,9 @@ def dead_oil_viscosity_beggs_robinson(api: float, T_f: float) -> float:
     """
     Beggs-Robinson (1975) dead oil viscosity.
     """
-    X = 10 ** (3.0324 - 0.02023 * api) * T_f**-1.163
-    return 10**X - 1
+    X = 10 ** (3.0324 - 0.02023 * api) * (max(T_f, 1e-3) ** -1.163)
+    visc = 10**X - 1.0
+    return float(max(1e-4, visc))
 
 
 def live_oil_viscosity_beggs_robinson(mu_od: float, Rs: float) -> float:
@@ -253,6 +254,8 @@ class EosSolver:
         coeff = [1, -(1 - B), (A - 3 * B**2 - 2 * B), -(A * B - B**2 - B**3)]
         roots = np.roots(coeff)
         real_roots = roots[np.abs(roots.imag) < 1e-10].real
+        if len(real_roots) == 0:
+            return 1.0
         return float(np.max(real_roots))
 
     def _pr_a_mixture(self, T: float, z: np.ndarray) -> float:

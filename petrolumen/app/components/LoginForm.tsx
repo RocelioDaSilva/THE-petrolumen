@@ -21,26 +21,26 @@ export const LoginForm: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 1. Authenticate and get token (token is now set as an HttpOnly cookie by the backend)
-      // The response from loginForAccessToken might change; assuming it still returns something
-      // or we might not need its direct response if backend confirms session via cookie.
-      await backendClient.loginForAccessToken(username, password);
-      // No token to set in localStorage anymore.
+      // 1. Authenticate and get bearer token
+      const tokenRes = await backendClient.loginForAccessToken(username, password);
 
-      // 2. Fetch user details. backendClient.getCurrentUser() will use the HttpOnly cookie.
+      if (typeof window !== 'undefined' && tokenRes.access_token) {
+        localStorage.setItem('access_token', tokenRes.access_token);
+      }
+
+      // 2. Fetch user details using Bearer token
       const userProfileData: UserProfileResponse = await backendClient.getCurrentUser();
 
-      // 3. Update global store by mapping UserProfileResponse to UserProfile (from appStore)
-      // The types are very similar; this mapping ensures conformity.
+      // 3. Update global store
       const userToStore: UserProfile = {
         id: userProfileData.id,
         username: userProfileData.username,
         email: userProfileData.email,
-        full_name: userProfileData.full_name || null, // Handles optional full_name from UserProfileResponse
+        full_name: userProfileData.full_name || null,
         role: userProfileData.role,
         is_active: userProfileData.is_active,
       };
-      login(userToStore); // Pass only user data; token is not handled by client JS here.
+      login(userToStore, tokenRes.access_token);
 
       // Clear form (optional)
       // setUsername('');
