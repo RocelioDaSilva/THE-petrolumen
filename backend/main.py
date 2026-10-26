@@ -48,6 +48,11 @@ from gaia_genesis.flow_simulation import (
     FlowSimulation as ReservoirSimulator,
 )  # Class is FlowSimulation, alias for minimal changes
 from gaia_genesis.prediction import AIPrediction  # Import AIPrediction
+from gaia_genesis.economics import (
+    EconomicsEvaluator,
+    EconomicParameters,
+    ProductionForecast,
+)
 
 
 import pandas as pd
@@ -223,6 +228,7 @@ os.makedirs(settings.AI_MODELS_DIR, exist_ok=True)
 
 # --- Import Custom Routers ---
 try:
+    from gaia_genesis.well_logs.las_parser import LASParser
     from gaia_genesis.api_v1.endpoints import (
         pvt_router,
         pvt_calculations as legacy_pvt_router,
@@ -237,6 +243,7 @@ try:
         surveillance_router,
         reservoir_analysis_tools as gaia_reservoir_tools_router,
         static_modeling_tools as gaia_static_modeling_router,
+        well_logs_router,
         jobs as jobs_router,
     )
     from gaia_genesis.api_v1.endpoints.jobs import (
@@ -296,6 +303,11 @@ try:
         gaia_static_modeling_router.router,
         prefix="/api/v1/gaia/static-modeling",
         tags=["Gaia - Static Modeling"],
+    )
+    app.include_router(
+        well_logs_router.router,
+        prefix="/api/v1/gaia/well-logs",
+        tags=["Gaia - Well Logs"],
     )
 
     logger.info("Successfully included all API routers.")
@@ -483,6 +495,7 @@ class EconomicsAnalyzeRequest(BaseModel):
 class EconomicsAnalyzeResponse(BaseModel):
     npv: float
     irr: float
+    payout_months: Optional[float] = None
     cash_flows: List[float]
     cumulative_cash_flow: List[float]
 
@@ -865,7 +878,7 @@ async def upload_las_file(
     current_user: UserResponse = Depends(get_current_active_user),
 ) -> JSONResponse:
     """
-    Parses an uploaded .las file using lasio and returns curves and metadata.
+    Parses an uploaded .las file using LASParser and returns curves, metadata, tracks, and depth records.
     Requires authentication.
     """
     logger.info(
@@ -873,29 +886,7 @@ async def upload_las_file(
     )
     try:
         content_bytes = await file.read()
-        content_str = content_bytes.decode("utf-8", errors="ignore")
-        las = lasio.read(io.StringIO(content_str))
-
-        metadata = {}
-        for item in las.well:
-            metadata[item.mnemonic] = {
-                "value": item.value,
-                "unit": item.unit,
-                "descr": item.descr,
-            }
-
-        curves_info = {}
-        for curve in las.curves:
-            curve_data = [
-                None if np.isnan(val) else float(val) for val in las[curve.mnemonic]
-            ]
-            curves_info[curve.mnemonic] = {
-                "unit": curve.unit,
-                "description": curve.descr,
-                "data": curve_data,
-            }
-
-        df_records = dataframe_to_json_serializable(las.df().reset_index())
+        parsed_data = LASParser.parse_las(content_bytes)
 
         return JSONResponse(
             content=jsonable_encoder(
@@ -903,9 +894,11 @@ async def upload_las_file(
                     "message": f"Successfully parsed LAS file '{file.filename}'.",
                     "well_id": well_id,
                     "filename": file.filename,
-                    "metadata": metadata,
-                    "curves": curves_info,
-                    "data": df_records,
+                    "metadata": parsed_data["metadata"],
+                    "curves": parsed_data["curves"],
+                    "tracks": parsed_data["tracks"],
+                    "data": parsed_data["records"],
+                    "summary": parsed_data["summary"],
                 }
             )
         )
@@ -930,35 +923,34 @@ async def analyze_economics(
 ):
     """
     Analyzes economics given a production profile, oil price, OPEX, CAPEX, and discount rate.
-    Uses numpy_financial to calculate NPV and IRR.
+    Uses EconomicsEvaluator to calculate NPV, IRR, Payout Month, and cumulative cash flow.
     """
     try:
-        net_cash_flows = [-abs(data.capex)]
-
-        for vol in data.production_profile:
-            if data.opex < data.oil_price and vol > 0:
-                net_cf = vol * (data.oil_price - data.opex)
-            else:
-                net_cf = (vol * data.oil_price) - data.opex
-            net_cash_flows.append(net_cf)
-
-        npv_val = npf.npv(data.discount_rate, net_cash_flows)
-        irr_val = npf.irr(net_cash_flows)
-
-        npv_float = (
-            float(npv_val) if npv_val is not None and not np.isnan(npv_val) else 0.0
+        econ_params = EconomicParameters(
+            capex=abs(data.capex),
+            oil_price=data.oil_price,
+            opex_var_oil=data.opex,
+            opex_fixed_monthly=0.0,
+            royalty_rate=0.0,
+            severance_tax_rate=0.0,
+            income_tax_rate=0.0,
+            discount_rate_annual=data.discount_rate,
+            period_frequency="annual",
         )
-        irr_float = (
-            float(irr_val) if irr_val is not None and not np.isnan(irr_val) else 0.0
+        prod_forecast = ProductionForecast(
+            time_periods=[float(i + 1) for i in range(len(data.production_profile))],
+            oil_rates=data.production_profile,
+            rates_are_daily=False,
         )
 
-        cum_cash_flow = np.cumsum(net_cash_flows).tolist()
+        res = EconomicsEvaluator.evaluate(econ_params, prod_forecast)
 
         return EconomicsAnalyzeResponse(
-            npv=npv_float,
-            irr=irr_float,
-            cash_flows=net_cash_flows,
-            cumulative_cash_flow=cum_cash_flow,
+            npv=res.npv,
+            irr=res.irr,
+            payout_months=res.payout_months,
+            cash_flows=[p.net_cash_flow for p in res.cash_flow_periods],
+            cumulative_cash_flow=[p.cumulative_net_cash_flow for p in res.cash_flow_periods],
         )
     except Exception as e:
         logger.error(f"Error in economics analysis: {e}", exc_info=True)
