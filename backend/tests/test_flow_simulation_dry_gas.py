@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 from gaia_genesis.flow_simulation import FlowSimulation
 

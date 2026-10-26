@@ -1,13 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
-from typing import List, Dict, Optional
-import numpy as np
 from auth_utils import get_current_active_user
 from ...pvt import (
     calculate_zfactor,
     gas_viscosity_lee,
     oil_bubble_point_standing,
-    oil_fvf_standing,
-    water_pvt_mccain,
 )
 
 router = APIRouter()

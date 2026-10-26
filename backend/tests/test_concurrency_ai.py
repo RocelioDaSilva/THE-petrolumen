@@ -7,7 +7,9 @@ from config import settings
 
 
 @pytest.mark.asyncio
-async def test_ai_predictor_concurrency_isolation(client, test_db_manager, test_auth_manager, db_session):
+async def test_ai_predictor_concurrency_isolation(
+    client, test_db_manager, test_auth_manager, db_session
+):
     """
     Verifies that when USE_SESSION_REGISTRY is True, two users training models
     concurrently with different feature sets remain completely isolated and do not
@@ -32,9 +34,17 @@ async def test_ai_predictor_concurrency_isolation(client, test_db_manager, test_
     settings.USE_SESSION_REGISTRY = True
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
-        resp1 = await async_client.post("/api/v1/auth/token", data={"username": "user1_ai@example.com", "password": "password123"})
-        resp2 = await async_client.post("/api/v1/auth/token", data={"username": "user2_ai@example.com", "password": "password123"})
+    async with AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as async_client:
+        resp1 = await async_client.post(
+            "/api/v1/auth/token",
+            data={"username": "user1_ai@example.com", "password": "password123"},
+        )
+        resp2 = await async_client.post(
+            "/api/v1/auth/token",
+            data={"username": "user2_ai@example.com", "password": "password123"},
+        )
 
         assert resp1.status_code == 200, f"Login 1 failed: {resp1.text}"
         assert resp2.status_code == 200, f"Login 2 failed: {resp2.text}"
@@ -48,7 +58,11 @@ async def test_ai_predictor_concurrency_isolation(client, test_db_manager, test_
         # User 1 Dataset A
         data_user1 = {
             "records": [
-                {"porosity": 0.15 + i * 0.01, "permeability": 50 + i * 5, "oil_rate": 100 + i * 10}
+                {
+                    "porosity": 0.15 + i * 0.01,
+                    "permeability": 50 + i * 5,
+                    "oil_rate": 100 + i * 10,
+                }
                 for i in range(20)
             ],
             "target_column": "oil_rate",
@@ -72,8 +86,12 @@ async def test_ai_predictor_concurrency_isolation(client, test_db_manager, test_
 
         # Concurrent training
         res1_train, res2_train = await asyncio.gather(
-            async_client.post("/api/v1/reservoir/prediction/train", json=data_user1, headers=headers1),
-            async_client.post("/api/v1/reservoir/prediction/train", json=data_user2, headers=headers2),
+            async_client.post(
+                "/api/v1/reservoir/prediction/train", json=data_user1, headers=headers1
+            ),
+            async_client.post(
+                "/api/v1/reservoir/prediction/train", json=data_user2, headers=headers2
+            ),
         )
 
         assert res1_train.status_code == 200, f"User 1 train failed: {res1_train.text}"
@@ -90,8 +108,16 @@ async def test_ai_predictor_concurrency_isolation(client, test_db_manager, test_
         }
 
         res1_pred, res2_pred = await asyncio.gather(
-            async_client.post("/api/v1/reservoir/prediction/predict", json=predict_req1, headers=headers1),
-            async_client.post("/api/v1/reservoir/prediction/predict", json=predict_req2, headers=headers2),
+            async_client.post(
+                "/api/v1/reservoir/prediction/predict",
+                json=predict_req1,
+                headers=headers1,
+            ),
+            async_client.post(
+                "/api/v1/reservoir/prediction/predict",
+                json=predict_req2,
+                headers=headers2,
+            ),
         )
 
         assert res1_pred.status_code == 200, f"User 1 predict failed: {res1_pred.text}"
@@ -107,7 +133,9 @@ async def test_ai_predictor_concurrency_isolation(client, test_db_manager, test_
 
 
 @pytest.mark.asyncio
-async def test_ai_predictor_fallback_global_singleton(client, test_db_manager, test_auth_manager, db_session):
+async def test_ai_predictor_fallback_global_singleton(
+    client, test_db_manager, test_auth_manager, db_session
+):
     """
     Verifies that when USE_SESSION_REGISTRY is False, requests fall back to the global
     singleton, reproducing the state-bleed defect where User 2 overwrites User 1's model.
@@ -131,9 +159,17 @@ async def test_ai_predictor_fallback_global_singleton(client, test_db_manager, t
     settings.USE_SESSION_REGISTRY = False
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
-        resp1 = await async_client.post("/api/v1/auth/token", data={"username": "fallback_user1@example.com", "password": "password123"})
-        resp2 = await async_client.post("/api/v1/auth/token", data={"username": "fallback_user2@example.com", "password": "password123"})
+    async with AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as async_client:
+        resp1 = await async_client.post(
+            "/api/v1/auth/token",
+            data={"username": "fallback_user1@example.com", "password": "password123"},
+        )
+        resp2 = await async_client.post(
+            "/api/v1/auth/token",
+            data={"username": "fallback_user2@example.com", "password": "password123"},
+        )
 
         assert resp1.status_code == 200
         assert resp2.status_code == 200
@@ -147,13 +183,19 @@ async def test_ai_predictor_fallback_global_singleton(client, test_db_manager, t
         # User 1 trains with porosity and permeability
         data_user1 = {
             "records": [
-                {"porosity": 0.15 + i * 0.01, "permeability": 50 + i * 5, "oil_rate": 100 + i * 10}
+                {
+                    "porosity": 0.15 + i * 0.01,
+                    "permeability": 50 + i * 5,
+                    "oil_rate": 100 + i * 10,
+                }
                 for i in range(20)
             ],
             "target_column": "oil_rate",
             "feature_columns": ["porosity", "permeability"],
         }
-        res1_train = await async_client.post("/api/v1/reservoir/prediction/train", json=data_user1, headers=headers1)
+        res1_train = await async_client.post(
+            "/api/v1/reservoir/prediction/train", json=data_user1, headers=headers1
+        )
         assert res1_train.status_code == 200
 
         # User 2 trains with different feature columns, overwriting global singleton
@@ -170,7 +212,9 @@ async def test_ai_predictor_fallback_global_singleton(client, test_db_manager, t
             "target_column": "gas_rate",
             "feature_columns": ["depth", "pressure", "temperature"],
         }
-        res2_train = await async_client.post("/api/v1/reservoir/prediction/train", json=data_user2, headers=headers2)
+        res2_train = await async_client.post(
+            "/api/v1/reservoir/prediction/train", json=data_user2, headers=headers2
+        )
         assert res2_train.status_code == 200
 
         # User 1 attempts prediction with User 1's features
@@ -178,7 +222,9 @@ async def test_ai_predictor_fallback_global_singleton(client, test_db_manager, t
             "records": [{"porosity": 0.18, "permeability": 65}],
             "feature_columns": ["porosity", "permeability"],
         }
-        res1_pred = await async_client.post("/api/v1/reservoir/prediction/predict", json=predict_req1, headers=headers1)
+        res1_pred = await async_client.post(
+            "/api/v1/reservoir/prediction/predict", json=predict_req1, headers=headers1
+        )
 
         # Global singleton was mutated by User 2, so User 1 gets 400 feature mismatch
         assert res1_pred.status_code == 400

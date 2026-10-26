@@ -187,7 +187,6 @@ auth_utils.auth_manager = auth_manager
 data_uploader = DataUploader.get_instance(db_manager=db_manager)
 
 # OAuth2 Scheme
-from auth_utils import oauth2_scheme
 
 # --- Initialize Reservoir Engineering Tools ---
 # WARNING: dca_analyzer is a global instance. If DeclineAnalysis methods become
@@ -249,9 +248,7 @@ try:
     app.include_router(
         auth_router.router, prefix="/api/v1/auth", tags=["Authentication"]
     )
-    app.include_router(
-        jobs_router.router, prefix="/api/v1/jobs", tags=["Jobs"]
-    )
+    app.include_router(jobs_router.router, prefix="/api/v1/jobs", tags=["Jobs"])
     app.include_router(
         pvt_router.router, prefix="/api/v1/gaia/pvt", tags=["Gaia - PVT"]
     )
@@ -948,8 +945,12 @@ async def analyze_economics(
         npv_val = npf.npv(data.discount_rate, net_cash_flows)
         irr_val = npf.irr(net_cash_flows)
 
-        npv_float = float(npv_val) if npv_val is not None and not np.isnan(npv_val) else 0.0
-        irr_float = float(irr_val) if irr_val is not None and not np.isnan(irr_val) else 0.0
+        npv_float = (
+            float(npv_val) if npv_val is not None and not np.isnan(npv_val) else 0.0
+        )
+        irr_float = (
+            float(irr_val) if irr_val is not None and not np.isnan(irr_val) else 0.0
+        )
 
         cum_cash_flow = np.cumsum(net_cash_flows).tolist()
 

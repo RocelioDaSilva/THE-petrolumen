@@ -3,18 +3,14 @@ import datetime
 from sqlalchemy import (
     Column,
     String,
-    Float,
     DateTime,
     ForeignKey,
     JSON,
-    Boolean,
-    Date,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from gaia_genesis.core.database_models import Base, User, Well, ProductionData, Job
+from gaia_genesis.core.database_models import Base, ProductionData, User, Well
 
 
 class WellDataRecord(Base):

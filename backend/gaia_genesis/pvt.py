@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Tuple, Optional, List, Dict
+from typing import Tuple, Optional, Dict
 import scipy.optimize as opt
 from scipy.optimize import fsolve
 
@@ -210,7 +210,9 @@ class EosSolver:
             raise ValueError("Invalid binary interaction matrix shape")
         self.binary_interactions = kij
 
-    def calculate_z_factor(self, P: float, T: float, composition: Dict[str, float]) -> float:
+    def calculate_z_factor(
+        self, P: float, T: float, composition: Dict[str, float]
+    ) -> float:
         """Calculate compressibility factor"""
         z = np.array([composition[c] for c in self.components])
         if self.eos_type == "PR":
@@ -219,7 +221,11 @@ class EosSolver:
             raise ValueError(f"Unknown EoS type: {self.eos_type}")
 
     def flash_calculation(
-        self, P: float, T: float, composition: Dict[str, float], initial_K: Optional[np.ndarray] = None
+        self,
+        P: float,
+        T: float,
+        composition: Dict[str, float],
+        initial_K: Optional[np.ndarray] = None,
     ) -> Dict:
         """Perform isothermal flash calculation"""
         z = np.array([composition[c] for c in self.components])
@@ -273,11 +279,15 @@ class EosSolver:
         return ac * alpha
 
     def _pr_b_mixture(self, z: np.ndarray) -> float:
-        b = np.array([0.07780 * 8.3145 * c["Tc"] / c["Pc"] for c in self.components.values()])
+        b = np.array(
+            [0.07780 * 8.3145 * c["Tc"] / c["Pc"] for c in self.components.values()]
+        )
         return float(np.sum(z * b))
 
     def _wilson_k_values(self, P: float, T: float) -> np.ndarray:
         K = np.zeros(len(self.components))
         for i, comp in enumerate(self.components.values()):
-            K[i] = (comp["Pc"] / P) * np.exp(5.37 * (1 + comp["omega"]) * (1 - comp["Tc"] / T))
+            K[i] = (comp["Pc"] / P) * np.exp(
+                5.37 * (1 + comp["omega"]) * (1 - comp["Tc"] / T)
+            )
         return K

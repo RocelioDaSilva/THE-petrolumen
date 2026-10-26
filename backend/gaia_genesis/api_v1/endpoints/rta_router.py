@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Body, HTTPException
-from typing import List, Dict
+from typing import List
 import numpy as np
 from auth_utils import get_current_active_user
-from ...rta import fmb_gas, fmb_oil
+from ...rta import fmb_gas
 
 router = APIRouter()
 

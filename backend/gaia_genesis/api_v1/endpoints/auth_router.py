@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body, status
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 from ...auth.auth_manager import hash_password, verify_password, create_access_token
 from ...core.database_manager import DatabaseManager

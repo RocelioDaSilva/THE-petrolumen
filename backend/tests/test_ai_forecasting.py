@@ -1,4 +1,3 @@
-import pytest
 import pandas as pd
 import numpy as np
 from gaia_genesis.prediction.time_series_forecasting import TimeSeriesForecaster

@@ -2,7 +2,6 @@ import uuid
 import datetime
 from sqlalchemy import (
     Column,
-    Integer,
     String,
     Float,
     Date,

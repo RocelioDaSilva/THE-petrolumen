@@ -1,8 +1,10 @@
-import bcrypt, jwt, os, datetime
+import bcrypt
+import jwt
+import os
+import datetime
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..core.database_manager import DatabaseManager
-from ..models import User
 
 # Configuration from environment variables
 SECRET = os.getenv("SECRET_KEY", "fallback-dev-secret")

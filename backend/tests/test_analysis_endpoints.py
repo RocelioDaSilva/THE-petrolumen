@@ -1,9 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-from main import app
-import json
-
-
 def test_pvt_z_factor_endpoint(client, user_auth_headers):
     payload = {"pressure": 3000, "temperature": 160, "gamma_g": 0.65}
     response = client.post(

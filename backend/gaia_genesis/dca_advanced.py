@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.optimize as opt
-from typing import Dict, List, Tuple, Callable
+from typing import Dict
 
 
 def arps_exponential(t: np.ndarray, qi: float, di: float) -> np.ndarray:

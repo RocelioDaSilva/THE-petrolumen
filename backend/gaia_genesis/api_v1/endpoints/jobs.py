@@ -1,6 +1,5 @@
 import uuid
 import datetime
-import logging
 import numpy as np
 from typing import Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Path
@@ -117,7 +116,9 @@ def run_flowsim_task(job_id: str, simulator, end_time: float, dt: float):
             session.commit()
     except Exception as e:
         session.rollback()
-        logger.error(f"Error in flowsim background task for job {job_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error in flowsim background task for job {job_id}: {e}", exc_info=True
+        )
         try:
             job = session.query(Job).filter(Job.id == uuid.UUID(job_id)).first()
             if job:
@@ -182,7 +183,10 @@ def run_prediction_train_task(
             session.commit()
     except Exception as e:
         session.rollback()
-        logger.error(f"Error in prediction train background task for job {job_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error in prediction train background task for job {job_id}: {e}",
+            exc_info=True,
+        )
         try:
             job = session.query(Job).filter(Job.id == uuid.UUID(job_id)).first()
             if job:

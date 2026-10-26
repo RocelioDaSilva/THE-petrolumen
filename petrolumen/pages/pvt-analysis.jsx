@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import PVTInputForm from '../components/pvt/PVTInputForm';
-import PVTResultsDisplay from '../components/pvt/PVTResults'; // Renamed for clarity
-import FluidCompositionEditor from '../components/pvt/FluidCompositionEditor';
-import ModelManager from '../components/pvt/ModelManager';
-import PhaseEnvelopeChart from '../components/pvt/PhaseEnvelope'; // Corrected import name
+import PVTInputForm from '@/src/components/pvt/PVTInputForm';
+import PVTResultsDisplay from '@/src/components/pvt/PVTResults'; // Renamed for clarity
+import FluidCompositionEditor from '@/src/components/pvt/FluidCompositionEditor';
+import ModelManager from '@/src/components/pvt/ModelManager';
+import PhaseEnvelopeChart from '@/src/components/pvt/PhaseEnvelope'; // Corrected import name
 
 // Assuming pvtService.js is correctly set up as discussed
 import {
@@ -16,7 +16,7 @@ import {
   saveLocalMockModel,      // Renamed from saveModel
   deleteLocalMockModel,
   fetchPhaseEnvelope // Already imported by PhaseEnvelopeChart, but good to have service ref here
-} from '../services/pvtService';
+} from '@/src/services/pvtService';
 
 // Icon imports (ensure @heroicons/react is installed)
 import { BeakerIcon, TableCellsIcon, SwatchIcon, CogIcon, ChartBarIcon } from '@heroicons/react/24/outline';

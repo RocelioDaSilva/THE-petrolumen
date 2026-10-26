@@ -2,7 +2,6 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, EmailStr
-import logging
 import uuid
 
 # This will be initialized in main.py

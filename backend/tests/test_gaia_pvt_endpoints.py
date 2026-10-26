@@ -16,7 +16,9 @@ from fastapi import status
 def post_pvt_calculation(
     client: TestClient, endpoint_suffix: str, data: dict, headers: dict
 ):
-    return client.post(f"/api/v1/gaia/pvt-legacy{endpoint_suffix}", json=data, headers=headers)
+    return client.post(
+        f"/api/v1/gaia/pvt-legacy{endpoint_suffix}", json=data, headers=headers
+    )
 
 
 # 1. Z-Factor Tests

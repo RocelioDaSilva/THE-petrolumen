@@ -171,9 +171,7 @@ async def calculate_property_variogram(
             n_lags=request_data.number_of_lags,
         )
 
-        variogram_data = analyzer.variograms.get(
-            request_data.property_name
-        )
+        variogram_data = analyzer.variograms.get(request_data.property_name)
         if not variogram_data:
             raise HTTPException(
                 status_code=404,
@@ -247,13 +245,9 @@ async def perform_kriging_interpolation(
                 "Please add well data first."
             )
 
-        analyzer.kriging_interpolation(
-            property_name=request_data.property_name
-        )
+        analyzer.kriging_interpolation(property_name=request_data.property_name)
 
-        interpolated_values = analyzer.properties.get(
-            request_data.property_name
-        )
+        interpolated_values = analyzer.properties.get(request_data.property_name)
         std_dev_values = analyzer.properties.get(
             f"{request_data.property_name}_kriging_std"
         )
@@ -278,9 +272,7 @@ async def perform_kriging_interpolation(
             else std_dev_values
         )
         grid_dims = (
-            (analyzer.grid["nx"], analyzer.grid["ny"])
-            if analyzer.grid
-            else None
+            (analyzer.grid["nx"], analyzer.grid["ny"]) if analyzer.grid else None
         )
 
         return KrigingResponse(

@@ -269,7 +269,7 @@ def test_list_wells_with_data_success(
     clear_wells_and_production_data_tables,
 ):
     client.post(
-        f"/api/v1/wells/ListWellA/data",
+        "/api/v1/wells/ListWellA/data",
         headers=user_auth_headers,
         files={
             "files": (
@@ -280,7 +280,7 @@ def test_list_wells_with_data_success(
         },
     )
     client.post(
-        f"/api/v1/wells/ListWellB/data",
+        "/api/v1/wells/ListWellB/data",
         headers=user_auth_headers,
         files={
             "files": (
@@ -693,7 +693,9 @@ def test_upload_las_file_success(client: TestClient, user_auth_headers):
         "1000.5 55.0 2.35\n"
         "1001.0 60.0 2.4\n"
     )
-    files = {"file": ("test_well.las", las_content.encode("utf-8"), "application/x-las")}
+    files = {
+        "file": ("test_well.las", las_content.encode("utf-8"), "application/x-las")
+    }
     response = client.post(
         "/api/v1/wells/TestWell123/upload-las",
         files=files,

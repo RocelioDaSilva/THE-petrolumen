@@ -75,6 +75,7 @@ pyvista==0.43.3
 PyYAML==6.0.2
 requests==2.32.4
 rsa==4.9.1
+ruff==0.17.2
 SALib==1.4.5
 scikit-build==0.18.1
 scikit-learn==1.5.2
