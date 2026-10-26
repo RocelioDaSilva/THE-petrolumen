@@ -35,19 +35,20 @@ export const useAppStore = create<AppState>((set) => ({
   selectedWell: null,
 
   // Actions
-  login: (userData) => set({
-    isAuthenticated: true,
-    user: userData,
-    token: null
-  }),
+  login: (userData, userToken) => {
+    if (typeof window !== 'undefined' && userToken) {
+      localStorage.setItem('access_token', userToken);
+    }
+    set({
+      isAuthenticated: true,
+      user: userData,
+      token: userToken || null
+    });
+  },
 
   logout: async () => {
-    // No longer removing from localStorage here
-    try {
-      await backendClient.logoutUser(); // Call the backend to clear the HttpOnly cookie
-    } catch (error) {
-      console.error("Logout failed:", error);
-      // Optionally, handle logout error in UI, though store reset will proceed
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
     }
     set({
       isAuthenticated: false,
@@ -56,12 +57,14 @@ export const useAppStore = create<AppState>((set) => ({
     });
   },
 
-  // This function might need to be re-evaluated.
-  // If it was for initializing from localStorage, it's no longer needed in the same way.
-  // AuthInitializer will handle checking session via API.
-  // For now, let's make it just update the store's token state if ever called,
-  // but without localStorage interaction.
   setToken: (userToken) => {
+    if (typeof window !== 'undefined') {
+      if (userToken) {
+        localStorage.setItem('access_token', userToken);
+      } else {
+        localStorage.removeItem('access_token');
+      }
+    }
     set({ token: userToken });
   },
 
