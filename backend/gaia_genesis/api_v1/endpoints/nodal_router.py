@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Body, HTTPException
-from typing import List, Dict
 import numpy as np
 from auth_utils import get_current_active_user
-from ...nodal import vogel_ipr, darcy_ipr, nodal_solve
+from ...nodal import vogel_ipr
 
 router = APIRouter()
 

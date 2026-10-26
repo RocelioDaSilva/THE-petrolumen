@@ -61,9 +61,7 @@ async def test_static_analyzer_concurrency_isolation(
             "well_name": "W1",
             "x_coord": 10.0,
             "y_coord": 10.0,
-            "properties": {
-                "porosity": {"md": [100.0, 200.0], "values": [0.20, 0.22]}
-            },
+            "properties": {"porosity": {"md": [100.0, 200.0], "values": [0.20, 0.22]}},
         }
 
         # User 2: 12x12 Grid and Well W2
@@ -72,9 +70,7 @@ async def test_static_analyzer_concurrency_isolation(
             "well_name": "W2",
             "x_coord": 25.0,
             "y_coord": 25.0,
-            "properties": {
-                "porosity": {"md": [150.0, 250.0], "values": [0.15, 0.18]}
-            },
+            "properties": {"porosity": {"md": [150.0, 250.0], "values": [0.15, 0.18]}},
         }
 
         # Concurrent grid creation and well data addition
@@ -194,9 +190,7 @@ async def test_static_analyzer_fallback_global_singleton(
             "well_name": "W1",
             "x_coord": 10.0,
             "y_coord": 10.0,
-            "properties": {
-                "porosity": {"md": [100.0, 200.0], "values": [0.20, 0.22]}
-            },
+            "properties": {"porosity": {"md": [100.0, 200.0], "values": [0.20, 0.22]}},
         }
 
         grid_res1 = await async_client.post(

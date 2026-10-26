@@ -1,14 +1,14 @@
-import pytest
 import numpy as np
 from gaia_genesis.flow_simulation import FlowSimulation
 from gaia_genesis.static_modeling import StaticModeling
 from gaia_genesis.pvt import EosSolver
 from gaia_genesis.dca_advanced import perform_ple_fit, perform_sepd_fit
 
+
 def test_implicit_flow_sim():
     # Test 1D Implicit Solver stability and results
     sim = FlowSimulation(nx=10, dx=100)
-    wells = [{"cell_index": 5, "q_sc": 500}] # Producing from middle cell
+    wells = [{"cell_index": 5, "q_sc": 500}]  # Producing from middle cell
     results = sim.run_simulation(end_time=100, dt=1, wells=wells)
 
     assert results["status"] == "Completed"
@@ -18,6 +18,7 @@ def test_implicit_flow_sim():
     assert pressures[-1][5] < pressures[0][5]
     # Check for consistency
     assert len(pressures[-1]) == 10
+
 
 def test_ordinary_kriging_logic():
     sm = StaticModeling()
@@ -36,20 +37,27 @@ def test_ordinary_kriging_logic():
     assert np.isclose(grid[8, 8], 200.0)
     assert not np.isnan(grid).any()
 
+
 def test_eos_solver_compositional():
     eos = EosSolver(eos_type="PR")
     # Methane properties
-    eos.add_component("C1", {
-        "critical_pressure": 46.0, # bar
-        "critical_temperature": 190.6, # K
-        "acentric_factor": 0.011,
-        "molecular_weight": 16.04
-    })
+    eos.add_component(
+        "C1",
+        {
+            "critical_pressure": 46.0,  # bar
+            "critical_temperature": 190.6,  # K
+            "acentric_factor": 0.011,
+            "molecular_weight": 16.04,
+        },
+    )
 
     composition = {"C1": 1.0}
     # Test Z-factor calculation at 100 bar, 300 K
-    z = eos.calculate_z_factor(P=10.0, T=300.0, composition=composition) # simplified P units for test
+    z = eos.calculate_z_factor(
+        P=10.0, T=300.0, composition=composition
+    )  # simplified P units for test
     assert 0.7 < z < 1.0
+
 
 def test_advanced_dca_integration():
     time = np.linspace(0, 100, 20)

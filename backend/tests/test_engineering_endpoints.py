@@ -1,8 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-from main import app
-
-
 def test_nodal_solve_endpoint(client, user_auth_headers):
     payload = {"p_res": 3000, "q_max": 1000, "p_wh": 500, "depth": 8000}
     response = client.post(

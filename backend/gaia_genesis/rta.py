@@ -1,6 +1,5 @@
 import numpy as np
-from typing import Dict, List, Tuple, Optional
-import scipy.stats as stats
+from typing import Dict
 
 
 def fmb_gas(

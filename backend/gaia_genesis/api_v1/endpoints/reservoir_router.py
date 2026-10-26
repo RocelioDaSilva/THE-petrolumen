@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 import numpy as np
 from gaia_genesis.reservoir_engineering_calcs import (
     calculate_ogip_volumetric,
-    calculate_stoiip_volumetric,
     pz_analysis,
 )
 from auth_utils import get_current_active_user

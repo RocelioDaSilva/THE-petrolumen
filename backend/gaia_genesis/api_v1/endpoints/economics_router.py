@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Body, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 from auth_utils import get_current_active_user

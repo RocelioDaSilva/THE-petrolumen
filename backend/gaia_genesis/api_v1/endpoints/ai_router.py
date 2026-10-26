@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from typing import List, Dict, Any
 import pandas as pd
-import numpy as np
 import structlog
 from gaia_genesis.prediction.ai_prediction import AIPrediction
 from auth_utils import get_current_active_user, UserResponse

@@ -5,7 +5,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 import os
 import sys
-import logging
 import structlog
 
 # Add the backend directory to sys.path
@@ -42,6 +41,7 @@ from gaia_genesis.core.auth_manager import AuthManager as CoreAuthManager
 
 TEST_DATABASE_URL = "sqlite://"
 
+
 @pytest.fixture(scope="session")
 def test_engine():
     engine = create_engine(
@@ -56,9 +56,11 @@ def test_engine():
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
 
+
 @pytest.fixture(scope="function")
 def TestingSessionLocal(test_engine):
     return sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
 
 @pytest.fixture(scope="function")
 def db_session(TestingSessionLocal):
@@ -68,6 +70,7 @@ def db_session(TestingSessionLocal):
     finally:
         session.rollback()
         session.close()
+
 
 @pytest.fixture(scope="function")
 def test_db_manager(test_engine):
@@ -80,6 +83,7 @@ def test_db_manager(test_engine):
     Base.metadata.create_all(bind=test_engine)
     return manager
 
+
 @pytest.fixture(scope="function")
 def test_auth_manager(test_db_manager):
     test_secret_key = "test_secret_key_for_fastapi_tests"
@@ -87,6 +91,7 @@ def test_auth_manager(test_db_manager):
     return CoreAuthManager.get_instance(
         db_manager=test_db_manager, secret_key=test_secret_key
     )
+
 
 @pytest.fixture(scope="function")
 def client(test_db_manager, test_auth_manager, db_session):
@@ -122,9 +127,11 @@ def client(test_db_manager, test_auth_manager, db_session):
     main_module.db_manager = original_main_db_manager
     main_data_uploader.db_manager = original_data_uploader_db_manager
 
+
 @pytest.fixture(scope="function")
 def test_user_password():
     return "testpassword123"
+
 
 @pytest.fixture(scope="function")
 def test_user(test_auth_manager, test_user_password, clear_users_table):
@@ -152,9 +159,11 @@ def test_user(test_auth_manager, test_user_password, clear_users_table):
             pytest.fail(f"Failed to create or retrieve test_user: {username}")
     return user_details
 
+
 @pytest.fixture(scope="function")
 def test_admin_password():
     return "adminpassword123"
+
 
 @pytest.fixture(scope="function")
 def test_admin_user(test_auth_manager, test_admin_password, clear_users_table):
@@ -182,6 +191,7 @@ def test_admin_user(test_auth_manager, test_admin_password, clear_users_table):
             pytest.fail(f"Failed to create or retrieve test_admin_user: {username}")
     return user_details
 
+
 @pytest.fixture(scope="function")
 def user_auth_headers(client, test_auth_manager, test_user, test_user_password):
     login_data = {"username": test_user["username"], "password": test_user_password}
@@ -190,6 +200,7 @@ def user_auth_headers(client, test_auth_manager, test_user, test_user_password):
     tokens = response.json()
     access_token = tokens["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
+
 
 @pytest.fixture(scope="function")
 def admin_auth_headers(client, test_auth_manager, test_admin_user, test_admin_password):
@@ -203,19 +214,23 @@ def admin_auth_headers(client, test_auth_manager, test_admin_user, test_admin_pa
     access_token = tokens["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
+
 @pytest.fixture(scope="function")
 def clear_users_table(db_session):
     db_session.query(DBUser).delete()
     db_session.commit()
     yield
 
+
 @pytest.fixture(scope="function")
 def clear_wells_and_production_data_tables(db_session):
     from gaia_genesis.models import Well, ProductionData
+
     db_session.execute(ProductionData.__table__.delete())
     db_session.execute(Well.__table__.delete())
     db_session.commit()
     yield
+
 
 @pytest.fixture(scope="function")
 def ensure_default_admin_user(test_auth_manager, test_admin_password):

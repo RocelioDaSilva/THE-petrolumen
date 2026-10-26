@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Body, HTTPException
-from typing import List, Dict
+from typing import List
 import numpy as np
 from auth_utils import get_current_active_user
 from ...dca_advanced import perform_arps_fit, perform_duong_fit
