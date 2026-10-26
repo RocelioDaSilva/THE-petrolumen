@@ -1,0 +1,8 @@
+{
+  "name": "PetroLúmen",
+  "description": "Plataforma Avançada de Engenharia de Petróleo - Advanced Petroleum Engineering Analysis & Simulation Platform",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ],
+  "permissions": []
+}

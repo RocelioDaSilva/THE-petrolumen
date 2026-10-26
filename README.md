@@ -1,87 +1,60 @@
-# PetroLúmen - Engenharia de Reservatórios
+# PetroLúmen - Plataforma Avançada de Engenharia de Petróleo
 
-Welcome to **PetroLúmen**, a comprehensive reservoir engineering platform combining a modern desktop frontend with a high-performance Python backend for data analysis, numerical simulation, and predictive modeling in the oil and gas industry.
+**PetroLúmen** é uma plataforma moderna e integrada de engenharia de petróleo e simulação de reservatórios desenvolvida em **React 18**, **TypeScript**, **Vite** e **Tailwind CSS**.
 
-## Tech Stack
+---
 
-- **Frontend:** Next.js 15 / React 19 / Tauri v2 / TypeScript (located in `petrolumen/`)
-- **Backend:** Python 3.12 / FastAPI / SQLAlchemy 2 (located in `backend/`)
+## 🚀 Módulos Integrados
 
-## Project Structure
+1. **Dashboard Geral**: Painel de controle integrado com indicadores de integridade do sistema, simulações ativas, modelos calibrados de IA e histórico consolidado do campo.
+2. **Simulação de Reservatórios**:
+   - Solucionador numérico 1D IMPES de difusividade de pressão com poço produtor/injetor.
+   - Malha Geocelular 3D interativa (nx: 8, ny: 8, nz: 4 = 256 blocos) com projeção isométrica, visualização de propriedades (Porosidade, Permeabilidade, Pressão, Sw, NTG) e filtros por camada Z.
+3. **Análise de Declínio (DCA)**:
+   - Ajuste empírico de Arps (Exponencial, Hiperbólico e Harmônico) e modelo não-convencional de Duong (Shale / Tight Gas).
+   - Cálculo de EUR (Estimated Ultimate Recovery) e exportação de relatórios em PDF.
+4. **Cálculos e Termodinâmica PVT**:
+   - Fator de compressibilidade do gás Z (Hall-Yarborough / Standing-Katz).
+   - Propriedades de fluido: FVF de óleo ($B_o$), FVF de gás ($B_g$), Solubilidade ($R_s$), Pressão de Bolha ($P_b$), viscosidade do óleo e gás.
+   - Editor de frações molares para fluidos composicionais ($C_1$ a $C_7+$, $N_2$, $CO_2$).
+   - Diagrama de envelope de fases P-T (Curvas de ponto de bolha, orvalho e ponto crítico).
+   - Alternância dinâmica entre Sistema de Campo (psia, °F, bbl) e Sistema Internacional (kPa, °C, m³).
+5. **Análise Nodal**:
+   - Curvas de influxo IPR (Vogel e Darcy) combinadas com elevação na coluna VLP (Beggs & Brill).
+   - Solução instantânea do ponto de operação ótimo ($q_{op}$ STB/d @ $P_{wf}$ psia).
+6. **Rate Transient Analysis (RTA) & Balanço de Materiais**:
+   - Flowing Material Balance (FMB) gás ($P/Z$ vs $G_p$) com estimativa de OGIP in-place e diagnóstico de mecanismos de drive.
+7. **Avaliação Econômica e Reservas**:
+   - Fluxo de caixa descontado, Valor Presente Líquido (VPL / NPV), Taxa Interna de Retorno (TIR / IRR), Payback e ROI.
+8. **Analytics Avançado & Machine Learning**:
+   - Treinamento supervisionado com algoritmos XGBoost, SVR e Redes Recorrentes LSTM.
+   - Métricas de acurácia estatística ($R^2$, RMSE, MAE) e pesos de importância de features SHAP.
+9. **Perfis de Poço (LAS Logs)**:
+   - Visualizador multifaixa com Raio Gama (GR), Resistividade Profunda (RT), Densidade (RHOB) e Neutrão (NPHI).
+10. **Conectores Comerciais**:
+    - Gerenciamento de interfaces de comunicação com simuladores comerciais (ECLIPSE, tNavigator, CMG) e plataformas de dados (OSDU, Petrel).
 
-This repository is organized into the following main components:
+---
 
-- **Frontend (`petrolumen/`):** Desktop application built with Next.js 15, React 19, and packaged natively using Tauri v2. Uses `pnpm` as the required package manager. For detailed frontend instructions, refer to the [frontend README](./petrolumen/README.md).
-- **Backend (`backend/`):** Python application powered by FastAPI and SQLAlchemy 2 that handles data processing, 1D IMPES numerical reservoir simulations, PVT calculations, DCA/RTA analysis, and RESTful API endpoints via the `gaia_genesis` core domain library.
-- **Documentation (`docs/`):** Centralized documentation hub containing audit reports ([`docs/audits/`](./docs/audits/)), development plans and roadmaps ([`docs/plans/`](./docs/plans/)), and onboarding guides ([`docs/DEVELOPER_ONBOARDING.md`](./docs/DEVELOPER_ONBOARDING.md)).
+## 🛠️ Tecnologias
 
-## Getting Started
+- **Framework**: React 18 / TypeScript / Vite
+- **Estilização**: Tailwind CSS com suporte a tema Claro/Escuro
+- **Visualização de Dados**: Recharts & 3D Voxel Engine
+- **Exportação de Relatórios**: jsPDF & html2canvas
+- **Ícones**: Lucide React
 
-### Prerequisites
+---
 
-- **Node.js** (v18+) & **pnpm** (`corepack enable` or `npm install -g pnpm`)
-- **Python** (3.12+)
-- **Rust** (required for Tauri native desktop builds)
-
-### 1. Frontend Setup
+## 💻 Como Executar
 
 ```bash
-cd petrolumen
-pnpm install
-pnpm dev
+# Instalar dependências
+npm install
+
+# Iniciar servidor de desenvolvimento (Porta 3000)
+npm run dev
+
+# Compilar para produção
+npm run build
 ```
-
-#### Frontend Testing & Quality Verification:
-- **Unit & Component Tests:** `pnpm test`
-- **End-to-End (E2E) Tests:** `pnpm test:e2e` (executes Playwright test suite)
-- **Linting & Type Checking:** `pnpm lint` and `pnpm typecheck`
-
-### 2. Backend Setup
-
-```bash
-cd backend
-python -m venv venv
-
-# On Linux/macOS:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-The interactive API documentation (Swagger UI) will be accessible at `http://localhost:8000/docs`.
-
-## Key Features
-
-- **Authentication & Security:** Bearer JWT header-based authentication, role-based access control (RBAC), and bcrypt password hashing.
-- **Data Management:** Well log and production data upload, database storage (SQLite / PostgreSQL via SQLAlchemy 2), and retrieval.
-- **PVT Calculations:** Black-oil correlations (Standing, Glaso, Vasquez-Beggs) and Peng-Robinson EOS flash solver.
-- **Decline Curve Analysis (DCA):** Advanced DCA fitting models (Arps Exponential/Hyperbolic/Harmonic, Duong, PLE, SEPD) using `scipy.optimize`.
-- **Reservoir Simulation:** 1D two-phase (oil-water) and dry gas IMPES numerical flow simulator utilizing the Thomas algorithm.
-- **Rate Transient & Nodal Analysis:** Flowing Material Balance (FMB) and numerical IPR/TPR inflow solver (`fsolve`).
-- **AI & ML Forecasting:** Time-series forecasting with Meta Prophet, SVR, and XGBoost models.
-- **Unit Management:** Global unit conversion system supporting Field (US Customary) and Metric (SI) units via Zustand store.
-
-## Known Limitations
-
-- **Synchronous Workloads:** Heavy computational tasks (such as 1D IMPES numerical simulation grid updates and model training) currently run synchronously within FastAPI request handlers, though asynchronous background execution (`BackgroundTasks` with `/api/v1/jobs/{job_id}` status polling) is being adopted across endpoints.
-- **Mocked E2E Tests:** Frontend Playwright End-to-End (E2E) integration tests currently mock the backend REST API endpoints rather than requiring a live running backend server.
-
-## Documentation
-
-- **Audit Reports:** Located in [`docs/audits/`](./docs/audits/) (includes backend, dependency, and repository audits).
-- **Development Plans & Roadmaps:** Located in [`docs/plans/`](./docs/plans/) (includes future improvements and i18n/l10n strategy).
-- **Developer Onboarding:** See [`docs/DEVELOPER_ONBOARDING.md`](./docs/DEVELOPER_ONBOARDING.md).
-- **Frontend Architecture:** See [`petrolumen/README.md`](./petrolumen/README.md).
-- **Backend Architecture:** See [`backend/README.md`](./backend/README.md).
-
-## Contributing
-
-Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, code formatting standards, and PR procedures.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
