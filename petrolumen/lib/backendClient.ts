@@ -24,13 +24,47 @@ export interface UploadResponse {
   data_preview_first_5_rows?: WellDataPreview[];
 }
 
+export interface LasParseResponse {
+  message: string;
+  filename: string;
+  data: {
+    well_name: string;
+    metadata: Record<string, { value: any; unit: string; description: string }>;
+    curves: Record<string, { mnemonic: string; unit: string; description: string; data: (number | null)[] }>;
+    tracks: {
+      track1: { title: string; curves: string[] };
+      track2: { title: string; curves: string[]; scale?: string };
+      track3: { title: string; curves: string[] };
+      other: { title: string; curves: string[] };
+    };
+    records: Record<string, any>[];
+    summary: {
+      well_name: string;
+      start_depth: number | string;
+      stop_depth: number | string;
+      step: number | string;
+      null_value: string;
+      curve_count: number;
+      record_count: number;
+      curve_list: string[];
+    };
+  };
+}
+
 export interface LasUploadResponse {
   message: string;
   well_id: string;
   filename: string;
   metadata: Record<string, any>;
   curves: Record<string, { unit: string; description: string; data: (number | null)[] }>;
+  tracks?: {
+    track1: { title: string; curves: string[] };
+    track2: { title: string; curves: string[]; scale?: string };
+    track3: { title: string; curves: string[] };
+    other: { title: string; curves: string[] };
+  };
   data: Record<string, any>[];
+  summary?: any;
 }
 
 export interface EconomicsAnalyzeRequest {
@@ -44,8 +78,118 @@ export interface EconomicsAnalyzeRequest {
 export interface EconomicsAnalyzeResponse {
   npv: number;
   irr: number;
+  payout_months?: number;
   cash_flows: number[];
   cumulative_cash_flow: number[];
+}
+
+export interface ForecastInputModel {
+  time: number[];
+  oil_rate: number[];
+  gas_rate?: number[];
+  water_rate?: number[];
+  rates_are_daily?: boolean;
+}
+
+export interface EconomicsEvaluateRequest {
+  forecast: ForecastInputModel;
+  capex: number;
+  capex_schedule?: number[];
+  oil_price?: number;
+  gas_price?: number;
+  price_escalation_annual?: number;
+  opex_fixed_monthly?: number;
+  opex_var_oil?: number;
+  opex_var_gas?: number;
+  opex_var_water?: number;
+  royalty_rate?: number;
+  severance_tax_rate?: number;
+  income_tax_rate?: number;
+  discount_rate?: number;
+  period_frequency?: string;
+}
+
+export interface CashFlowPeriod {
+  period: number;
+  time: number;
+  oil_volume: number;
+  gas_volume: number;
+  water_volume: number;
+  oil_price: number;
+  gas_price: number;
+  gross_revenue: number;
+  net_revenue: number;
+  opex: number;
+  severance_tax: number;
+  ebitda: number;
+  taxable_income: number;
+  income_tax: number;
+  capex: number;
+  net_cash_flow: number;
+  cumulative_net_cash_flow: number;
+  discount_factor: number;
+  discounted_cash_flow: number;
+  cumulative_discounted_cash_flow: number;
+}
+
+export interface EconomicsEvaluateResponse {
+  npv: number;
+  irr: number;
+  payout_period: number;
+  payout_months: number;
+  payout_years: number;
+  total_gross_revenue: number;
+  total_net_revenue: number;
+  total_opex: number;
+  total_capex: number;
+  total_net_cash_flow: number;
+  profitability_index: number;
+  return_on_investment: number;
+  cash_flow_periods: CashFlowPeriod[];
+  cash_flows: number[];
+  cumulative_cash_flow: number[];
+  discounted_cash_flows: number[];
+}
+
+export interface SensitivityRequest {
+  evaluate_request: EconomicsEvaluateRequest;
+  sensitivity_type?: string;
+  parameter_1d?: string;
+  percentage_steps_1d?: number[];
+  parameter_2d_x?: string;
+  steps_2d_x?: number[];
+  parameter_2d_y?: string;
+  steps_2d_y?: number[];
+  tornado_parameters?: string[];
+  tornado_variation_pct?: number;
+}
+
+export interface TornadoItem {
+  parameter: string;
+  label: string;
+  base_npv: number;
+  low_npv: number;
+  high_npv: number;
+  swing: number;
+  low_pct: number;
+  high_pct: number;
+}
+
+export interface SensitivityResponse {
+  type: string;
+  parameter?: string;
+  results?: any[];
+  matrix?: {
+    param_x: string;
+    param_x_label: string;
+    steps_x: number[];
+    param_y: string;
+    param_y_label: string;
+    steps_y: number[];
+    matrix_npv: number[][];
+    matrix_irr: number[][];
+  };
+  tornado_data?: TornadoItem[];
 }
 
 export interface ApiErrorData {
@@ -169,6 +313,23 @@ export const uploadLasFile = async (
   return handleApiResponse<LasUploadResponse>(response);
 };
 
+export const parseLasFile = async (
+  file: File
+): Promise<LasParseResponse> => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetchWithAuth(
+    `${API_BASE_URL}/gaia/well-logs/parse-las`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  return handleApiResponse<LasParseResponse>(response);
+};
+
 export const analyzeEconomics = async (
   data: EconomicsAnalyzeRequest
 ): Promise<EconomicsAnalyzeResponse> => {
@@ -177,6 +338,26 @@ export const analyzeEconomics = async (
     body: JSON.stringify(data),
   });
   return handleApiResponse<EconomicsAnalyzeResponse>(response);
+};
+
+export const evaluateEconomicsAdvanced = async (
+  data: EconomicsEvaluateRequest
+): Promise<EconomicsEvaluateResponse> => {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/economics/evaluate`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<EconomicsEvaluateResponse>(response);
+};
+
+export const runEconomicsSensitivity = async (
+  data: SensitivityRequest
+): Promise<SensitivityResponse> => {
+  const response = await fetchWithAuth(`${GAIA_API_PREFIX}/economics/sensitivity`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return handleApiResponse<SensitivityResponse>(response);
 };
 
 /**
