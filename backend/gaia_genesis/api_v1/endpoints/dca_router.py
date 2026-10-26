@@ -22,6 +22,10 @@ async def fit_dca(
     else:
         result = perform_arps_fit(t_np, r_np)
 
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
 
 @router.post("/duong")
 async def fit_duong(
@@ -30,10 +34,6 @@ async def fit_duong(
     user=Depends(get_current_active_user),
 ):
     result = perform_duong_fit(np.array(time), np.array(rate))
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
-
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result

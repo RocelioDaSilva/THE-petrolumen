@@ -70,8 +70,16 @@ export class ApiErrorResponse extends Error {
 
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  // Token is no longer read from localStorage. HttpOnly cookie will be sent automatically by browser.
   const headers = new Headers(options.headers || {});
+
+  let token: string | null = null;
+  if (typeof window !== 'undefined') {
+    token = localStorage.getItem('access_token');
+  }
+
+  if (token && !headers.has('Authorization')) {
+    headers.append('Authorization', `Bearer ${token}`);
+  }
 
   // Do not set Content-Type if body is FormData, browser will do it with boundary.
   // For JSON, it should be set.
@@ -83,7 +91,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
 
   const response = await fetch(url, {
     ...options,
-    credentials: 'include', // Ensure cookies are sent, 'same-origin' is often default but explicit is safer
+    credentials: 'include',
     headers,
   });
   return response;
