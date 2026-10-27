@@ -1,0 +1,785 @@
+# Expanding the Platform with Arnold & Stewart (Surface Production Operations, Vol. 1)
+
+Arnold & Stewart is the **surface facilities** book. Cormack gave you well control, Bourgoyne gave you drilling engineering, and this book gives you the **upstream surface production system** — everything from the wellhead to custody transfer, water disposal, and crude stabilization. This is where your platform crosses from "drilling" into "production facilities." It's the natural "Phase 3" of the platform.
+
+Your existing modules (Well Control, Drilling Hydraulics, Surface Facilities, Math Engine, Drilling Fluids, Cements, Formation, Casing, Directional, Bits, Rig Power) cover Cormack + Bourgoyne. The **Surface Facilities** module you have is minimal (pit/trip-tank). Arnold & Stewart is a **wholesale expansion** of that module plus a set of **new modules**.
+
+---
+
+## Module Summary: What's New vs. Expanded
+
+| Module | Status | Priority |
+|---|---|---|
+| **Fluid Properties / PVT** | **NEW** — basis for everything else | v2.0 (highest) |
+| **Process Selection & Flowsheet** | **NEW** — advisory/architecture | v2.0 |
+| **Two-Phase Separation** | **NEW** — separator sizing engine | v2.0 (high) |
+| **Three-Phase Separation** | **NEW** — FWKO, oil pad, water wash | v2.1 |
+| **Pressure Vessel Design** | **NEW** — mechanical sizing, weights | v2.1 |
+| **Crude Oil Treating** | **NEW** — emulsion, heater-treater, desalting | v2.1 |
+| **Crude Stabilization** | **NEW** — stage separation, stabilizer | v2.2 |
+| **Produced Water Treating** | **NEW** — skim, CPI, flotation, hydrocyclone | v2.1 (high) |
+| **Water Injection** | **NEW** — filters, de-aeration, scavenging | v2.2 |
+| **Surface Facilities** | Existing — **major expansion** (LACT, storage, drains) | v2.0 |
+
+**The single highest-value add** is the **Fluid Properties / PVT module** — everything downstream depends on `ρ`, `Z`, `μ`, `SG`, and phase behavior. Arnold & Stewart use it in every chapter. Without it, none of the separator, treater, or water-treating equations work.
+
+**The single biggest operational capability** is the **Two-Phase + Three-Phase Separation engine** — this is where the platform starts sizing real equipment.
+
+**The most compelling user-facing feature** is the **Produced Water Treating** module — it turns a regulatory headache (29 mg/l, 15 mg/l, 50 mg/l depending on jurisdiction) into a defensible design calculation.
+
+---
+
+## Module 1 — Fluid Properties / PVT (Ch. 3) — NEW
+
+This is the foundation. Everything downstream (separators, treaters, stabilizers, water treating) uses these functions.
+
+### 1.1 Gas properties
+```ts
+apparentMolecularWeight(composition: {yi, MWi}[]): lb/lbmol          // Eq. 3-5
+gasSpecificGravity(MWg: number): dimensionless                        // S = MWg/29  (Eq. 3-7)
+gasDensity(S: number, P: psia, T: °R, Z: number): lb/ft³              // ρ = 2.70·SP/(T·Z)  (Eq. 3-8)
+gasDensityFromMW(MW: number, P, T, Z): lb/ft³                         // ρ = 0.093·MW·P/(T·Z)  (Eq. 3-9)
+pseudoCriticalT(composition): °R                                       // Eq. 3-19
+pseudoCriticalP(composition): psia                                     // Eq. 3-18
+pseudoReducedT(T, Tpc): dimensionless
+pseudoReducedP(P, Ppc): dimensionless
+compressibilityFactor(Pr, Tr, sourComposition?): dimensionless        // Standing-Katz chart, Figs. 3-3 to 3-6
+wichertAzizCorrection(H2S%, CO2%): {TpcAdj, PpcAdj}                    // Eqs. 3-22, 3-23
+gasViscosity(S, P, T): cp                                             // Fig. 3-17
+```
+
+### 1.2 Liquid properties
+```ts
+apiToSG(api: number): dimensionless                                    // SG = 141.5/(131.5+API)  (Eq. 3-26)
+sgToApi(SG: number): °API                                              // API = 141.5/SG − 131.5  (Eq. 3-27)
+liquidDensity(SG: number): lb/ft³                                     // ρ = 62.4·SG
+specificGravityAtTemp(SG60: number, T: °F): dimensionless              // Figs. 3-15, 3-16
+liquidViscosity(T: °F, api: number): cp                                // Beggs-Robinson Eq. 3-29
+oilWaterMixtureViscosity(muOil, muWater, waterCut): cp                 // Modified Vand's Eq. 3-30
+kinematicToDynamicViscosity(cSt, SG): cp
+```
+
+### 1.3 Phase behavior (single + multicomponent)
+```ts
+bubblePoint(P: psia, composition): °F
+dewPoint(P: psia, composition): °F
+phaseEnvelope(composition): { bubblePointLine, dewPointLine, critical, cricondenbar, cricondentherm }
+classifyReservoirFluid(GOR, API, C7plus_mol%): 'black-oil' | 'volatile-oil' | 'retrograde' | 'wet-gas' | 'dry-gas'
+```
+
+### 1.4 Flash calculations (iterative)
+```ts
+flashCalculation(composition, P: psia, T: °F, convergenceP: psia = 2000): {
+  V: moles vapor,
+  L: moles liquid,
+  y: vapor composition,
+  x: liquid composition,
+  Kvalues: number[]
+}                                                                     // Eqs. 3-32 to 3-34
+approxFlashPercentGOR(api, Psep, Nstages): %                         // Fig. 3-47
+reidVaporPressure(trueVP): psia                                       // Fig. 3-49 / 8-10
+```
+
+### 1.5 Flow-stream characterization (post-flash)
+```ts
+gasMolecularWeight(y, MWi): number                                    // Eq. 3-35
+gasFlowRate(F_moles, V_over_L): MMscfd                                // Eq. 3-36, 3-37
+liquidMolecularWeight(x, MWi, L): number                              // Eq. 3-38
+liquidSpecificGravity(x, MWi, SGi, L): dimensionless                  // Eq. 3-39
+liquidFlowRate(L_moles, MW, SG): BPD                                  // Eq. 3-40
+estimateFeedMolesFromStockTank(Qstock, SG7, MW7, y7): moles/day      // Eqs. 3-41, 3-42
+```
+
+---
+
+## Module 2 — Process Selection & Flowsheet (Ch. 2) — NEW
+
+Mostly **advisory**, but a few calculable pieces.
+
+### 2.1 Stage separation optimization
+```ts
+recommendNumberOfStages(initialSepPressure: psig): number              // Table 2-2
+recommendInitialSepPressure(FTP: psig): psig
+incrementalLiquidRecovery(stages, pressures): { bopd, gainPerStage }
+compressorInterstagePressure(Ps, Pd, nStages): psia[]                 // Eq. 2-2
+optimalIntermediatePressure(Ps, Pd): psia                              // R ≈ 3.6–4.0 per stage
+```
+
+### 2.2 Flow-sheet configuration
+```ts
+recommendSeparatorType(service): 'two-phase' | 'three-phase' | 'FWKO'  // Table 2-1 guidelines
+recommendTreatingScheme(emulsion, waterCut, GOR): 'gunbarrel' | 'heater-treater' | 'electrostatic'
+recommendWaterTreatingScheme(inletOilMgL, outletOilMgL, deckArea): TreatmentChain
+recommendGasLiftParameters(wellheadPressure, injectionPressure): { rate, pressure }
+```
+
+### 2.3 Compressor selection
+```ts
+compressorStageRatio(Ps, Pd, nStages): number
+compressorHorsepower(P1, P2, q, k): hp                                 // GPSA method
+recommendCompressorType(hp, ratio): 'reciprocating' | 'centrifugal'    // Tables 2-4, 2-5
+```
+
+### 2.4 Control loop sizing (advisory)
+```ts
+recommendPressureControl(cvSize, failMode): ControlValveSpec
+recommendLevelControl(vessel, service): ControlValveSpec
+recommendTemperatureControl(setpoint, fuelType): ControlValveSpec
+```
+
+---
+
+## Module 3 — Two-Phase Oil & Gas Separation (Ch. 4) — NEW
+
+The **separator sizing engine**. This is the core of the surface-facilities toolkit.
+
+### 3.1 Droplet settling (Stokes + full drag)
+```ts
+terminalSettlingVelocity(rhoL, rhoG, dm, mu, Cd): ft/s                 // Eqs. 4-7a/b
+dragCoefficient(Re): dimensionless                                     // Eq. 4-6
+reynoldsFromSettling(rhoG, dm, Vt, mu): dimensionless                 // Field-units Re
+iterativeSettleVelocity(rhoL, rhoG, dm, mu): ft/s                     // Iterate Cd until converged
+liquidDropletSizeForRemoval(microns = 140): number                    // Default design droplet
+```
+
+### 3.2 Separator sizing — horizontal
+```ts
+horizontalSizingHalfFull(Qg, Qo, P, T, Z, rhoG, rhoL, dm, tr): {
+  d: number, Leff: number, Lss: number, slenderness: number
+}                                                                     // Eqs. 4-8a, 4-9a, 4-10a
+horizontalGasCapacity(Qg, P, T, Z, rhoG, rhoL, dm): number            // dLeff product
+horizontalLiquidCapacity(Qo, tr): number                              // d²Leff product
+horizontalSizingOtherThanHalfFull(alpha, ...): { d, Leff, Lss }       // Eqs. 4-12, 4-13
+```
+
+### 3.3 Separator sizing — vertical
+```ts
+verticalSizing(Qg, Qo, P, T, Z, rhoG, rhoL, dm, tr): {
+  dmin: number, d, h, Lss, slenderness
+}                                                                     // Eqs. 4-14a, 4-15a, 4-16/17
+verticalGasCapacity(Qg, P, T, Z, rhoG, rhoL, dm): number             // d²
+verticalLiquidCapacity(Qo, tr, d): number                            // h
+```
+
+### 3.4 Scrubber sizing
+```ts
+compressorSuctionScrubber(Qg, P, T, rhoG, rhoL, dm = 500): { d, Lss }
+flareScrubber(Qmax, P, T, dm = 300–500): { d, Lss }
+fuelGasScrubber(Qg, P, T, dm = 500): { d, Lss }
+```
+
+### 3.5 Mist extractor sizing
+```ts
+vaneKFactor(geometry): number                                         // 0.3–1.0 ft/s
+soudersBrownVelocity(K, rhoL, rhoG): ft/s                             // Eq. 4-1
+wireMeshPressureDrop(dryOrWet, velocity, thickness): psi             // Eq. 4-2
+recommendMistExtractor(service, dropletRemoval, solids): 'vane' | 'wire-mesh' | 'micro-fiber'
+```
+
+### 3.6 Separator selection & internals
+```ts
+selectSeparatorOrientation(Qg, Qo, foam, solids): 'horizontal' | 'vertical'
+selectSeparatorInternals(service): { inletDiverter, mistExtractor, waveBreakers, defoamingPlates }
+recommendRetentionTime(api): minutes                                  // Table 4-2
+```
+
+### 3.7 Equipment description helpers
+```ts
+doubleBarrelSizing(...): {...}
+filterSeparatorSizing(...): {...}
+slugCatcherSizing(...): {...}                                         // "liquid finger" geometry
+```
+
+---
+
+## Module 4 — Three-Phase Oil & Water Separation (Ch. 5) — NEW
+
+Builds on Module 3, adds oil–water settling.
+
+### 4.1 Liquid–liquid settling (Stokes-based)
+```ts
+waterDropletSettlingInOil(rhoW, rhoO, dm = 500, muOil): ft/s          // Eq. 5-2a
+oilDropletRiseInWater(rhoO, rhoW, dm = 200, muWater): ft/s           // Eq. 5-2a (same form)
+maxOilPadThickness(tr_o, dm, deltaSG): inches                        // Eq. 5-5a
+```
+
+### 4.2 Horizontal three-phase sizing (half full)
+```ts
+threePhaseHorizontalSizing(Qo, Qw, Qg, P, T, Z, rhoO, rhoW, rhoG, tr_o, tr_w, dm): {
+  d, Leff, Lss, ho, hw, Aw_A, slenderness
+}                                                                     // Eqs. 5-3, 5-4, 5-7, 5-8
+```
+
+### 4.3 Vertical three-phase sizing
+```ts
+threePhaseVerticalSizing(...): { dmin, d, ho, hw, Lss, slenderness }  // Eqs. 5-19 to 5-27
+waterDropletDiameterForOilPad(Qo, muOil, deltaSG, d): microns        // reverse of Eq. 5-21
+oilDropletDiameterForWaterPad(Qw, muWater, deltaSG, d): microns       // reverse of Eq. 5-23
+```
+
+### 4.4 Bucket-and-weir design
+```ts
+oilPadThicknessFromWeir(ho, SG_o, SG_w): inches                       // Eq. 5-1
+waterWeirHeightSetpoint(ho, SG_o, SG_w): inches                       // Δh
+```
+
+### 4.5 Free-water knockout
+```ts
+fwkoSizing(Qw, tr_w, muWater, deltaSG, dm): { d, Leff }               // Liquid-capacity dominant
+fwkoWithCoalescingPackSizing(...): {...}
+```
+
+### 4.6 Flow splitter
+```ts
+flowSplitterSizing(Qtotal, nCompartments, QperCompartment): {...}
+```
+
+---
+
+## Module 5 — Pressure Vessel Mechanical Design (Ch. 6) — NEW
+
+Pure ASME Section VIII Div. 1 calculations. This lets you go from "I need a 72-in × 20-ft separator" to "the shell plate is 13/16-in SA-516-70, weight 12,870 lb."
+
+### 5.1 MAWP determination
+```ts
+minimumMAWP(operatingPressure: psig, hasPSH: boolean): psig           // Table 6-1
+ansiClassMAWP(class: 150|300|600|900|1500|2500, temp: °F): psig       // Table 6-2
+```
+
+### 5.2 Wall thickness (ASME VIII Div 1, 1998 or 2001+)
+```ts
+cylindricalShellThickness(P, r, S, E, edition): inches                // Eq. 6-1, Table 6-3
+ellipsoidalHeadThickness(P, d, S, E, edition): inches                 // Eq. 6-2
+hemisphericalHeadThickness(P, r, S, E, edition): inches               // Eq. 6-3
+coneThickness(P, d, alpha, S, E): inches                              // Eq. 6-4
+requiredThicknessWithCA(t, CA = 0.125–0.250): inches
+jointEfficiency(jointType, radiography): fraction                     // Table 6-4
+maximumAllowableStress(material, edition, temperature): psi           // Table 6-3
+```
+
+### 5.3 Vessel weight estimation
+```ts
+shellWeight(d, t, L): lb                                              // Eq. 6-5a
+ellipsoidalHeadWeight(t, d): lb                                       // Eq. 6-6a
+coneWeight(t, d, alpha): lb                                           // Eq. 6-7a
+skirtLength(d, alpha): ft                                              // Eqs. 6-8a, 6-9a
+totalVesselWeight(shell, heads, cone, skirt, internalsPct = 5–10): lb
+```
+
+### 5.4 Nozzle sizing
+```ts
+maxInletNozzleVelocity(rhoF): ft/s                                    // Eq. 6-10a
+nozzleProjection(pipeSize, class, type): inches
+vortexBreakerRequired(liquidOutlet: true): boolean
+```
+
+### 5.5 Manway & support sizing
+```ts
+manwayRequired(d): boolean                                            // 36-in minimum for 18-in manway
+davitRequired(manwaySize): boolean                                    // ≥12 in
+supportLegOrSkirt(d, height): 'leg' | 'skirt'
+```
+
+---
+
+## Module 6 — Crude Oil Treating & Desalting (Ch. 7) — NEW
+
+### 6.1 Emulsion characterization (advisory + calculable)
+```ts
+emulsionStability({deltaSG, dropletSize, viscosity, IFT, emulsifierConc, salinity, age, agitation}): 'loose' | 'medium' | 'tight'
+bottleTestResult(sample, chemical, dosePpm): { waterDropRate, interfaceQuality, waterTurbidity, oilColor }
+recommendDemulsifierDose(emulsion, priorDose): ppm
+```
+
+### 6.2 Heat input
+```ts
+heatRequired(Qo, ΔT, SGo): BTU/hr                                    // Eq. 7-5a
+heatRequiredSI(Qo_m3hr, ΔT_C, SGo): kW
+```
+
+### 6.3 Gravity settling of water in oil
+```ts
+waterSettlingVelocity(dm, deltaSG, muOil): ft/s                       // Eq. 7-7a
+horizontalTreaterSizing(Qo, muOil, deltaSG, dm, tr, F = 1–2): { d, Leff, Lss }
+                                                                     // Eqs. 7-8a, 7-12a
+verticalTreaterSizing(Qo, muOil, deltaSG, dm, tr): { d, h, Lss }      // Eqs. 7-9a, 7-13a
+gunbarrelSizing(Qo, muOil, deltaSG, dm, tr, F): { d, h }              // Eqs. 7-10a, 7-14a
+horizontalFlowTreaterSizing(Qo, muOil, deltaSG, dm, tr): { w, Leff, h }
+                                                                     // Eqs. 7-11a, 7-15a
+```
+
+### 6.4 Design droplet size from viscosity
+```ts
+dropletSizeForOnePercentWC(muOil): microns                            // Eq. 7-16 (conventional)
+dropletSizeForOnePercentWC_Electrostatic(muOil): microns              // Eq. 7-17
+dropletSizeForWaterCut(muOil, Wc): microns                            // Eq. 7-18
+```
+
+### 6.5 Heater-treater design
+```ts
+standardVerticalTreaterSize(Q, retentionTime): StandardSize          // vendor table
+standardHorizontalTreaterSize(Q, retentionTime): StandardSize
+fireTubeRating(Q, ΔT): BTU/hr
+```
+
+### 6.6 Electrostatic treater
+```ts
+electricFieldIntensity(voltage, spacing): V/in
+requiredGridArea(Q, loadingRate): ft²
+electrostaticEfficiency(muOil, deltaSG): fraction                      // Rule-of-thumb limits
+```
+
+### 6.7 Gunbarrel design
+```ts
+gunbarrelExternalWaterLegHeight(ho, SG_o, SG_w, H_outlet, H_interface): ft  // Example 7-1
+gunbarrelResidenceTime(volume, Q): hours                              // 12–24 hr
+```
+
+### 6.8 Desalting
+```ts
+saltContent(waterCut, waterSalinityPpm): PTB                          // PTB calculation
+dilutionWaterForTargetPTB(currentPTB, targetPTB, Qo): BPD
+singleStageDesalterSizing(Qo, dilutionRatio): {...}
+twoStageDesalterSizing(Qo, recycleRatio): {...}
+```
+
+---
+
+## Module 7 — Crude Stabilization (Ch. 8) — NEW
+
+### 7.1 Multi-stage separation (from Module 2/3)
+```ts
+multiStageLiquidRecovery(stages, pressures, composition): {
+  stockTankLiquid, compressorHp, gasPerStage
+}                                                                     // Table 2-1
+```
+
+### 7.2 Stabilizer design (cold-feed and reflux)
+```ts
+stabilizerBottomTemperature(targetRVP, P_stab): °F
+stabilizerTrayCount(coldFeed: boolean, refluxRatio: number): number
+stabilizerReboilerDuty(feedEnthalpy, overheadEnthalpy, bottomEnthalpy): BTU/hr
+stabilizerOverheadComposition(feed, T_top, P): composition
+stabilizerRefluxRate(overheadVapor, targetT): BPD
+nC4SplitEstimate(targetRVP): fraction                                 // Eq. 8-3, 8-4
+vaporPressureOfMixture(composition, T = 100°F): psia                 // Eq. 8-2
+```
+
+### 7.3 Stabilizer auxiliary equipment
+```ts
+refluxAccumulatorSizing(Qreflux, retentionTime): { d, L }
+reboilerType(P_stab): 'kettle' | 'thermosiphon'
+refluxCondenserDuty(overheadVapor, T_cond): BTU/hr
+```
+
+### 7.4 RVP vs true VP
+```ts
+trueVaporPressure(reidVP, T): psia                                    // Fig. 8-10 / 3-49
+reidVaporPressure(trueVP, T): psia
+```
+
+---
+
+## Module 8 — Produced Water Treating (Ch. 9) — NEW
+
+This is the operational/regulatory module. Its calculations are the ones that get reviewed by agencies.
+
+### 8.1 Oil droplet settling (Stokes)
+```ts
+oilRiseVelocity(dm, deltaSG, muWater): ft/s                           // Eq. 9-1a
+minimumRemovableDroplet(dm_min = 30): microns                         // Field experience limit
+```
+
+### 8.2 Skim tank/vessel sizing
+```ts
+horizontalSkimCylindricalHalfFull(Qw, muWater, deltaSG, dm): { d, Leff, Lss }   // Eq. 9-7a
+horizontalSkimRectangular(Qw, muWater, deltaSG, dm): { W, Leff, Lss }           // Eq. 9-12a
+verticalSkim(Qw, muWater, deltaSG, dm, F = 1 or d/48): { d, H, Lss }            // Eqs. 9-15 to 9-17
+skimRetentionTime(Qw, d, Leff): minutes                                        // Eq. 9-8a
+```
+
+### 8.3 Plate coalescers
+```ts
+cpiNumberOfPacks(Qw, muWater, deltaSG, dm, angle = 45|60): number     // Eq. 9-20/9-21
+plateCoalescerSizing(Qw, h, mu, angle, dm, deltaSG): { HWL }         // Eq. 9-18a
+reynoldsLimitation(Qw, h, deltaSG, mu): { HW }                        // Eq. 9-19a
+crossFlowSizing(Qw, h, mu, angle, dm, deltaSG): { HWL }              // Eq. 9-22a
+```
+
+### 8.4 Flotation units
+```ts
+flotationOverallEfficiency(E_perCell, nCells): fraction               // Eq. 9-6
+flotationCellEfficiency(Qw, K, qg, db): fraction                      // Eq. 9-4
+flotationUnitSizing(Qinlet, Qoutlet, chemicalDosePpm): StandardSize  // Vendor table 9-4
+recommendFlotationType(inletOil, outletOil, chemicalAvail, power): 'dissolved' | 'dispersed' | 'hydraulic' | 'mechanical'
+```
+
+### 8.5 Hydrocyclones
+```ts
+hydrocycloneD50(K, D, mu, Qw, deltaSG): microns                       // Eq. 10-16 (also Ch. 9)
+hydrocycloneD99(d50): microns                                         // Eq. 10-17
+hydrocyclonePressureDrop(Qw, K_I): psi                                // Eq. 10-18
+hydrocycloneRemovalEfficiency(dm, deltaSG, T): %                      // Fig. 9-52
+recommendHydrocycloneLiners(Qw, Q_perLiner): number
+```
+
+### 8.6 Disposal piles and skim piles
+```ts
+disposalPileDiameter(Qw, AD, Rw, QWD, deltaSG, dm = 150): inches      // Eq. 9-26a
+disposalPileLength(HT, HS, HA, HSD, SGo, deltaSG): ft                 // Eq. 9-27a
+skimPileBaffleLength(Qw, AD, Rw, QWD): ft                             // Eq. 9-28a
+```
+
+### 8.7 Emulsion characterization
+```ts
+dispersionDmax(sigma, rhoW, deltaP, tr): microns                      // Eq. 9-2 (Hinze)
+coalescenceTime(d, do, phi, Ks, j = 4): minutes                      // Eq. 7-1
+```
+
+### 8.8 System selection (advisory)
+```ts
+recommendWaterTreatingChain({
+  inletOilMgL, effluentMgL, Qw, deckArea, power, space, chemicalAvail
+}): TreatmentChain                                                     // Ch. 9, step 1–13 procedure
+calculateEffluentConcentration(chain, inletMgL): mg/L
+```
+
+### 8.9 Drain systems
+```ts
+closedDrainSizing(Qclosed, Pflash): { d, L }
+openDrainSizing(Qrain, Qwashdown, dm = 150): { d, L }                 // Eq. 9-28a
+recommendSumpTank(deckArea, rainfallRate, washdownRate): {...}
+```
+
+---
+
+## Module 9 — Water Injection Systems (Ch. 10) — NEW
+
+Sibling to Module 8. Focused on injection water quality, not disposal.
+
+### 9.1 Suspended solids removal by gravity
+```ts
+particleSettlingVelocity(dm, deltaSG, muWater): ft/s                  // Eq. 10-3a
+horizontalCylindricalSettler(Qw, mu, deltaSG, dm, hwFraction): { d, Leff, Lss }
+                                                                     // Eq. 10-4a
+horizontalRectangularSettler(Qw, mu, deltaSG, dm, H_over_W): { W, Leff, Lss }
+                                                                     // Eq. 10-10a
+verticalCylindricalSettler(Qw, mu, deltaSG, dm): { d, H }            // Eq. 10-13a
+```
+
+### 9.2 Filtration
+```ts
+filterBetaRatio(inletParticles, outletParticles): number
+filterRemovalEfficiency(beta): %                                      // Table 10-1
+filterLifeExtension(A1, A2, n = 1–2): factor                         // T1 = T2·(A1/A2)^n
+filterSelection({
+  fluidType, flowRate, viscosity, temp, deltaP, solidsLoading, dm
+}): FilterSpec                                                        // Ch. 10 selection procedure
+recommendFilterType({
+  dm, solidsConc, flowRate, space, budget
+}): 'cartridge' | 'granular' | 'DE' | 'backwashable-cartridge'
+```
+
+### 9.3 Coagulation / flocculation
+```ts
+recommendCoagulant(turbidity, TOC, pH): { chemical, dose }
+polyelectrolyteDose(turbidity, flowRate): ppm
+```
+
+### 9.4 Scale & corrosion indices
+```ts
+langelierSaturationIndex(pH, Ca_hardness, M_alkalinity, TDS, T): number  // Fig. 10-4
+ryznarStabilityIndex(pH, Ca, alk, TDS, T): number                     // RSI = 2·pHS − pHA
+scaleTendency(LSI): 'scaling' | 'stable' | 'corrosive'
+recommendScaleInhibitor(T, TDS, Ca, Ba): { chemical, dose }
+```
+
+### 9.5 Chemical scavenging
+```ts
+oxygenScavengerRate(Qw, SGw, Co2, R, MWcs): lb/day                    // Eq. 10-19a
+catalystRate(Qw, SGw, Cca = 0.001): lb/day                            // Eq. 10-20a
+```
+
+### 9.6 Hydrocyclones (shared with Module 8)
+Uses the same functions as 8.5 — expose in both module namespaces.
+
+### 9.7 Chemical compatibility
+```ts
+checkWaterCompatibility(water1, water2): { scaling, compatible }
+corePlugTest(permeability, particleSize): permissibleInjectionRate
+```
+
+### 9.8 De-aeration
+```ts
+vacuumDeaeratorSizing(Qwater, inletO2, outletO2): { d, H }
+gasStrippingSizing(Qwater, inletO2, outletO2): { d, H }
+```
+
+---
+
+## Module 10 — Surface Facilities Utilities (Ch. 1, 2) — EXPAND EXISTING
+
+Your current Surface Facilities module (pit volume, trip tank) is minimal. Expand with:
+
+### 10.1 LACT / custody transfer
+```ts
+lactMeterSizing(Qmax): meterSize
+lactSamplerSizing(Qmax, BSandW): { sampleRate }
+lactProverSizing(meterSize): proverVolume
+```
+
+### 10.2 Storage tanks
+```ts
+api12FShopWeldedTank(capacity: bbl): StandardSize                     // Table 7-1a
+api12DFieldWeldedTank(capacity: bbl): StandardSize                    // Table 7-2a
+api12BBoltedTank(capacity: bbl): StandardSize                         // Table 7-3a
+tankBreathingLoss(capacity, ventType): bbl/yr                         // Table 2-3
+```
+
+### 10.3 Gas dehydration (glycol)
+```ts
+glycolRecirculationRate(Qgas, waterContent, targetWaterContent): gph
+glycolContactorSizing(Qgas): { d, trays }
+glycolReboilerDuty(Qglycol, TEGorTREG): BTU/hr
+recommendGlycolType(Tgas): 'TEG' | 'TREG'
+```
+
+### 10.4 Compressor (shared with Module 2)
+Expose compressor functions here too.
+
+### 10.5 Well testing
+```ts
+wellTestFrequency(nWells): tests/month
+wellTestDuration(wellType): hours                                     // 4–12 hr oil, ~1 day gas
+testSeparatorSizing(Qtest, P, T): { d, Lss }
+```
+
+### 10.6 Manifold & wellhead
+```ts
+manifoldSizing(nWells, Qmax): { headerSize, valveCount }
+chokeSizing(Qmax, ΔP): 64ths
+```
+
+---
+
+## Module 11 — Process Control & Instrumentation (Ch. 2) — NEW
+
+Lightweight, advisory. Useful if you want to generate control-valve specs.
+
+### 11.1 Control valve sizing
+```ts
+controlValveCv(Q, deltaP, SG, T): dimensionless
+controlValveSize(Cv): ANSI size
+actuatorSizing(Cv, deltaP): actuatorSize
+recommendFailMode(service): 'FC' | 'FO' | 'FL'
+```
+
+### 11.2 Level instrumentation
+```ts
+levelControllerSizing(service): 'float' | 'displacer' | 'capacitance' | 'DP'
+stillingWellSizing(displacerOD): { d, L }
+```
+
+### 11.3 Safety devices
+```ts
+reliefValveSizing(Qmax, Pset, Pback): orifice
+ruptureDiscSizing(Pburst, flowArea): size
+```
+
+---
+
+## Summary: What's New vs. Expanded
+
+| Module | New/Expand | Priority | Key functions |
+|---|---|---|---|
+| **Fluid Properties / PVT** | NEW | **v2.0 (highest)** | Composition, Z, viscosity, flash, phase |
+| **Process Selection** | NEW | v2.0 | Stage count, separator type, flowsheet |
+| **Two-Phase Separation** | NEW | **v2.0 (high)** | Separator sizing, mist extractors |
+| **Three-Phase Separation** | NEW | v2.1 | FWKO, oil-pad constraint, sizing |
+| **Pressure Vessel Design** | NEW | v2.1 | ASME wall thickness, weights |
+| **Crude Oil Treating** | NEW | v2.1 | Emulsion, heater-treater, desalting |
+| **Crude Stabilization** | NEW | v2.2 | Multi-stage, stabilizer design |
+| **Produced Water Treating** | NEW | **v2.1 (high)** | Skim, CPI, flotation, hydrocyclone |
+| **Water Injection** | NEW | v2.2 | Filtration, de-aeration, scavenging |
+| **Surface Facilities** | Existing — expand | v2.0 | LACT, tanks, glycol, well test |
+| **Process Control** | NEW | v2.2 | Control valves, relief devices |
+
+---
+
+## Suggested Order of Work
+
+**PR 1 — Fluid Properties / PVT (Ch. 3)**
+- Apparent MW, specific gravity
+- Gas density, Z-factor (Standing-Katz + Wichert-Aziz)
+- Viscosity (Beggs-Robinson for oil, gas chart for gas)
+- Flash calculation solver
+- Phase classification
+- **Without this PR, nothing else works.**
+
+**PR 2 — Two-Phase Separation (Ch. 4)**
+- Droplet settling iteration
+- Horizontal + vertical separator sizing
+- Mist extractor sizing (vane, wire-mesh, micro-fiber)
+- Scrubber sizing
+- Selection / retention-time tables
+
+**PR 3 — Surface Facilities expansion**
+- LACT / meter sizing
+- Tank standards (12F, 12D, 12B)
+- Glycol dehydration
+- Well testing
+- Manifold & choke
+
+**PR 4 — Three-Phase Separation (Ch. 5)**
+- Liquid-liquid settling
+- Oil pad + water pad constraint
+- FWKO sizing
+- Bucket-and-weir
+
+**PR 5 — Pressure Vessel (Ch. 6)**
+- Wall thickness (shell, heads, cone)
+- Maximum allowable stress tables
+- Vessel weights
+- Nozzle & manway rules
+
+**PR 6 — Crude Oil Treating (Ch. 7)**
+- Heat input
+- Heater-treater horizontal + vertical
+- Gunbarrel
+- Electrostatic treater
+- Desalting (PTB, dilution water)
+
+**PR 7 — Produced Water Treating (Ch. 9)**
+- Skim tank/vessel
+- CPI plate coalescer
+- Flotation (hydraulic, mechanical, dissolved)
+- Hydrocyclone
+- Disposal pile + skim pile
+- System selection procedure
+
+**PR 8 — Crude Stabilization (Ch. 8)**
+- Multi-stage recovery
+- Stabilizer sizing
+- Reflux system
+- RVP/true VP conversion
+
+**PR 9 — Water Injection (Ch. 10)**
+- Gravity settlers
+- Filters (cartridge, granular, DE)
+- Coagulation / flocculation
+- LSI / RSI
+- Chemical scavenging
+- De-aeration
+
+**PR 10 — Process Control & Utilities**
+- Control valve sizing
+- Relief valve sizing
+- Manifold and wellhead
+
+---
+
+## Suggested Commit Message
+
+```
+feat: add surface production operations suite (Arnold & Stewart)
+
+Adds a complete upstream surface-facilities capability to the platform,
+based on Arnold & Stewart, "Surface Production Operations, Vol. 1 —
+Design of Oil Handling Systems and Facilities" (3rd ed., 2008).
+
+This is the third book in the platform's engineering stack — after
+Cormack (well control) and Bourgoyne (drilling), the platform now covers
+the entire upstream lifecycle from reservoir to custody transfer.
+
+New modules:
+- Fluid Properties / PVT: composition, apparent MW, specific gravity,
+  Z-factor (Standing-Katz + Wichert-Aziz sour-gas correction),
+  viscosity (Beggs-Robinson, gas charts), iterative flash calculations,
+  phase classification, RVP ↔ true VP
+- Process Selection: stage-count recommendation, separator type
+  selection, flowsheet configuration, compressor stage ratio
+- Two-Phase Separation: Stokes-based droplet settling (iterative Cd),
+  horizontal & vertical separator sizing, mist extractor sizing
+  (vane, wire-mesh, micro-fiber), scrubber sizing, retention time
+- Three-Phase Separation: liquid-liquid settling, oil-pad and
+  water-pad constraints, FWKO sizing, bucket-and-weir, flow splitter
+- Pressure Vessel Design: ASME VIII Div. 1 wall thickness (shell,
+  2:1 ellipsoidal, hemispherical, cone), allowable stress tables,
+  joint efficiency, vessel weight estimation, nozzle & manway rules
+- Crude Oil Treating: emulsion characterization, heat input,
+  horizontal & vertical heater-treater sizing, gunbarrel sizing,
+  electrostatic treater, desalting (PTB, dilution water)
+- Crude Stabilization: multi-stage liquid recovery, cold-feed and
+  reflux stabilizer design, reboiler duty, reflux accumulator sizing
+- Produced Water Treating: skim tank/vessel, CPI plate coalescer,
+  flotation (hydraulic, mechanical, dissolved), hydrocyclone,
+  disposal pile & skim pile, system selection procedure
+- Water Injection: gravity settlers, cartridge/granular/DE filters,
+  coagulation/flocculation, Langelier Saturation Index,
+  Ryznar Stability Index, chemical scavenging, de-aeration
+- Process Control & Instrumentation: control valve Cv, relief valve
+  sizing, level instrumentation
+
+Expanded modules:
+- Surface Facilities: LACT/custody transfer, API 12F/12D/12B tank
+  standards, glycol dehydration, well testing, manifold, choke sizing
+
+Tests: golden cases from Chapters 2–10, including Examples 4-1 to
+4-4 (separator sizing), 7-1 (gunbarrel water leg), 9-1 (CPI
+performance), 9-2 (produced water system design), 10-1 (water
+injection system).
+
+Dependency note: Fluid Properties / PVT must be merged first — every
+downstream calculation depends on Z, ρ, μ, and phase composition.
+```
+
+---
+
+## Integration Advice
+
+**1. The PVT module is a hard prerequisite.** Enforce it in code review. Every function in Modules 3–9 should call into `fluidProperties` (or accept pre-computed properties). If you let developers inline "assume SG = 0.85" for testing, that assumption will leak into production.
+
+**2. Unify the droplet-settling engine.** Cormack, Bourgoyne, and Arnold & Stewart all use Stokes' law with slight variations:
+- Cormack: 4–5 dp rounding, field units
+- Bourgoyne: full drag iteration (Eq. 4-6, 4-7)
+- Arnold & Stewart: field-unit simplified form with Reynolds iteration
+
+Build **one** `settling.ts` engine (from Bourgoyne's more rigorous version) and expose field-unit conveniences for Arnold & Stewart's equations. This avoids three inconsistent implementations.
+
+**3. Share "system selection" advisory functions.** Modules 2 (Process Selection), 8 (Produced Water), and 9 (Water Injection) all have "recommend a chain of equipment" logic. Model these as a **rules engine** with a shared `TreatmentChain` type — so a user can run "design my water treating system" once and get a coherent answer across all three modules.
+
+**4. Golden test priority.** The book's worked examples are your best regression tests:
+- Ex. 4-1 (vertical separator, 10 MMscfd → 21.9 in, 3.2 SR)
+- Ex. 4-3 (horizontal separator, 55.04 dLeff → 36 in × 10 ft)
+- Ex. 5-1 (vertical 3-phase, 83.0 in → 90 in × 20 ft)
+- Ex. 6-1 (FWKO weight, 35,089 lb cone-bottom vs. 29,166 lb 2:1)
+- Ex. 7-1 (gunbarrel water leg, H = 19.5 ft)
+- Ex. 7-2 (horizontal treater, 72 in × 20 ft at 100°F)
+- Ex. 9-1 (CPI: dm = 63.5 μm, effluent 193.6 mg/L)
+- Ex. 9-2 (full system: 72 in × 10 ft skim vessel)
+- Ex. 10-1 through 10-4 (water injection systems)
+
+**5. Regulatory templates.** For produced water (Module 8), add configurable "regulatory profile" objects:
+```ts
+regulatoryProfile(country: 'USA-OCS' | 'NorthSea' | 'Nigeria' | 'Thailand' | ...): {
+  maxOilMgL, dispersionModel, requiredTestMethod
+}
+```
+This is a **massive** differentiator — agencies rarely accept "we designed to 29 mg/l" without knowing which jurisdiction's method was used.
+
+**6. Vendor integration path.** Every equipment-sizing function should eventually map to a **vendor standard-size lookup**:
+- API 12J for separator standards
+- API 12F/12D/12B for tanks
+- ASME B16.5 for flange classes
+- ANSI pump sizes
+
+Build the library of standards first; the sizing functions then snap to standard sizes with a "nearest standard" selector. This is the difference between a calculator and a **procurement-ready design tool**.
+
+**7. Cross-module consistency.** The compressor function appears in Module 2, Module 10, and Module 11. The droplet-settling engine appears in Modules 3, 4, 8, and 9. Enforce a **single implementation** in a `core` namespace, with module-level wrappers that only adjust units/rounding. Any divergence becomes a bug.
+
+**8. UI treatment.** Arnold & Stewart is a **sizing-and-selection** book, not a formula book. Your UI should reflect that:
+- **"Size me a separator"** workflow: input rates + P/T → output d, Leff, Lss, SR, plus a **standard-size pick** ("nearest API 12J: 36-in × 10-ft")
+- **"Design my water treating system"** workflow: input inlet oil, effluent target, deck area → output a full treatment chain with sizes and a mass balance
+- **"What's the regulatory limit?"** panel: click a country → see 15/25/29/30/50 mg/l and which test method applies
+
+This is where the platform stops being a calculator and becomes a **facilities engineering workbench**.

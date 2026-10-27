@@ -4,6 +4,9 @@ import Sidebar, { APP_MODULES } from "@/components/Sidebar";
 import DashboardOverview from "@/components/visualizations/DashboardOverview";
 import WellControlView from "@/components/visualizations/WellControlView";
 import DrillingHydraulicsView from "@/components/visualizations/DrillingHydraulicsView";
+import DrillingFluidsView from "@/components/visualizations/DrillingFluidsView";
+import CementingView from "@/components/visualizations/CementingView";
+import CasingAndDirectionalView from "@/components/visualizations/CasingAndDirectionalView";
 import SurfaceFacilitiesView from "@/components/visualizations/SurfaceFacilitiesView";
 import ReservoirSimulationView from "@/components/visualizations/ReservoirSimulationView";
 import ReservoirGrid3D from "@/components/visualizations/ReservoirGrid3D";
@@ -41,6 +44,12 @@ export default function App() {
         return <WellControlView />;
       case "drilling-hydraulics":
         return <DrillingHydraulicsView />;
+      case "drilling-fluids":
+        return <DrillingFluidsView />;
+      case "cementing":
+        return <CementingView />;
+      case "casing-directional":
+        return <CasingAndDirectionalView />;
       case "surface-facilities":
         return <SurfaceFacilitiesView />;
       case "reservoir-simulation":
