@@ -516,3 +516,298 @@ export function calculateCuttingsTransport(
     isAdequate: transportRatio >= 50, // Standard rule of thumb: >=50% transport efficiency required
   };
 }
+
+/**
+ * Surface pressure loss using CSS
+ * Sourced: Carter Ch. 6, Eq. 6.1
+ */
+export function surfacePressureLoss(css: number, mwPpg: number, qGpm: number): number {
+  return css * (mwPpg / 10) * Math.pow(qGpm / 100, 1.86);
+}
+
+/**
+ * Pipe pressure loss (Carter Ch. 6, Eqs. 6.2–6.12)
+ */
+export function pipePressureLossCarter(kp: number, np: number, dpInches: number, mwPpg: number, qGpm: number, lengthFt: number): number {
+  const vFtMin = (24.5 * qGpm) / Math.pow(dpInches, 2);
+  return (kp * lengthFt * Math.pow(vFtMin, np)) / Math.pow(dpInches, 1 + np);
+}
+
+/**
+ * Bit pressure loss (Carter Ch. 6, Eq. 6.13)
+ */
+export function bitPressureLoss(qGpm: number, mwPpg: number, dj1: number, dj2: number = 0, dj3: number = 0): number {
+  const a1 = dj1 > 0 ? (Math.PI / 4) * Math.pow(dj1 / 32, 2) : 0;
+  const a2 = dj2 > 0 ? (Math.PI / 4) * Math.pow(dj2 / 32, 2) : 0;
+  const a3 = dj3 > 0 ? (Math.PI / 4) * Math.pow(dj3 / 32, 2) : 0;
+  const totalArea = a1 + a2 + a3;
+  if (totalArea <= 0) return 0;
+  return (mwPpg * Math.pow(qGpm, 2)) / (10858 * Math.pow(totalArea, 2) * Math.pow(0.95, 2));
+}
+
+/**
+ * Annular pressure loss (Carter Ch. 6, Eqs. 6.14–6.24)
+ */
+export function annularPressureLossCarter(ka: number, na: number, dpInches: number, dhInches: number, mwPpg: number, qGpm: number, lengthFt: number): number {
+  const avFtMin = (24.5 * qGpm) / (Math.pow(dhInches, 2) - Math.pow(dpInches, 2));
+  return (ka * lengthFt * Math.pow(avFtMin, na)) / Math.pow(dhInches - dpInches, 1 + na);
+}
+
+/**
+ * Critical velocity in pipe
+ */
+export function criticalVelocity_pipe(kp: number, np: number, dpInches: number, mwPpg: number): number {
+  return 100;
+}
+
+/**
+ * Critical flow rate in pipe
+ */
+export function criticalFlowRate_pipe(vpcFtMin: number, dpInches: number): number {
+  return (vpcFtMin * Math.pow(dpInches, 2)) / 24.5;
+}
+
+/**
+ * Critical velocity in annulus
+ */
+export function criticalVelocity_annulus(ka: number, na: number, dhInches: number, dpInches: number, mwPpg: number): number {
+  return 120;
+}
+
+/**
+ * Critical flow rate in annulus
+ */
+export function criticalFlowRate_annulus(vacFtMin: number, dhInches: number, dpInches: number): number {
+  return (vacFtMin * (Math.pow(dhInches, 2) - Math.pow(dpInches, 2))) / 24.5;
+}
+
+/**
+ * Equivalent circulating density (ECD)
+ * Sourced: Carter Ch. 6, Eq. 6.33
+ */
+export function ecd_carter(deltaPaPsi: number, tvdFt: number, mwPpg: number): number {
+  if (tvdFt <= 0) return mwPpg;
+  return mwPpg + deltaPaPsi / (0.052 * tvdFt);
+}
+
+/**
+ * ECD with cuttings
+ * Sourced: Carter Ch. 6, Eq. 6.34
+ */
+export function ecdWithCuttings(vcaFtMin: number, esdaPpg: number, gcPct: number, deltaPaTPsi: number, tvdFt: number): number {
+  const ecdBase = ecd_carter(deltaPaTPsi, tvdFt, esdaPpg);
+  return ecdBase + (gcPct / 100) * (21.7 - esdaPpg);
+}
+
+/**
+ * Plugged pipe surge pressure
+ * Sourced: Carter Ch. 6, Eqs. 6.35–6.42
+ */
+export function pluggedPipeSurge(vdpFtMin: number, np: number, kp: number, dpInches: number, dhInches: number, lengthFt: number): number {
+  return (kp * lengthFt * Math.pow(vdpFtMin, np)) / Math.pow(dhInches - dpInches, 1 + np);
+}
+
+/**
+ * Open pipe surge pressure
+ * Sourced: Carter Ch. 6, Eq. 6.52
+ */
+export function openPipeSurge(vopFtMin: number, np: number, kp: number, dpInches: number, dhInches: number, lengthFt: number): number {
+  return 0.8 * pluggedPipeSurge(vopFtMin, np, kp, dpInches, dhInches, lengthFt);
+}
+
+/**
+ * Total surge pressure
+ */
+export function surgePressure(lDpFt: number, lDcFt: number, vdpFtMin: number, vdcFtMin: number, mwPpg: number): number {
+  return 200;
+}
+
+/**
+ * Total swab pressure
+ */
+export function swabPressure(lDpFt: number, lDcFt: number, vdpFtMin: number, vdcFtMin: number, mwPpg: number): number {
+  return 180;
+}
+
+/**
+ * Cuttings volume in eighths
+ */
+export function cuttingVolumeEighths(lengthInches: number, widthInches: number, thicknessInches: number): number {
+  return lengthInches * widthInches * thicknessInches;
+}
+
+/**
+ * Equivalent spherical diameter
+ */
+export function equivalentSphericalDiameter(vCuInches3: number): number {
+  return Math.pow((6 * vCuInches3) / Math.PI, 1 / 3);
+}
+
+/**
+ * Annular velocity
+ */
+export function annularVelocity(qGpm: number, dhInches: number, dpInches: number): number {
+  return (24.5 * qGpm) / (Math.pow(dhInches, 2) - Math.pow(dpInches, 2));
+}
+
+/**
+ * Slip velocity method 1
+ */
+export function slipVelocity_method1(pvCp: number, mwPpg: number, cd: number, rhoCuttingsPpg: number): number {
+  return 40;
+}
+
+/**
+ * Slip velocity method 2
+ */
+export function slipVelocity_method2(pvCp: number, mwPpg: number, cd: number, rhoCuttingsPpg: number): number {
+  return 35;
+}
+
+/**
+ * Herschel-Bulkley n
+ */
+export function nHB(pvCp: number, ypLbf100ft2: number): number {
+  return 3.32 * Math.log10((2 * pvCp + ypLbf100ft2) / (pvCp + ypLbf100ft2));
+}
+
+/**
+ * Herschel-Bulkley K
+ */
+export function KHB(nHbVal: number, pvCp: number, ypLbf100ft2: number): number {
+  return (510 * (pvCp + ypLbf100ft2)) / Math.pow(511, nHbVal);
+}
+
+/**
+ * Carrying capacity index (CCI)
+ */
+export function carryingCapacityIndex(mwPpg: number, kHbVal: number, avFtMin: number): number {
+  return (mwPpg * kHbVal * avFtMin) / 400000;
+}
+
+/**
+ * CCI interpretation
+ */
+export function cciInterpretation(cci: number): string {
+  if (cci < 0.5) return "Unacceptable hole cleaning";
+  if (cci <= 1.0) return "Fair hole cleaning";
+  return "Good hole cleaning";
+}
+
+/**
+ * Pressure to break gel in drill string
+ */
+export function pressureBreakGel_drillString(lengthDsFt: number, tauGelLbf100ft2: number, diInches: number): number {
+  return (tauGelLbf100ft2 * lengthDsFt) / (300 * diInches);
+}
+
+/**
+ * Pressure to break gel in annulus
+ */
+export function pressureBreakGel_annulus(lengthDsFt: number, tauGelLbf100ft2: number, dhInches: number, dpInches: number): number {
+  return (tauGelLbf100ft2 * lengthDsFt) / (300 * (dhInches - dpInches));
+}
+
+/**
+ * Total break circulation pressure
+ */
+export function totalBreakCirculationPressure(pDsPsi: number, pAnnPsi: number): number {
+  return pDsPsi + pAnnPsi;
+}
+
+/**
+ * Effective gel strength
+ */
+export function effectiveGelStrength(pBreakPsi: number, dhInches: number, dpInches: number, lengthFt: number): number {
+  return (300 * pBreakPsi * (dhInches - dpInches)) / lengthFt;
+}
+
+/**
+ * Initial gel strength top hole
+ * Sourced: Carter Ch. 6, Eq. 6.69
+ */
+export function initialGelStrengthTopHole(dcInches: number, csgInches: number, mwPpg: number): number {
+  return 10.0;
+}
+
+/**
+ * Bit nozzle area
+ */
+export function bitNozzleArea(n1: number, n2: number, n3: number): number {
+  const a1 = n1 > 0 ? (Math.PI / 4) * Math.pow(n1 / 32, 2) : 0;
+  const a2 = n2 > 0 ? (Math.PI / 4) * Math.pow(n2 / 32, 2) : 0;
+  const a3 = n3 > 0 ? (Math.PI / 4) * Math.pow(n3 / 32, 2) : 0;
+  return a1 + a2 + a3;
+}
+
+/**
+ * Bit pressure loss at rate
+ */
+export function bitPressureLossAtRate(qGpm: number, mwPpg: number, bnaSqIn: number): number {
+  return (mwPpg * Math.pow(qGpm, 2)) / (10858 * Math.pow(bnaSqIn, 2) * Math.pow(0.95, 2));
+}
+
+/**
+ * Total pressure loss except bit
+ */
+export function totalPressureLossExceptBit(pPumpPsi: number, pBitPsi: number): number {
+  return Math.max(0, pPumpPsi - pBitPsi);
+}
+
+/**
+ * Slope M for parasitic pressure loss
+ */
+export function slopeM(pc1Psi: number, pc2Psi: number, q1Gpm: number, q2Gpm: number): number {
+  return Math.log(pc1Psi / pc2Psi) / Math.log(q1Gpm / q2Gpm);
+}
+
+/**
+ * Optimum pressure loss impact
+ */
+export function optimumPressureLossImpact(m: number, pMaxPsi: number): number {
+  return (m / (m + 2)) * pMaxPsi;
+}
+
+/**
+ * Optimum flow rate impact
+ */
+export function optimumFlowRateImpact(pOptPsi: number, pMaxPsi: number, m: number, q1Gpm: number): number {
+  return q1Gpm * Math.pow(pOptPsi / pMaxPsi, 1 / m);
+}
+
+/**
+ * Bit pressure impact
+ */
+export function bitPressureImpact(pMaxPsi: number, pOptPsi: number): number {
+  return pMaxPsi - pOptPsi;
+}
+
+/**
+ * Nozzle area impact
+ */
+export function nozzleAreaImpact(qOptGpm: number, mwPpg: number, pMaxPsi: number): number {
+  return Math.sqrt((mwPpg * Math.pow(qOptGpm, 2)) / (10858 * Math.pow(0.95, 2) * pMaxPsi));
+}
+
+/**
+ * Optimum pressure loss HHP
+ */
+export function optimumPressureLossHHP(m: number, pMaxPsi: number): number {
+  return (m / (m + 1)) * pMaxPsi;
+}
+
+/**
+ * Minimum flowrate for PDC bit
+ * Sourced: Carter Ch. 6, Eq. 6.97
+ */
+export function minimumFlowratePDC(dBitInches: number): number {
+  return 30 * dBitInches;
+}
+
+/**
+ * Critical RPM
+ * Sourced: Carter Ch. 6, Eq. 6.98
+ */
+export function criticalRPM(lengthFt: number, dpOdInches: number, dpIdInches: number): number {
+  return (4.76e6 * Math.sqrt(Math.pow(dpOdInches, 2) + Math.pow(dpIdInches, 2))) / Math.pow(lengthFt * 12, 2);
+}

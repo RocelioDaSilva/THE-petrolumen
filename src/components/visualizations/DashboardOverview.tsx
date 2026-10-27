@@ -38,6 +38,14 @@ import {
 import { runCormackGoldenTests, GoldenTestSuiteSummary } from "@/lib/drilling/__tests__/cormackGoldenTests";
 import { runBourgoyneGoldenTests, BourgoyneTestSuiteSummary } from "@/lib/drilling/__tests__/bourgoyneGoldenTests";
 import { runArnoldStewartGoldenTests, GoldenTestResult as ASGoldenTestResult } from "@/lib/facilities/__tests__/arnoldStewartGoldenTests";
+import { runCarterWellControlGoldenTests } from "@/lib/drilling/__tests__/carterWellControlGoldenTests";
+import { runCarterFluidsGoldenTests } from "@/lib/drilling/__tests__/carterFluidsGoldenTests";
+import { runCarterCementsGoldenTests } from "@/lib/drilling/__tests__/carterCementsGoldenTests";
+import { runCarterHydraulicsGoldenTests } from "@/lib/drilling/__tests__/carterHydraulicsGoldenTests";
+import { runCarterRigOpsGoldenTests } from "@/lib/drilling/__tests__/carterRigOpsGoldenTests";
+import { runCarterStuckPipeGoldenTests } from "@/lib/drilling/__tests__/carterStuckPipeGoldenTests";
+import { runCarterPhase7GoldenTests } from "@/lib/drilling/__tests__/carterPhase7GoldenTests";
+import { runCarterPhase8GoldenTests } from "@/lib/drilling/__tests__/carterPhase8GoldenTests";
 import { formatFormulaAudit, CalculationAuditTrail } from "@/lib/math/engine";
 
 interface DashboardOverviewProps {
@@ -48,7 +56,17 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
   const [testSuite, setTestSuite] = useState<GoldenTestSuiteSummary>(() => runCormackGoldenTests());
   const [bourgoyneSuite, setBourgoyneSuite] = useState<BourgoyneTestSuiteSummary>(() => runBourgoyneGoldenTests());
   const [arnoldSuite, setArnoldSuite] = useState<ASGoldenTestResult[]>(() => runArnoldStewartGoldenTests());
-  const [activeBenchmarkTab, setActiveBenchmarkTab] = useState<'all' | 'arnold' | 'bourgoyne' | 'cormack'>('all');
+  const [carterSuite, setCarterSuite] = useState(() => [
+    ...runCarterWellControlGoldenTests(),
+    ...runCarterFluidsGoldenTests(),
+    ...runCarterCementsGoldenTests(),
+    ...runCarterHydraulicsGoldenTests(),
+    ...runCarterRigOpsGoldenTests(),
+    ...runCarterStuckPipeGoldenTests(),
+    ...runCarterPhase7GoldenTests(),
+    ...runCarterPhase8GoldenTests(),
+  ]);
+  const [activeBenchmarkTab, setActiveBenchmarkTab] = useState<'all' | 'carter' | 'arnold' | 'bourgoyne' | 'cormack'>('all');
   const [showAllTests, setShowAllTests] = useState(false);
   const [selectedAuditIndex, setSelectedAuditIndex] = useState(0);
 
@@ -246,6 +264,14 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
     { id: "drilling-fluids", name: "Fluidos de Perfuração (Ch. 2)", status: "active", desc: "Reologia Fann, Adensamento Baritina, Retorta e Contaminação" },
     { id: "cementing", name: "Cimentação de Poços (Ch. 3)", status: "active", desc: "Pastas API Classes A-H, Bogue e Planejamento de Bombeio" },
     { id: "casing-directional", name: "Revestimento & Direcional (Ch. 7-8)", status: "active", desc: "Barlow Burst, Colapso Biaxial e Curvatura Mínima 3D" },
+    { id: "field-basic", name: "Field Formulas (Carter Ch. 1)", status: "active", desc: "Fórmula de Hidrostática, Deslocamento e Capacidade" },
+    { id: "rig-operations", name: "Operações de Sondagem (Ch. 2)", status: "active", desc: "Acumuladores, Colchão Heavy Slug e Ponto de Quebra" },
+    { id: "stuck-pipe", name: "Prisão de Coluna & Pescaria (Ch. 2)", status: "active", desc: "Economia de Pescaria, Ponto Livre e Força de Desaprisionamento" },
+    { id: "rig-loads", name: "Cargas na Sonda (Ch. 7)", status: "active", desc: "Carga no Mastro, Fast Line e Fatores de Segurança" },
+    { id: "ton-miles", name: "Serviço Ton-Mile (Ch. 7)", status: "active", desc: "Viagem Redonda, Perfuração, Testes e Programa de Corte" },
+    { id: "tank-capacity", name: "Capacidade de Tanques (App A)", status: "active", desc: "Tanques Retangulares, Cilíndricos e Cônicos" },
+    { id: "air-gas", name: "Perfuração a Ar & Gás (Ch. 8)", status: "active", desc: "Pressão Estática de Gás, Circulação Direta e Reversa" },
+    { id: "completions", name: "Completação & Testes (Ch. 7)", status: "active", desc: "Análise de Teste Core Dean Stark e Alongamento da Coluna" },
     { id: "surface-facilities", name: "Instalações & Separadores", status: "active", desc: "Tanques de Lama, Trip Sheets, Dimensionamento 2/3 Fases e TEG" },
     { id: "reservoir-simulation", name: "Simulação de Reservatórios", status: "active", desc: "Solucionador IMPES 1D & Malha Geocelular 3D" },
     { id: "production-dca", name: "Análise de Declínio (DCA)", status: "active", desc: "Modelos Arps (Exp/Hip/Harm) e Duong" },

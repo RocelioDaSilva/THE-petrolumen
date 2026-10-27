@@ -110,10 +110,11 @@ export default function CementingView() {
       </div>
 
       <Tabs defaultValue="slurry" className="w-full">
-        <TabsList className="bg-muted p-1 grid grid-cols-3">
+        <TabsList className="bg-muted p-1 grid grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="slurry" className="text-xs">Formulação de Pasta</TabsTrigger>
           <TabsTrigger value="planning" className="text-xs">Volumes &amp; Tempos da Operação</TabsTrigger>
           <TabsTrigger value="bogue" className="text-xs">Óxidos (Bogue) &amp; Aditivos</TabsTrigger>
+          <TabsTrigger value="carter-cements" className="text-xs">Carter Cements v3</TabsTrigger>
         </TabsList>
 
         {/* TAB 1: SLURRY DESIGN */}
@@ -552,6 +553,52 @@ export default function CementingView() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="carter-cements" className="space-y-6 pt-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Carter Ch. 5 Cementing Toolkit (Field Additives, Balanced Plug & Hydraulicing Casing)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="field-add" className="w-full">
+                <TabsList className="bg-muted p-1">
+                  <TabsTrigger value="field-add">Field Additives</TabsTrigger>
+                  <TabsTrigger value="balanced-plug">Balanced Plug</TabsTrigger>
+                  <TabsTrigger value="hydraulicing">Hydraulicing Casing</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="field-add" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Field Additive Requirements per Sack:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Bentonite (4% BWOC):</span> <strong>3.76 lb/sk</strong></p>
+                    <p className="flex justify-between"><span>Slurry Yield (7.8 gal water/sk):</span> <strong>1.55 ft³/sk</strong></p>
+                    <p className="flex justify-between"><span>Slurry Density:</span> <strong>14.08 ppg</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="balanced-plug" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Balanced Plug Length & Volume Calculations:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Sacks Required for 329 ft Plug:</span> <strong>129 sacks</strong></p>
+                    <p className="flex justify-between"><span>Spacer Behind Plug:</span> <strong>1.02 bbl</strong></p>
+                    <p className="flex justify-between"><span>Displacement Fluid Volume:</span> <strong>33.6 bbl</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="hydraulicing" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Casing Upward Hydraulic Pressure Force Analysis:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Differential Pressure (Pd):</span> <strong>364 psi</strong></p>
+                    <p className="flex justify-between"><span>Upward Hydraulic Force (Fup):</span> <strong>51,142 lb</strong></p>
+                    <p className="flex justify-between"><span>Downward Weight Force (Fdown):</span> <strong>33,893 lb</strong></p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

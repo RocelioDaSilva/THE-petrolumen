@@ -94,8 +94,26 @@ export function sizeSkimVessels(
 }
 
 /**
+ * Calculates Minimum Droplet Cutoff Diameter (dm) given Number of Packs (Npacks)
+ * Sourced: Arnold & Stewart Chapter 9, Eq. 9-20a, Ex. 9-1
+ * Inverse problem: dm = sqrt[ factor * Qw * mu_w / (deltaSG * Npacks) ]
+ */
+export function minDropletFromPacks(
+  qwBwpd: number,
+  muWaterCp: number,
+  deltaSG: number,
+  numberOfPacks: number = 1,
+  plateAngle: 45 | 60 = 45
+): number {
+  const factor = plateAngle === 45 ? 0.077 : 0.11;
+  const dmCutoff = Math.sqrt((factor * qwBwpd * muWaterCp) / (deltaSG * Math.max(1, numberOfPacks)));
+  return Math.round(dmCutoff * 10) / 10;
+}
+
+/**
  * Corrugated Plate Interceptor (CPI) Plate Pack Sizing
  * Sourced: Arnold & Stewart Chapter 9, Eqs. 9-20a, 9-21a, Ex. 9-1
+ * Direct problem: Finds number of packs needed given target droplet cutoff diameter (dm)
  */
 export function sizeCPIPlatePacks(
   qwBwpd: number,
@@ -116,13 +134,12 @@ export function sizeCPIPlatePacks(
   const packs = (factor * qwBwpd * muWaterCp) / (deltaSG * Math.pow(dmMicrons, 2));
   const recommendedPacks = Math.max(1, Math.ceil(packs));
 
-  // Reverse solve for cutoff:
-  const dmCutoff = Math.sqrt((factor * qwBwpd * muWaterCp) / (deltaSG * recommendedPacks));
+  const dmCutoff = minDropletFromPacks(qwBwpd, muWaterCp, deltaSG, recommendedPacks, plateAngle);
 
   return {
     requiredPacksExact: Math.round(packs * 100) / 100,
     recommendedPacks,
-    removableCutoffMicrons: Math.round(dmCutoff * 10) / 10,
+    removableCutoffMicrons: dmCutoff,
   };
 }
 
