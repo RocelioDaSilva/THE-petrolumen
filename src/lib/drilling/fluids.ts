@@ -338,3 +338,564 @@ export function shaleAdsorptivePressure(
   const p = -factor * Math.log(ratio);
   return Math.round(p);
 }
+
+/**
+ * Barite specific gravity field test
+ * Sourced: Carter Ch. 4, Eq. 4.1
+ */
+export function bariteSpecificGravityField(dWeightGram: number, vWaterAddedMl: number): number {
+  return dWeightGram / (100 - vWaterAddedMl);
+}
+
+/**
+ * Increase mud weight short formula
+ * Sourced: Carter Ch. 4, Eqs. 4.2–4.3
+ */
+export function increaseMudWeight_field(pOldPpg: number, pNewPpg: number): { sacksPer100Bbl: number; volumeIncreaseBblPer100Bbl: number } {
+  const sacks = (1470 * (pNewPpg - pOldPpg)) / (35.0 - pNewPpg);
+  const volInc = sacks / 14.7;
+  return {
+    sacksPer100Bbl: Math.round(sacks),
+    volumeIncreaseBblPer100Bbl: Math.round(volInc * 10) / 10,
+  };
+}
+
+/**
+ * Increase mud weight long formula with custom SG
+ * Sourced: Carter Ch. 4, Eqs. 4.4–4.5
+ */
+export function increaseMudWeight_long(pOldPpg: number, pNewPpg: number, sgWeightMat: number = 4.2): { sacksPer100Bbl: number; volumeIncreaseBblPer100Bbl: number } {
+  const rhoWm = sgWeightMat * 8.34;
+  const sacks = (350 * 100 * (pNewPpg - pOldPpg)) / (rhoWm - pNewPpg);
+  const volInc = (sacks * 100) / (sgWeightMat * 350);
+  return {
+    sacksPer100Bbl: Math.round(sacks),
+    volumeIncreaseBblPer100Bbl: Math.round(volInc * 10) / 10,
+  };
+}
+
+/**
+ * Increase mud weight for limited system volume
+ * Sourced: Carter Ch. 4, Eqs. 4.6–4.7
+ */
+export function increaseMudWeight_limitedVolume(pOldPpg: number, pNewPpg: number, vFinalBbl: number, sgWeightMat: number = 4.2): { startVolumeBbl: number; sacks: number } {
+  const rhoWm = sgWeightMat * 8.34;
+  const vStart = vFinalBbl * ((rhoWm - pNewPpg) / (rhoWm - pOldPpg));
+  const sacks = (350 * vStart * (pNewPpg - pOldPpg)) / (rhoWm - pNewPpg);
+  return {
+    startVolumeBbl: Math.round(vStart * 10) / 10,
+    sacks: Math.round(sacks),
+  };
+}
+
+/**
+ * Increase mud weight with liquid addition for wetting
+ * Sourced: Carter Ch. 4, Eqs. 4.8–4.11
+ */
+export function increaseMudWeight_withLiquid(pOldPpg: number, pNewPpg: number, vStartBbl: number, sgWeightMat: number = 4.2, liquidBblPer100Sacks: number = 2.0): { sacks: number; wettingLiquidBbl: number; finalVolumeBbl: number } {
+  const rhoWm = sgWeightMat * 8.34;
+  const sacks = (350 * vStartBbl * (pNewPpg - pOldPpg)) / (rhoWm - pNewPpg);
+  const vWetting = (sacks / 100) * liquidBblPer100Sacks;
+  const vFinal = vStartBbl + (sacks * 100) / (sgWeightMat * 350) + vWetting;
+  return {
+    sacks: Math.round(sacks),
+    wettingLiquidBbl: Math.round(vWetting * 10) / 10,
+    finalVolumeBbl: Math.round(vFinal * 10) / 10,
+  };
+}
+
+/**
+ * Increase mud weight for limited final volume with liquid
+ * Sourced: Carter Ch. 4, Eqs. 4.9, 4.12–4.15
+ */
+export function increaseMudWeight_limitedFinalV(pOldPpg: number, pNewPpg: number, vFinalBbl: number, sgWeightMat: number = 4.2, liquidBblPer100Sacks: number = 2.0): { startVolumeBbl: number; sacks: number; wettingLiquidBbl: number } {
+  const rhoWm = sgWeightMat * 8.34;
+  const vStart = vFinalBbl * ((rhoWm - pNewPpg) / (rhoWm - pOldPpg));
+  const res = increaseMudWeight_withLiquid(pOldPpg, pNewPpg, vStart, sgWeightMat, liquidBblPer100Sacks);
+  return {
+    startVolumeBbl: Math.round(vStart * 10) / 10,
+    sacks: res.sacks,
+    wettingLiquidBbl: res.wettingLiquidBbl,
+  };
+}
+
+/**
+ * Increase mud weight with limited inventory
+ * Sourced: Carter Ch. 4, Eqs. 4.16–4.18
+ */
+export function increaseMudWeight_limitedInventory(weightMaterialInventorySacks: number, pOldPpg: number, pNewPpg: number, vPitCapacityBbl: number, sgWeightMat: number = 4.2, liquidBblPer100Sacks: number = 2.0): { startVolumeBbl: number; discardVolumeBbl: number; finalVolumeBbl: number } {
+  const rhoWm = sgWeightMat * 8.34;
+  const vStart = (weightMaterialInventorySacks * (rhoWm - pNewPpg - (liquidBblPer100Sacks / 100) * 350 * (pNewPpg - 8.34))) / (350 * (pNewPpg - pOldPpg));
+  const wetting = (weightMaterialInventorySacks / 100) * liquidBblPer100Sacks;
+  const vFinal = vStart + (weightMaterialInventorySacks * 100) / (sgWeightMat * 350) + wetting;
+  const vDiscard = Math.max(0, vStart - vPitCapacityBbl);
+  return {
+    startVolumeBbl: Math.round(vStart * 10) / 10,
+    discardVolumeBbl: Math.round(vDiscard * 10) / 10,
+    finalVolumeBbl: Math.round(vFinal * 10) / 10,
+  };
+}
+
+/**
+ * Maximum mud weight achievable with inventory
+ * Sourced: Carter Ch. 4, Eq. 4.19
+ */
+export function maxMudWeightWithInventory(wmiSacks: number, maxVolBbl: number, liquidBblPer100Sacks: number, startVolBbl: number, pOldPpg: number): number {
+  const pMax = pOldPpg + (wmiSacks * (35.0 - pOldPpg)) / (1470 * startVolBbl + wmiSacks);
+  return Math.round(pMax * 10) / 10;
+}
+
+/**
+ * Mud weight reduction with base liquid
+ * Sourced: Carter Ch. 4, Eq. 4.20
+ */
+export function mudWeightReduction_baseLiquid(vMudBbl: number, pOldPpg: number, pNewPpg: number, pBaseLiquidPpg: number = 8.34): number {
+  return (vMudBbl * (pOldPpg - pNewPpg)) / (pNewPpg - pBaseLiquidPpg);
+}
+
+/**
+ * Mud weight reduction using oil/brine mixture
+ * Sourced: Carter Ch. 4, Eq. 4.21
+ */
+export function mudWeightReduction_oilBrine(vMudBbl: number, pOldPpg: number, pNewPpg: number, fOil: number, pOilPpg: number, fWater: number, pBrinePpg: number): number {
+  const pMix = fOil * pOilPpg + fWater * pBrinePpg;
+  return mudWeightReduction_baseLiquid(vMudBbl, pOldPpg, pNewPpg, pMix);
+}
+
+/**
+ * Mix two fluids without volume limit
+ * Sourced: Carter Ch. 4, Eq. 4.22
+ */
+export function mixTwoFluids_noVolumeLimit(v1Bbl: number, rho1Ppg: number, v2Bbl: number, rho2Ppg: number): number {
+  return (v1Bbl * rho1Ppg + v2Bbl * rho2Ppg) / (v1Bbl + v2Bbl);
+}
+
+/**
+ * Mix two fluids with limited total volume
+ * Sourced: Carter Ch. 4, Eqs. 4.23–4.24
+ */
+export function mixTwoFluids_limitedVolume(vTotalBbl: number, rhoTargetPpg: number, rho1Ppg: number, rho2Ppg: number): { v1Bbl: number; v2Bbl: number } {
+  const v1 = vTotalBbl * ((rhoTargetPpg - rho2Ppg) / (rho1Ppg - rho2Ppg));
+  const v2 = vTotalBbl - v1;
+  return {
+    v1Bbl: Math.round(v1 * 10) / 10,
+    v2Bbl: Math.round(v2 * 10) / 10,
+  };
+}
+
+/**
+ * OBM starting volume
+ * Sourced: Carter Ch. 4, Eq. 4.25
+ */
+export function obmStartVolume(mwFinalPpg: number, mwOwmPpg: number, vFinalBbl: number, sgWeightMat: number = 4.2): number {
+  const rhoWm = sgWeightMat * 8.34;
+  return vFinalBbl * ((rhoWm - mwFinalPpg) / (rhoWm - mwOwmPpg));
+}
+
+/**
+ * OBM oil content
+ * Sourced: Carter Ch. 4, Eq. 4.26
+ */
+export function obmOilContent(vStartBbl: number, oilRatioPct: number): number {
+  return (vStartBbl * oilRatioPct) / 100;
+}
+
+/**
+ * OBM water content
+ * Sourced: Carter Ch. 4, Eq. 4.27
+ */
+export function obmWaterContent(vStartBbl: number, waterRatioPct: number): number {
+  return (vStartBbl * waterRatioPct) / 100;
+}
+
+/**
+ * OBM weighting material volume
+ * Sourced: Carter Ch. 4, Eq. 4.28
+ */
+export function obmWeightMaterialVolume(vFinalBbl: number, vStartBbl: number): number {
+  return vFinalBbl - vStartBbl;
+}
+
+/**
+ * OBM weighting material sacks
+ * Sourced: Carter Ch. 4, Eq. 4.29
+ */
+export function obmWeightMaterialSacks(vWmBbl: number, sgWeightMat: number = 4.2): number {
+  return Math.round((vWmBbl * sgWeightMat * 350) / 100);
+}
+
+/**
+ * OBM recalculation of mud weight
+ * Sourced: Carter Ch. 4, Eq. 4.30
+ */
+export function obmRecalcMudWeight(vOilBbl: number, pOilPpg: number, vWaterBbl: number, pWaterPpg: number, vWmBbl: number, sgWm: number = 4.2): number {
+  const totalVol = vOilBbl + vWaterBbl + vWmBbl;
+  return (vOilBbl * pOilPpg + vWaterBbl * pWaterPpg + vWmBbl * sgWm * 8.34) / totalVol;
+}
+
+/**
+ * Oil-Water Ratio from retort %
+ * Sourced: Carter Ch. 4, Eq. 4.31
+ */
+export function owrFromRetort(oilPct: number, waterPct: number): { oilRatio: number; waterRatio: number } {
+  const totalLiquid = oilPct + waterPct;
+  if (totalLiquid <= 0) return { oilRatio: 0, waterRatio: 0 };
+  const o = (oilPct / totalLiquid) * 100;
+  const w = (waterPct / totalLiquid) * 100;
+  return {
+    oilRatio: Math.round(o),
+    waterRatio: Math.round(w),
+  };
+}
+
+/**
+ * Change OWR by adding oil
+ * Sourced: Carter Ch. 4, Eq. 4.32
+ */
+export function changeOWR_addOil(vOilBbl: number, wOldPct: number, wNewPct: number): number {
+  return vOilBbl * (wOldPct / wNewPct - 1);
+}
+
+/**
+ * Change OWR by adding water
+ * Sourced: Carter Ch. 4, Eq. 4.33
+ */
+export function changeOWR_addWater(vOilBbl: number, oOldPct: number, oNewPct: number): number {
+  return vOilBbl * (oOldPct / oNewPct - 1);
+}
+
+/**
+ * Saltwater volume from Cl- ppm
+ * Sourced: Carter Ch. 4, Eq. 4.34
+ */
+export function saltwaterVolume(clPpm: number, wPct: number): number {
+  return wPct * (1 + clPpm / 1000000);
+}
+
+/**
+ * Suspended solids %
+ * Sourced: Carter Ch. 4, Eq. 4.35
+ */
+export function suspendedSolids(wSolidsPct: number, oPct: number): number {
+  return 100 - wSolidsPct - oPct;
+}
+
+/**
+ * Saltwater SG from Cl- ppm
+ * Sourced: Carter Ch. 4, Eq. 4.36
+ */
+export function saltwaterSG(clPpm: number): number {
+  return 1.0 + clPpm * 0.0000007;
+}
+
+/**
+ * Suspended solids SG
+ * Sourced: Carter Ch. 4, Eq. 4.37
+ */
+export function suspendedSolidsSG(mwPpg: number, oPct: number, pOilPpg: number, wPct: number, sgSw: number, ssPct: number): number {
+  if (ssPct <= 0) return 2.65;
+  const pSolids = (100 * mwPpg - oPct * pOilPpg - wPct * sgSw * 8.34) / ssPct;
+  return pSolids / 8.34;
+}
+
+/**
+ * Suspended solids SG (no salt)
+ * Sourced: Carter Ch. 4, Eq. 4.38
+ */
+export function suspendedSolidsSG_noSalt(mwPpg: number, oPct: number, pOilPpg: number, wPct: number, ssPct: number): number {
+  return suspendedSolidsSG(mwPpg, oPct, pOilPpg, wPct, 1.0, ssPct);
+}
+
+/**
+ * LGS Volume %
+ * Sourced: Carter Ch. 4, Eq. 4.39
+ */
+export function lgsVolume(ssPct: number, sgBarite: number, sgSolids: number, sgLgs: number = 2.6) {
+  const lgs = (ssPct * (sgBarite - sgSolids)) / (sgBarite - sgLgs);
+  return Math.max(0, lgs);
+}
+
+/**
+ * LGS concentration in ppb
+ * Sourced: Carter Ch. 4, Eq. 4.40
+ */
+export function lgsPpb(lgsPct: number, sgLgs: number = 2.6): number {
+  return lgsPct * 3.5 * sgLgs;
+}
+
+/**
+ * HGS Volume %
+ * Sourced: Carter Ch. 4, Eq. 4.41
+ */
+export function hgsVolume(ssPct: number, lgsPct: number): number {
+  return Math.max(0, ssPct - lgsPct);
+}
+
+/**
+ * HGS concentration in ppb
+ * Sourced: Carter Ch. 4, Eq. 4.42
+ */
+export function hgsPpb(hgsPct: number, sgBarite: number = 4.2): number {
+  return hgsPct * 3.5 * sgBarite;
+}
+
+/**
+ * Bentonite concentration in ppb
+ * Sourced: Carter Ch. 4, Eq. 4.43
+ */
+export function bentonitePpb(fCec: number, mbtValue: number, lgsPct: number): number {
+  return mbtValue * 5;
+}
+
+/**
+ * Bentonite %
+ * Sourced: Carter Ch. 4, Eq. 4.44
+ */
+export function bentonitePct(bPpb: number): number {
+  return bPpb / 9.1;
+}
+
+/**
+ * Bentonite estimated %
+ * Sourced: Carter Ch. 4, Eq. 4.45
+ */
+export function bentoniteEstimatedPct(mbtValue: number, lgsPct: number): number {
+  return (mbtValue * 5) / 9.1;
+}
+
+/**
+ * Drill solids %
+ * Sourced: Carter Ch. 4, Eq. 4.46
+ */
+export function drillSolidsPct(lgsPct: number, bentonitePctVal: number): number {
+  return Math.max(0, lgsPct - bentonitePctVal);
+}
+
+/**
+ * Drill solids ppb
+ * Sourced: Carter Ch. 4, Eq. 4.47
+ */
+export function drillSolidsPpb(dsPct: number, sgLgs: number = 2.6): number {
+  return dsPct * 3.5 * sgLgs;
+}
+
+/**
+ * Drill solids to bentonite ratio
+ * Sourced: Carter Ch. 4, Eq. 4.48
+ */
+export function drillSolidsToBentoniteRatio(dsPpb: number, bPpb: number): number {
+  if (bPpb <= 0) return 0;
+  return dsPpb / bPpb;
+}
+
+/**
+ * Recommended maximum solids %
+ * Sourced: Carter Ch. 4, Eq. 4.49
+ */
+export function recommendedSolidsMax(mwPpg: number): number {
+  return (mwPpg - 8.34) * 2 + 5;
+}
+
+/**
+ * Recommended maximum LGS %
+ * Sourced: Carter Ch. 4, Eq. 4.50
+ */
+export function recommendedLgsMax(mwPpg: number, srmPct: number): number {
+  return srmPct * 0.4;
+}
+
+/**
+ * Dilution volume without volume limit
+ * Sourced: Carter Ch. 4, Eq. 4.51
+ */
+export function dilutionVolumeNoVolumeLimit(vStartBbl: number, lgsOldPct: number, lgsDesiredPct: number, lgsAddedPct: number = 0): number {
+  return vStartBbl * ((lgsOldPct - lgsDesiredPct) / (lgsDesiredPct - lgsAddedPct));
+}
+
+/**
+ * Dilution volume with displacement
+ * Sourced: Carter Ch. 4, Eq. 4.52
+ */
+export function dilutionDisplacementVolume(vStartBbl: number, lgsOldPct: number, lgsDesiredPct: number, lgsAddedPct: number = 0): number {
+  return dilutionVolumeNoVolumeLimit(vStartBbl, lgsOldPct, lgsDesiredPct, lgsAddedPct);
+}
+
+/**
+ * Hydrocyclone solids fraction
+ * Sourced: Carter Ch. 4, Eq. 4.53
+ */
+export function hydrocycloneSolidsFraction(mwDischargePpg: number, sgSolids: number = 2.6): number {
+  return (mwDischargePpg - 8.34) / (sgSolids * 8.34 - 8.34);
+}
+
+/**
+ * Hydrocyclone solids mass rate (lb/hr)
+ * Sourced: Carter Ch. 4, Eq. 4.54
+ */
+export function hydrocycloneSolidsMassRate(hSolidsFrac: number, vFlowGpm: number, timeHours: number = 1.0): number {
+  return hSolidsFrac * vFlowGpm * 8.34 * 2.6 * 60 * timeHours;
+}
+
+/**
+ * Hydrocyclone liquid volume (gal/hr)
+ * Sourced: Carter Ch. 4, Eq. 4.55
+ */
+export function hydrocycloneLiquidVolume(hSolidsFrac: number, vFlowGpm: number, timeHours: number = 1.0): number {
+  return (1 - hSolidsFrac) * vFlowGpm * 60 * timeHours;
+}
+
+/**
+ * Hydrocyclone cut point (microns)
+ * Sourced: Carter Ch. 4, Eq. 4.56
+ */
+export function hydrocycloneCutPoint(pvCp: number, mwPpg: number): number {
+  return 15 * Math.sqrt(pvCp / Math.max(1, mwPpg - 8.34));
+}
+
+/**
+ * Centrifuge G-force
+ * Sourced: Carter Ch. 4, Eq. 4.57
+ */
+export function centrifugeForce(rpm: number, bowlDiameterInches: number): number {
+  return 0.0000142 * Math.pow(rpm, 2) * bowlDiameterInches;
+}
+
+/**
+ * Centrifuge underflow volume
+ * Sourced: Carter Ch. 4, Eq. 4.58
+ */
+export function centrifugeUnderflowVolume(vFeedGpm: number, mwFeedPpg: number, mwOverflowPpg: number, vDilutionGpm: number, mwDilutionPpg: number, mwUnderflowPpg: number): number {
+  const num = vFeedGpm * (mwFeedPpg - mwOverflowPpg) + vDilutionGpm * (mwDilutionPpg - mwOverflowPpg);
+  return num / (mwUnderflowPpg - mwOverflowPpg);
+}
+
+/**
+ * Old mud fraction in underflow
+ * Sourced: Carter Ch. 4, Eq. 4.59
+ */
+export function oldMudFractionUnderflow(sgWm: number, mwDilutionPpg: number, mwUnderflowPpg: number, mwFeedPpg: number, vDilutionGpm: number, vFeedGpm: number): number {
+  return (vFeedGpm * (mwFeedPpg - mwDilutionPpg)) / ((vFeedGpm + vDilutionGpm) * (mwUnderflowPpg - mwDilutionPpg));
+}
+
+/**
+ * Clay mass rate in underflow (lb/min)
+ * Sourced: Carter Ch. 4, Eq. 4.60
+ */
+export function clayMassRate(lgsPpbVal: number, vFeedGpm: number, vUnderflowGpm: number, vOldMudFraction: number): number {
+  return (lgsPpbVal * vUnderflowGpm * vOldMudFraction) / 42;
+}
+
+/**
+ * Additive mass rate in underflow (lb/min)
+ * Sourced: Carter Ch. 4, Eq. 4.61
+ */
+export function additiveMassRate(additivePpb: number, vFeedGpm: number, vUnderflowGpm: number, vOldMudFraction: number): number {
+  return (additivePpb * vUnderflowGpm * vOldMudFraction) / 42;
+}
+
+/**
+ * Base liquid flow rate in underflow (gal/min)
+ * Sourced: Carter Ch. 4, Eq. 4.62
+ */
+export function baseLiquidFlowRate(vFeedGpm: number, sgWm: number, mwDilutionPpg: number, mwFeedPpg: number, vUnderflowGpm: number, mwUnderflowPpg: number): number {
+  return vUnderflowGpm * (1 - (mwUnderflowPpg - 8.34) / (sgWm * 8.34 - 8.34));
+}
+
+/**
+ * Water wetting barite in underflow (gal/min)
+ * Sourced: Carter Ch. 4, Eq. 4.63
+ */
+export function waterWettingBarite(mwUnderflowPpg: number): number {
+  return 0.05 * mwUnderflowPpg;
+}
+
+/**
+ * Percent barite in underflow
+ * Sourced: Carter Ch. 4, Eq. 4.64
+ */
+export function percentBariteInUnderflow(vWaterWettingGpm: number): number {
+  return 100 - vWaterWettingGpm;
+}
+
+/**
+ * Barite-liquid mixture in underflow
+ * Sourced: Carter Ch. 4, Eq. 4.65
+ */
+export function bariteLiquidMixture(vFeedGpm: number, vFeedMw: number, vUnderflowGpm: number, vUnderflowMw: number, wUnderflowClay: number, wUnderflowAdditives: number): number {
+  return vUnderflowGpm * vUnderflowMw - wUnderflowClay - wUnderflowAdditives;
+}
+
+/**
+ * Barite weight in underflow (lb/min)
+ * Sourced: Carter Ch. 4, Eq. 4.66
+ */
+export function bariteWeightInUnderflow(baritePct: number, mwUnderflowPpg: number, vBariteMixtureGpm: number): number {
+  return (baritePct / 100) * mwUnderflowPpg * vBariteMixtureGpm;
+}
+
+/**
+ * Hole volume per 1000 ft
+ * Sourced: Carter Ch. 4, Eq. 4.67
+ */
+export function holeVolume1000ft(dhInches: number, washOutPct: number = 0): number {
+  const dEff = dhInches * (1 + washOutPct / 100);
+  return (Math.pow(dEff, 2) / 1029.4) * 1000;
+}
+
+/**
+ * Mud separated with cuttings per 1000 ft
+ * Sourced: Carter Ch. 4, Eq. 4.68
+ */
+export function mudSeparatedWithCuttings(mudToCuttingsRatio: number, vHole1000ftBbl: number): number {
+  return vHole1000ftBbl * mudToCuttingsRatio;
+}
+
+/**
+ * Total mud volume required per 1000 ft
+ * Sourced: Carter Ch. 4, Eq. 4.69
+ */
+export function totalMudVolume1000ft(vHole1000ftBbl: number, vMudSeparatedBbl: number): number {
+  return vHole1000ftBbl + vMudSeparatedBbl;
+}
+
+/**
+ * Salt volume in brine %
+ * Sourced: Carter Ch. 4, Eq. 4.70
+ */
+export function saltVolumeInBrine(cacl2Pct: number): number {
+  return cacl2Pct * 0.8;
+}
+
+/**
+ * Brine volume from salt and water
+ * Sourced: Carter Ch. 4, Eq. 4.71
+ */
+export function brineVolume(vSaltBbl: number, vWaterBbl: number): number {
+  return vSaltBbl + vWaterBbl;
+}
+
+/**
+ * Corrected solids % from retort
+ * Sourced: Carter Ch. 4, Eq. 4.72
+ */
+export function correctedSolids(vOilRetort: number, vBrineCorrected: number): number {
+  return 100 - vOilRetort - vBrineCorrected;
+}
+
+/**
+ * Base oil/brine downhole density
+ * Sourced: Carter Ch. 4, Eq. 4.73
+ */
+export function baseOilBrineDownholeDensity(pSurfacePpg: number, tempF: number, pressPsi: number): number {
+  return pSurfacePpg * (1 - (tempF - 60) * 0.0004 + pressPsi * 0.000003);
+}
+
+/**
+ * Equivalent static density (ESD) at depth
+ * Sourced: Carter Ch. 4, Eq. 4.74
+ */
+export function esdAtDepth(pSurfacePpg: number, tvdFt: number, tempGradDegFFt: number): number {
+  const avgTemp = 60 + (tempGradDegFFt * tvdFt) / 2;
+  const avgPress = pSurfacePpg * 0.052 * (tvdFt / 2);
+  return baseOilBrineDownholeDensity(pSurfacePpg, avgTemp, avgPress);
+}

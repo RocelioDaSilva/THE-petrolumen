@@ -194,12 +194,13 @@ export function calculateVesselMechanicalDesign(
   }
 
   // Skirt weight: Eqs. 6-8a & 6-9a
+  // Note: Arnold & Stewart p. 344 specifies rounding skirt length UP to the nearest whole foot (plate cut on rig)
   let skirtLengthFt = 0;
   if (isVertical) {
     if (headType === "cone-bottom") {
-      skirtLengthFt = Math.round(((0.5 * d) / (12 * Math.tan(alphaRad)) + 2) * 10) / 10;
+      skirtLengthFt = Math.ceil((0.5 * d) / (12 * Math.tan(alphaRad)) + 2);
     } else {
-      skirtLengthFt = Math.round(((0.25 * d) / 12 + 2) * 10) / 10;
+      skirtLengthFt = Math.ceil((0.25 * d) / 12 + 2);
     }
   }
   const skirtWeightLb = isVertical ? Math.round(11 * d * 0.5 * skirtLengthFt) : 0;
