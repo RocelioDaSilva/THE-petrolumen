@@ -12,6 +12,9 @@ import {
   Workflow,
   ChevronLeft,
   ChevronRight,
+  ShieldAlert,
+  Zap,
+  Boxes,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +34,27 @@ export const APP_MODULES: NavModule[] = [
     icon: LayoutDashboard,
     description: "Visão integrada e status dos módulos",
     category: "Visão Geral",
+  },
+  {
+    id: "well-control",
+    name: "Controle de Poço & Kick Sheet",
+    icon: ShieldAlert,
+    description: "KMW, ICP/FCP, MAASP & W&W Method",
+    category: "Perfuração & Poço",
+  },
+  {
+    id: "drilling-hydraulics",
+    name: "Hidráulica & Operações",
+    icon: Zap,
+    description: "ECD, Jatos na Broca, HHP & Teste LOT",
+    category: "Perfuração & Poço",
+  },
+  {
+    id: "surface-facilities",
+    name: "Instalações de Superfície",
+    icon: Boxes,
+    description: "Separadores 2/3 Fases & Coluna TEG",
+    category: "Engenharia de Superfície",
   },
   {
     id: "reservoir-simulation",

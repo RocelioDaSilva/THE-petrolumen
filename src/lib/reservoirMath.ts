@@ -73,31 +73,37 @@ export function calculateZFactor(pressure: number, tempF: number, gammaG: number
  */
 export function calculatePVT(input: PVTInput): PVTResults {
   const { pressure, temperature, gammaG, api = 35, gor = 600 } = input;
-  const z = calculateZFactor(pressure, temperature, gammaG);
-  const tempR = temperature + 459.67;
+  const safePressure = Math.max(1, pressure || 14.7);
+  const safeTemp = Math.max(-40, temperature || 60);
+  const safeGammaG = Math.max(0.4, Math.min(2.0, gammaG || 0.7));
+  const safeApi = Math.max(5, Math.min(70, api || 35));
+  const safeGor = Math.max(0, gor || 0);
+
+  const z = calculateZFactor(safePressure, safeTemp, safeGammaG);
+  const tempR = safeTemp + 459.67;
 
   // Gas Formation Volume Factor: Bg = 0.02827 * Z * T / P (res bbl / scf)
-  const bg = (0.02827 * z * tempR) / Math.max(1, pressure);
+  const bg = (0.02827 * z * tempR) / safePressure;
 
   // Bubble Point Pressure (Standing correlation)
-  const pb = 18.2 * (Math.pow(gor / gammaG, 0.83) * Math.pow(10, 0.00091 * temperature - 0.0125 * api) - 1.4);
-  const effectivePb = Math.max(100, pb);
+  const pb = 18.2 * (Math.pow(safeGor / safeGammaG, 0.83) * Math.pow(10, 0.00091 * safeTemp - 0.0125 * safeApi) - 1.4);
+  const effectivePb = Math.max(100, Number.isFinite(pb) ? pb : 100);
 
   // Solution GOR (Rs)
-  const rs = pressure < effectivePb
-    ? gammaG * Math.pow((pressure / 18.2 + 1.4) * Math.pow(10, 0.0125 * api - 0.00091 * temperature), 1.2048)
-    : gor;
+  const rs = safePressure < effectivePb
+    ? safeGammaG * Math.pow((safePressure / 18.2 + 1.4) * Math.pow(10, 0.0125 * safeApi - 0.00091 * safeTemp), 1.2048)
+    : safeGor;
 
   // Oil Formation Volume Factor (Bo - Standing correlation)
-  const f = rs * Math.sqrt(gammaG / (141.5 / (api + 131.5))) + 1.25 * temperature;
+  const f = rs * Math.sqrt(safeGammaG / (141.5 / (safeApi + 131.5))) + 1.25 * safeTemp;
   const boAtPb = 0.9759 + 0.00012 * Math.pow(f, 1.2);
-  const bo = pressure < effectivePb
-    ? 0.9759 + 0.00012 * Math.pow(rs * Math.sqrt(gammaG / (141.5 / (api + 131.5))) + 1.25 * temperature, 1.2)
-    : boAtPb * Math.exp(-1.5e-5 * (pressure - effectivePb));
+  const bo = safePressure < effectivePb
+    ? 0.9759 + 0.00012 * Math.pow(rs * Math.sqrt(safeGammaG / (141.5 / (safeApi + 131.5))) + 1.25 * safeTemp, 1.2)
+    : boAtPb * Math.exp(-1.5e-5 * (safePressure - effectivePb));
 
   // Dead oil viscosity (Beggs-Robinson)
-  const x = Math.pow(temperature, -1.163) * Math.exp(6.9824 - 0.04658 * api);
-  const viscDead = Math.pow(10, x) - 1;
+  const x = Math.pow(Math.max(1, safeTemp), -1.163) * Math.exp(6.9824 - 0.04658 * safeApi);
+  const viscDead = Math.max(0.01, Math.pow(10, x) - 1);
 
   // Saturated oil viscosity
   const aVisc = 10.715 * Math.pow(rs + 100, -0.515);
@@ -105,21 +111,21 @@ export function calculatePVT(input: PVTInput): PVTResults {
   const viscSat = aVisc * Math.pow(viscDead, bVisc);
 
   // Under-saturated oil viscosity
-  const oilViscosity = pressure > effectivePb
-    ? viscSat * Math.pow(pressure / effectivePb, 2.6 * Math.pow(pressure, 1.187) * Math.exp(-11.513 - 8.98e-5 * pressure))
+  const oilViscosity = safePressure > effectivePb
+    ? viscSat * Math.pow(safePressure / effectivePb, 2.6 * Math.pow(safePressure, 1.187) * Math.exp(-11.513 - 8.98e-5 * safePressure))
     : viscSat;
 
   // Gas Viscosity (Lee-Gonzalez-Eakin correlation)
-  const Mg = 28.96 * gammaG;
-  const rhoG = (1.495e-3 * pressure * Mg) / (z * tempR); // g/cm3
+  const Mg = 28.96 * safeGammaG;
+  const rhoG = (1.495e-3 * safePressure * Mg) / (z * tempR); // g/cm3
   const K = ((9.4 + 0.02 * Mg) * Math.pow(tempR, 1.5)) / (209 + 19 * Mg + tempR);
   const X_coeff = 3.5 + 986 / tempR + 0.01 * Mg;
   const Y_coeff = 2.4 - 0.2 * X_coeff;
   const gasViscosity = (1e-4 * K * Math.exp(X_coeff * Math.pow(rhoG, Y_coeff)));
 
   // Oil density in lb/cu ft
-  const gammaO = 141.5 / (api + 131.5);
-  const oilDensity = (62.4 * gammaO + 0.0136 * rs * gammaG) / bo;
+  const gammaO = 141.5 / (safeApi + 131.5);
+  const oilDensity = (62.4 * gammaO + 0.0136 * rs * safeGammaG) / Math.max(0.5, bo);
 
   return {
     zFactor: z,
@@ -127,9 +133,9 @@ export function calculatePVT(input: PVTInput): PVTResults {
     bo: Number(bo.toFixed(4)),
     rs: Number(Math.max(0, rs).toFixed(1)),
     pb: Number(effectivePb.toFixed(1)),
-    oilViscosity: Number(Math.max(0.1, oilViscosity).toFixed(3)),
-    gasViscosity: Number(Math.max(0.008, gasViscosity).toFixed(4)),
-    oilDensity: Number(oilDensity.toFixed(2)),
+    oilViscosity: Number((Number.isFinite(oilViscosity) ? Math.max(0.1, oilViscosity) : 1.2).toFixed(3)),
+    gasViscosity: Number((Number.isFinite(gasViscosity) ? Math.max(0.008, gasViscosity) : 0.015).toFixed(4)),
+    oilDensity: Number((Number.isFinite(oilDensity) ? oilDensity : 50).toFixed(2)),
   };
 }
 
@@ -221,8 +227,16 @@ export function solveNodal(input: NodalInput): {
   operatingPoint: { q: number; p: number } | null;
 } {
   const { pRes, qMax, pWh, depth, tubingId = 2.875, waterCut = 0.2, gor = 500 } = input;
+  const safePRes = Math.max(100, pRes || 1000);
+  const safeQMax = Math.max(10, qMax || 500);
+  const safePWh = Math.max(0, pWh || 100);
+  const safeDepth = Math.max(100, depth || 1000);
+  const safeTubing = Math.max(1.0, tubingId || 2.875);
+  const safeWc = Math.max(0, Math.min(0.99, waterCut || 0));
+  const safeGor = Math.max(0, gor || 0);
+
   const nPoints = 25;
-  const dq = qMax / (nPoints - 1);
+  const dq = safeQMax / (nPoints - 1);
   const curves: NodalPoint[] = [];
 
   let bestDiff = Infinity;
@@ -232,20 +246,16 @@ export function solveNodal(input: NodalInput): {
     const q = Math.round(i * dq);
 
     // Vogel IPR: Pwf = 0.125 * Pres * (-1 + sqrt(81 - 80 * (q / qMax)))
-    const ratio = Math.min(0.999, q / qMax);
-    const p_ipr = Math.max(0, 0.125 * pRes * (-1 + Math.sqrt(81 - 80 * ratio)));
+    const ratio = Math.min(0.999, q / safeQMax);
+    const p_ipr = Math.max(0, 0.125 * safePRes * (-1 + Math.sqrt(81 - 80 * ratio)));
 
     // VLP model (Beggs-Brill & hydrostatic + friction gradient)
-    // Hydrostatic gradient based on water cut and GOR
-    const liquidDensity = 62.4 * (1.0 * waterCut + 0.82 * (1 - waterCut)); // lb/cu ft
-    const hydrostaticGrad = liquidDensity / 144.0; // psi/ft (typically ~0.35 - 0.43 psi/ft)
-    const dInches = tubingId;
+    const liquidDensity = 62.4 * (1.0 * safeWc + 0.82 * (1 - safeWc)); // lb/cu ft
+    const hydrostaticGrad = liquidDensity / 144.0;
     const frictionFactor = 0.02;
-    // Friction loss increases with q^1.8 / d^5
-    const frictionLoss = (1.5e-5 * frictionFactor * Math.pow(q, 1.8) * depth) / Math.pow(dInches, 4.8);
-    // Gas slippage uplift reduction:
-    const gasSlippageFactor = Math.max(0.6, 1.0 - (gor / 2000) * 0.25);
-    const p_vlp = pWh + depth * hydrostaticGrad * gasSlippageFactor + frictionLoss;
+    const frictionLoss = (1.5e-5 * frictionFactor * Math.pow(q, 1.8) * safeDepth) / Math.pow(safeTubing, 4.8);
+    const gasSlippageFactor = Math.max(0.6, 1.0 - (safeGor / 2000) * 0.25);
+    const p_vlp = safePWh + safeDepth * hydrostaticGrad * gasSlippageFactor + frictionLoss;
 
     curves.push({
       q,
@@ -254,7 +264,7 @@ export function solveNodal(input: NodalInput): {
     });
 
     const diff = Math.abs(p_ipr - p_vlp);
-    if (diff < bestDiff && p_ipr > pWh) {
+    if (diff < bestDiff && p_ipr > safePWh) {
       bestDiff = diff;
       operatingPoint = { q, p: Math.round((p_ipr + p_vlp) / 2) };
     }
@@ -279,17 +289,22 @@ export function calculateFMBGas(
   gammaG: number = 0.65,
   ogipExpected: number = 1200 // MMscf
 ): { points: RTAPoint[]; ogip: number; slope: number } {
-  const zi = calculateZFactor(pi, tf, gammaG);
-  const pzi = pi / zi;
+  const safePi = Math.max(100, pi || 1000);
+  const safeTf = Math.max(32, tf || 100);
+  const safeGammaG = Math.max(0.4, gammaG || 0.65);
+  const safeOgip = Math.max(10, ogipExpected || 100);
+
+  const zi = calculateZFactor(safePi, safeTf, safeGammaG);
+  const pzi = safePi / Math.max(0.1, zi);
 
   // Gas material balance equation: P/Z = (Pi/Zi) * (1 - Gp / OGIP)
-  const slope = -pzi / ogipExpected;
+  const slope = -pzi / safeOgip;
   const points: RTAPoint[] = [];
   const steps = 10;
   for (let i = 0; i <= steps; i++) {
-    const gp = Math.round((i * (ogipExpected * 0.75)) / steps);
-    const pz = pzi + slope * gp;
-    const pwf = Math.max(200, pz * 0.92);
+    const gp = Math.round((i * (safeOgip * 0.75)) / steps);
+    const pz = Math.max(0, pzi + slope * gp);
+    const pwf = Math.max(50, pz * 0.92);
     points.push({
       gp,
       pz: Math.round(pz),
@@ -299,7 +314,7 @@ export function calculateFMBGas(
 
   return {
     points,
-    ogip: ogipExpected,
+    ogip: safeOgip,
     slope: Number(slope.toFixed(4)),
   };
 }
@@ -329,19 +344,25 @@ export interface EconomicsResult {
 
 export function calculateEconomics(input: EconomicsInput): EconomicsResult {
   const { oilPrice, opex, capex, discountRate, productionProfile } = input;
-  const cashFlows: number[] = [-capex];
-  const cumCashFlows: number[] = [-capex];
+  const safeCapex = Math.max(1, capex || 1);
+  const safePrice = Math.max(0, oilPrice || 0);
+  const safeOpex = Math.max(0, opex || 0);
+  const safeDiscount = Math.max(-0.5, discountRate || 0.1);
+  const profile = productionProfile && productionProfile.length ? productionProfile : [10000];
+
+  const cashFlows: number[] = [-safeCapex];
+  const cumCashFlows: number[] = [-safeCapex];
 
   let grossRevenue = 0;
   let totalOpex = 0;
-  let cum = -capex;
+  let cum = -safeCapex;
   let paybackYears = 0;
   let paybackFound = false;
 
-  for (let i = 0; i < productionProfile.length; i++) {
-    const vol = productionProfile[i];
-    const rev = vol * oilPrice;
-    const op = vol * opex;
+  for (let i = 0; i < profile.length; i++) {
+    const vol = Math.max(0, profile[i] || 0);
+    const rev = vol * safePrice;
+    const op = vol * safeOpex;
     const net = rev - op;
     grossRevenue += rev;
     totalOpex += op;
@@ -351,15 +372,15 @@ export function calculateEconomics(input: EconomicsInput): EconomicsResult {
     cumCashFlows.push(Math.round(cum));
 
     if (!paybackFound && cum >= 0) {
-      paybackYears = i + (cum - net < 0 ? Math.abs(cum - net) / net : 0);
+      paybackYears = i + (cum - net < 0 ? Math.abs(cum - net) / Math.max(1, net) : 0);
       paybackFound = true;
     }
   }
 
   // NPV calculation
-  let npv = -capex;
+  let npv = -safeCapex;
   for (let t = 1; t < cashFlows.length; t++) {
-    npv += cashFlows[t] / Math.pow(1 + discountRate, t);
+    npv += cashFlows[t] / Math.pow(1 + safeDiscount, t);
   }
 
   // IRR calculation (bisection method)
@@ -368,7 +389,7 @@ export function calculateEconomics(input: EconomicsInput): EconomicsResult {
   let high = 2.0;
   for (let iter = 0; iter < 40; iter++) {
     const mid = (low + high) / 2;
-    let npvMid = -capex;
+    let npvMid = -safeCapex;
     for (let t = 1; t < cashFlows.length; t++) {
       npvMid += cashFlows[t] / Math.pow(1 + mid, t);
     }
@@ -384,17 +405,17 @@ export function calculateEconomics(input: EconomicsInput): EconomicsResult {
     irr = mid;
   }
 
-  const roi = (grossRevenue - totalOpex - capex) / capex;
+  const roi = (grossRevenue - totalOpex - safeCapex) / safeCapex;
 
   return {
-    npv: Math.round(npv),
-    irr: Math.round(irr * 10000) / 100, // percentage
-    paybackYears: Number(paybackYears.toFixed(2)),
+    npv: Number.isFinite(npv) ? Math.round(npv) : 0,
+    irr: Number.isFinite(irr) ? Math.round(irr * 10000) / 100 : 0,
+    paybackYears: Number((Number.isFinite(paybackYears) ? paybackYears : 0).toFixed(2)),
     cashFlows,
     cumCashFlows,
     grossRevenue: Math.round(grossRevenue),
     totalOpex: Math.round(totalOpex),
-    roi: Number((roi * 100).toFixed(1)),
+    roi: Number((Number.isFinite(roi) ? roi * 100 : 0).toFixed(1)),
   };
 }
 
@@ -418,38 +439,48 @@ export interface SimulationParams {
 export function run1DReservoirSimulation(params: SimulationParams) {
   const { nx = 10, dx = 100, permeability = 50, porosity = 0.2, viscosity = 1.5, compressibility = 1e-5, pi = 3500, dt = 10, nSteps = 20, wellRate = -500 } = params;
 
+  const safeNx = Math.max(3, Math.min(50, nx || 10));
+  const safeDx = Math.max(10, dx || 100);
+  const safePerm = Math.max(0.1, permeability || 10);
+  const safePhi = Math.max(0.01, Math.min(0.5, porosity || 0.2));
+  const safeVisc = Math.max(0.05, viscosity || 1.0);
+  const safeCt = Math.max(1e-7, compressibility || 1e-5);
+  const safePi = Math.max(100, pi || 3000);
+  const safeDt = Math.max(0.1, dt || 10);
+  const safeSteps = Math.max(1, Math.min(100, nSteps || 20));
+
   // Diffusivity constant eta = 0.006328 * k / (phi * mu * ct) [ft2/day]
-  const eta = (0.006328 * permeability) / (porosity * viscosity * compressibility);
-  const alpha = (eta * dt) / (dx * dx);
-  const stableAlpha = Math.min(0.45, alpha); // numerical stability guarantee
+  const eta = (0.006328 * safePerm) / (safePhi * safeVisc * safeCt);
+  const alpha = (eta * safeDt) / (safeDx * safeDx);
+  const stableAlpha = Math.min(0.45, Number.isFinite(alpha) ? alpha : 0.2);
 
   // Initialize pressure array
-  let pGrid = new Array(nx).fill(pi);
+  let pGrid = new Array(safeNx).fill(safePi);
   const history: { step: number; time: number; pressures: number[]; block5: number; wellbore: number }[] = [];
 
-  for (let step = 0; step <= nSteps; step++) {
-    const time = step * dt;
+  for (let step = 0; step <= safeSteps; step++) {
+    const time = step * safeDt;
     history.push({
       step,
-      time,
+      time: Math.round(time),
       pressures: [...pGrid.map((p) => Math.round(p))],
-      block5: Math.round(pGrid[Math.floor(nx / 2)]),
+      block5: Math.round(pGrid[Math.floor(safeNx / 2)]),
       wellbore: Math.round(pGrid[0]),
     });
 
-    if (step === nSteps) break;
+    if (step === safeSteps) break;
 
     // Explicit finite difference update
     const nextP = [...pGrid];
-    for (let i = 0; i < nx; i++) {
-      const left = i === 0 ? pGrid[0] : pGrid[i - 1]; // no-flow outer boundary
-      const right = i === nx - 1 ? pGrid[nx - 1] : pGrid[i + 1];
+    for (let i = 0; i < safeNx; i++) {
+      const left = i === 0 ? pGrid[0] : pGrid[i - 1];
+      const right = i === safeNx - 1 ? pGrid[safeNx - 1] : pGrid[i + 1];
       nextP[i] = pGrid[i] + stableAlpha * (left - 2 * pGrid[i] + right);
     }
 
     // Source/sink term at well block 0
-    const wellDrawdown = (Math.abs(wellRate) * 1.5) / (permeability * 0.2);
-    nextP[0] = Math.max(500, nextP[0] - wellDrawdown * (dt / 10));
+    const wellDrawdown = (Math.abs(wellRate) * 1.5) / (safePerm * 0.2);
+    nextP[0] = Math.max(200, nextP[0] - wellDrawdown * (safeDt / 10));
 
     pGrid = nextP;
   }
