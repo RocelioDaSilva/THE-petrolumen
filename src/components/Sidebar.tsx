@@ -15,6 +15,9 @@ import {
   ShieldAlert,
   Zap,
   Boxes,
+  FlaskConical,
+  Package,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -47,6 +50,27 @@ export const APP_MODULES: NavModule[] = [
     name: "Hidráulica & Operações",
     icon: Zap,
     description: "ECD, Jatos na Broca, HHP & Teste LOT",
+    category: "Perfuração & Poço",
+  },
+  {
+    id: "drilling-fluids",
+    name: "Fluidos de Perfuração (Ch. 2)",
+    icon: FlaskConical,
+    description: "Reologia Fann, Adensamento & Retorta",
+    category: "Perfuração & Poço",
+  },
+  {
+    id: "cementing",
+    name: "Cimentação & Pastas API (Ch. 3)",
+    icon: Package,
+    description: "Formulação API, Bogue & Tempos",
+    category: "Perfuração & Poço",
+  },
+  {
+    id: "casing-directional",
+    name: "Revestimento & Direcional (Ch. 7-8)",
+    icon: Compass,
+    description: "Barlow, Colapso Biaxial & Curvatura 3D",
     category: "Perfuração & Poço",
   },
   {

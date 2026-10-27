@@ -20,6 +20,11 @@ import {
   HydraulicsInputs,
 } from "@/lib/drillingMath";
 import {
+  optimumNozzleSelection,
+  calculateSurgeSwabPressure,
+  gelBreakPressure,
+} from "@/lib/drilling/hydraulicsBourgoyne";
+import {
   Zap,
   Activity,
   Gauge,
@@ -29,6 +34,8 @@ import {
   RefreshCw,
   Sliders,
   CheckCircle,
+  Target,
+  Sparkles,
 } from "lucide-react";
 
 export default function DrillingHydraulicsView() {
@@ -47,6 +54,12 @@ export default function DrillingHydraulicsView() {
   // LOT parameters
   const [shoeTvd, setShoeTvd] = useState<number>(7200); // ft
   const [leakOffPressure, setLeakOffPressure] = useState<number>(1650); // psi
+
+  // Bourgoyne Ch. 4 Advanced Parameters
+  const [surfacePumpPressure, setSurfacePumpPressure] = useState<number>(3200); // psi
+  const [optimumCriterion, setOptimumCriterion] = useState<'max-bit-hhp' | 'max-impact-force'>('max-bit-hhp');
+  const [trippingSpeedFtMin, setTrippingSpeedFtMin] = useState<number>(90); // ft/min
+  const [gelStrength, setGelStrength] = useState<number>(12); // lbf/100ft2
 
   // Calculations
   const hydraulics = useMemo(() => {
@@ -73,6 +86,27 @@ export default function DrillingHydraulicsView() {
     drillPipeOd,
     holeDiameter,
   ]);
+
+  const optimumNozzles = useMemo(() => {
+    return optimumNozzleSelection(surfacePumpPressure, mudWeight, flowRate, optimumCriterion);
+  }, [surfacePumpPressure, mudWeight, flowRate, optimumCriterion]);
+
+  const surgeSwab = useMemo(() => {
+    return calculateSurgeSwabPressure(
+      trippingSpeedFtMin,
+      true,
+      mudWeight,
+      plasticViscosity,
+      yieldPoint,
+      drillPipeOd,
+      holeDiameter,
+      tvd
+    );
+  }, [trippingSpeedFtMin, mudWeight, plasticViscosity, yieldPoint, drillPipeOd, holeDiameter, tvd]);
+
+  const gelBreak = useMemo(() => {
+    return gelBreakPressure(gelStrength, tvd, 4.276, holeDiameter, drillPipeOd);
+  }, [gelStrength, tvd, holeDiameter, drillPipeOd]);
 
   const lotData = useMemo(() => {
     return generateLOTCurve(shoeTvd, mudWeight, leakOffPressure);
@@ -411,6 +445,84 @@ export default function DrillingHydraulicsView() {
                   <span className="text-muted-foreground">Força de Impacto do Jato:</span>
                   <span className="font-mono font-bold">{hydraulics.jetImpactForce} lbf</span>
                 </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Bourgoyne Advanced Hydraulics: Nozzle Optimizer & Surge/Swab */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="p-4 shadow-sm border-amber-500/20 bg-amber-500/5">
+              <div className="flex items-center justify-between pb-2 border-b">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5" />
+                  Otimização de Jatos da Broca (Bourgoyne §4.7)
+                </h4>
+                <div className="inline-flex rounded border p-0.5 bg-background text-[10px]">
+                  <button
+                    className={`px-1.5 py-0.5 rounded font-medium ${optimumCriterion === 'max-bit-hhp' ? 'bg-amber-500 text-white' : 'text-muted-foreground'}`}
+                    onClick={() => setOptimumCriterion('max-bit-hhp')}
+                  >
+                    Max HHP
+                  </button>
+                  <button
+                    className={`px-1.5 py-0.5 rounded font-medium ${optimumCriterion === 'max-impact-force' ? 'bg-amber-500 text-white' : 'text-muted-foreground'}`}
+                    onClick={() => setOptimumCriterion('max-impact-force')}
+                  >
+                    Max JIF
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2 text-xs pt-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Queda Ótima na Broca (ΔPb):</span>
+                  <span className="font-mono font-bold text-foreground">{optimumNozzles.optimumBitDeltaPPsi} psi</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Área Total Requerida (At):</span>
+                  <span className="font-mono font-bold">{optimumNozzles.requiredNozzleAreaSqIn} pol²</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Combinação Recomendada (3 Jatos):</span>
+                  <span className="font-mono font-bold text-amber-600">
+                    {optimumNozzles.suggestedNozzles32nds.join("-")} / 32&quot;
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground pt-1 border-t">
+                  {optimumCriterion === 'max-bit-hhp'
+                    ? "Critério de Máxima Potência (HHP): broca absorve ~64% da pressão total de superfície."
+                    : "Critério de Máximo Impacto (JIF): broca absorve ~48% da pressão total de superfície."}
+                </p>
+              </div>
+            </Card>
+
+            <Card className="p-4 shadow-sm border-blue-500/20 bg-blue-500/5">
+              <div className="flex items-center justify-between pb-2 border-b">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5" />
+                  Surge / Swab &amp; Quebra de Gel (Bourgoyne §4.10)
+                </h4>
+                <Badge variant="outline" className="text-[10px]">Coluna Fechada</Badge>
+              </div>
+              <div className="space-y-2 text-xs pt-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pressão de Pistoneio (Surge):</span>
+                  <span className="font-mono font-bold text-primary">+{surgeSwab.totalSurgePressurePsi} psi</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">ECD com Pistoneio (Surge ECD):</span>
+                  <span className="font-mono font-bold text-foreground">
+                    {(mudWeight + surgeSwab.totalSurgePressurePsi / (0.052 * tvd)).toFixed(2)} ppg
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pressão p/ Quebrar Gel (Gel Break):</span>
+                  <span className="font-mono font-bold text-purple-600">
+                    {gelBreak.totalPumpPressureToBreakGelPsi} psi
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground pt-1 border-t">
+                  Velocidade de manobra calculada: {trippingSpeedFtMin} ft/min. Gel inicial: {gelStrength} lbf/100ft².
+                </p>
               </div>
             </Card>
           </div>

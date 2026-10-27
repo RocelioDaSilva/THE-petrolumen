@@ -34,6 +34,11 @@ import {
   RoundRules,
 } from "@/lib/drillingMath";
 import {
+  generateWaitAndWeightSchedule,
+  generateDrillersMethodSchedule,
+  kickDensityFromPressures,
+} from "@/lib/drilling/wellControlAdv";
+import {
   ShieldAlert,
   Flame,
   Gauge,
@@ -115,6 +120,59 @@ export default function WellControlView() {
     dpOhAnnCap,
     drillStringStrokes,
   ]);
+
+  const [killMethod, setKillMethod] = useState<"wait-weight" | "drillers">("wait-weight");
+  const [annulusStrokes, setAnnulusStrokes] = useState<number>(3200); // bit to surface
+  const [showStepDownTable, setShowStepDownTable] = useState<boolean>(false);
+
+  const advWwSchedule = useMemo(() => {
+    return generateWaitAndWeightSchedule(
+      wellControlResults.icp,
+      wellControlResults.fcp,
+      sicp,
+      drillStringStrokes,
+      annulusStrokes
+    );
+  }, [wellControlResults.icp, wellControlResults.fcp, sicp, drillStringStrokes, annulusStrokes]);
+
+  const advDrillersSchedule = useMemo(() => {
+    return generateDrillersMethodSchedule(
+      wellControlResults.icp,
+      wellControlResults.fcp,
+      sicp,
+      drillStringStrokes,
+      annulusStrokes
+    );
+  }, [wellControlResults.icp, wellControlResults.fcp, sicp, drillStringStrokes, annulusStrokes]);
+
+  const bourgoyneKickData = useMemo(() => {
+    return kickDensityFromPressures(sicp, sidpp, currentMw, wellControlResults.influxHeightFt);
+  }, [sicp, sidpp, currentMw, wellControlResults.influxHeightFt]);
+
+  const activeScheduleData = useMemo(() => {
+    if (killMethod === "wait-weight") {
+      return advWwSchedule.map((p) => ({
+        stroke: p.stroke,
+        dpp: p.drillpipePressurePsi,
+        cp: p.casingPressurePsi,
+        stage: p.stageDescription,
+      }));
+    }
+    const totalWell = drillStringStrokes + annulusStrokes;
+    const first = advDrillersSchedule.firstCirculation.map((p) => ({
+      stroke: p.stroke,
+      dpp: p.drillpipePressurePsi,
+      cp: p.casingPressurePsi,
+      stage: p.stageDescription,
+    }));
+    const second = advDrillersSchedule.secondCirculation.map((p) => ({
+      stroke: p.stroke + totalWell,
+      dpp: p.drillpipePressurePsi,
+      cp: p.casingPressurePsi,
+      stage: p.stageDescription,
+    }));
+    return [...first, ...second];
+  }, [killMethod, advWwSchedule, advDrillersSchedule, drillStringStrokes, annulusStrokes]);
 
   // ==========================================
   // TAB 2: VOLUME ENGINE & TRIP SHEET STATE
@@ -453,8 +511,19 @@ export default function WellControlView() {
                     <Input id="kc-stk" type="number" value={drillStringStrokes} onChange={(e) => setDrillStringStrokes(Number(e.target.value))} />
                   </div>
                   <div>
+                    <Label htmlFor="kc-ann-stk">Strokes Anular (Bit-Sup)</Label>
+                    <Input id="kc-ann-stk" type="number" value={annulusStrokes} onChange={(e) => setAnnulusStrokes(Number(e.target.value))} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
                     <Label htmlFor="kc-dc">Comprimento DC (ft)</Label>
                     <Input id="kc-dc" type="number" value={dcLengthFt} onChange={(e) => setDcLengthFt(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="kc-dc-cap">Cap. Anular DC (bbl/ft)</Label>
+                    <Input id="kc-dc-cap" type="number" step="0.001" value={dcOhAnnCap} onChange={(e) => setDcOhAnnCap(Number(e.target.value))} />
                   </div>
                 </div>
 
@@ -467,6 +536,12 @@ export default function WellControlView() {
                     <span className="text-muted-foreground">Altura Influxo:</span>
                     <span className="font-mono font-bold text-foreground">
                       {wellControlResults.influxHeightFt} ft {wellControlResults.isSplitInflux ? "(Dividido em DC+DP)" : "(No DC)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Densidade Influxo (Bourgoyne Eq 4.18):</span>
+                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                      {bourgoyneKickData.influxDensityPpg} ppg ({bourgoyneKickData.influxType})
                     </span>
                   </div>
                 </div>
@@ -486,6 +561,7 @@ export default function WellControlView() {
                     setPitGainBbl(24);
                     setScrPressure(750);
                     setDrillStringStrokes(1150);
+                    setAnnulusStrokes(3200);
                     setDcLengthFt(600);
                   }}
                 >
@@ -498,51 +574,138 @@ export default function WellControlView() {
             {/* Graphs Column */}
             <div className="lg:col-span-2 space-y-6">
               <Card className="shadow-sm">
-                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardHeader className="pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-primary" />
-                      Cronograma de Deslocamento: ICP → FCP (Wait & Weight)
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                      Pressão requerida no tubo de perfuração durante o bombeio da lama pesada até a broca.
+                      <CardTitle className="text-base font-semibold">
+                        Cronograma de Circulação (Bourgoyne Cap. 4 & Figs. 4.39A/B)
+                      </CardTitle>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Monitoramento simultâneo da pressão na coluna (DPP) e no anular/choke (SICP/CP).
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs font-mono">
-                    Redução: {wellControlResults.psiPer100Stk} psi / 100 stks
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="bg-muted p-0.5 rounded flex text-xs">
+                      <Button
+                        variant={killMethod === "wait-weight" ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 text-xs px-2.5"
+                        onClick={() => setKillMethod("wait-weight")}
+                      >
+                        Wait & Weight (1 Circ.)
+                      </Button>
+                      <Button
+                        variant={killMethod === "drillers" ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 text-xs px-2.5"
+                        onClick={() => setKillMethod("drillers")}
+                      >
+                        Driller's (2 Circ.)
+                      </Button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setShowStepDownTable(!showStepDownTable)}
+                    >
+                      <FileText className="w-3.5 h-3.5 mr-1" />
+                      {showStepDownTable ? "Ocultar Tabela" : "Ver Tabela"}
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="h-[280px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={wellControlResults.dynamicSchedule} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                      <LineChart data={activeScheduleData} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis dataKey="strokes" label={{ value: "Strokes Bombeados", position: "insideBottom", offset: -10 }} />
-                        <YAxis domain={["auto", "auto"]} label={{ value: "Pressão DPP (psi)", angle: -90, position: "insideLeft", offset: 0 }} />
-                        <Tooltip formatter={(v: any) => [`${v} psi`, "Pressão de Circulação"]} labelFormatter={(s) => `${s} strokes`} />
+                        <XAxis
+                          dataKey="stroke"
+                          label={{ value: "Strokes Bombeados Cumulativos", position: "insideBottom", offset: -10 }}
+                        />
+                        <YAxis
+                          domain={[0, "auto"]}
+                          label={{ value: "Pressão de Superfície (psi)", angle: -90, position: "insideLeft", offset: 0 }}
+                        />
+                        <Tooltip
+                          formatter={(v: any, name: string) => [
+                            `${v} psi`,
+                            name === "dpp" ? "Coluna (DPP)" : "Revestimento/Choke (CP)",
+                          ]}
+                          labelFormatter={(s) => `${s} strokes`}
+                        />
                         <Legend verticalAlign="top" height={36} />
-                        <Line type="monotone" dataKey="dpp" name="Pressão de Circulação (ICP → FCP)" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4 }} />
+                        <Line
+                          type="monotone"
+                          dataKey="dpp"
+                          name="Pressão Coluna (DPP)"
+                          stroke="#2563eb"
+                          strokeWidth={2.5}
+                          dot={{ r: 3 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="cp"
+                          name="Pressão Choke / Anular (CP)"
+                          stroke="#f59e0b"
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          dot={{ r: 3 }}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 mt-2 border-t text-xs">
+                  {showStepDownTable && (
+                    <div className="border rounded-md overflow-x-auto max-h-56">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-muted text-muted-foreground uppercase text-[10px] sticky top-0">
+                          <tr>
+                            <th className="p-2">Strokes</th>
+                            <th className="p-2">DPP (psi)</th>
+                            <th className="p-2">Choke CP (psi)</th>
+                            <th className="p-2">Estágio Operacional</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y font-mono">
+                          {activeScheduleData.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-muted/40">
+                              <td className="p-2 font-bold">{row.stroke}</td>
+                              <td className="p-2 text-blue-600 dark:text-blue-400 font-bold">{row.dpp}</td>
+                              <td className="p-2 text-amber-600 dark:text-amber-400 font-bold">{row.cp}</td>
+                              <td className="p-2 font-sans text-muted-foreground">{row.stage}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t text-xs">
                     <div>
                       <span className="text-muted-foreground block text-[11px]">0 strokes:</span>
-                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400">ICP = {wellControlResults.icp} psi</span>
+                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                        ICP = {wellControlResults.icp} psi | SICP = {sicp} psi
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-[11px]">{drillStringStrokes} strokes (Bit):</span>
-                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400">FCP = {wellControlResults.fcp} psi</span>
+                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                        FCP = {wellControlResults.fcp} psi
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[11px]">Gradiente Influxo:</span>
-                      <span className="font-mono font-bold text-foreground">{wellControlResults.influxGradient} psi/ft</span>
+                      <span className="text-muted-foreground block text-[11px]">Taxa de Redução:</span>
+                      <span className="font-mono font-bold text-foreground">
+                        {wellControlResults.psiPer100Stk} psi / 100 stk
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[11px]">Max Mud Weight:</span>
+                      <span className="text-muted-foreground block text-[11px]">KMW Final Requerido:</span>
                       <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        {wellControlResults.lotCalc.maxMw} ppg (Arredondado p/ Baixo)
+                        {wellControlResults.kmw} ppg (Teto: {wellControlResults.lotCalc.maxMw} ppg)
                       </span>
                     </div>
                   </div>

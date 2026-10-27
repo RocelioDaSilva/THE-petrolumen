@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { calculatePVT, calculateZFactor } from "@/lib/reservoirMath";
 import { convert, UnitSystem } from "@/lib/units";
-import { Beaker, Droplets, Flame, Activity, Zap, RefreshCw } from "lucide-react";
+import { sanitizePVT } from "@/lib/pvt/sanitize";
+import { Beaker, Droplets, Flame, Activity, Zap, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface ComponentEntry {
   name: string;
@@ -48,27 +49,52 @@ export default function PVTCalculator() {
     { name: "Dióxido Carbono", formula: "CO2", moleFrac: 0.03, mw: 44.01, tc: 547.4, pc: 1071.0 },
   ]);
 
-  // Derived PVT properties
-  const results = useMemo(() => {
-    return calculatePVT({
+  // PVT Input Validation using strict sanitizer
+  const validation = useMemo(() => {
+    return sanitizePVT({
       pressure,
       temperature,
-      gammaG,
-      api,
+      gasGravity: gammaG,
+      apiGravity: api,
       gor,
+      unitSystem,
     });
-  }, [pressure, temperature, gammaG, api, gor]);
+  }, [pressure, temperature, gammaG, api, gor, unitSystem]);
+
+  const validationErrors = 'errors' in validation ? validation.errors : [];
+
+  // Derived PVT properties (calculated safely using validated values or fallback)
+  const results = useMemo(() => {
+    const p = validation.ok ? validation.value.pressure : Math.max(14.7, pressure || 3200);
+    const t = validation.ok ? validation.value.temperature : Math.max(32, temperature || 180);
+    const gg = validation.ok ? validation.value.gasGravity : 0.72;
+    const oApi = validation.ok ? validation.value.apiGravity : 35;
+    const rGor = validation.ok ? validation.value.gor : 600;
+
+    return calculatePVT({
+      pressure: p,
+      temperature: t,
+      gammaG: gg,
+      api: oApi,
+      gor: rGor,
+    });
+  }, [validation, pressure, temperature]);
 
   // Pressure Sweep (500 psia to 6000 psia)
   const sweepData = useMemo(() => {
+    const t = validation.ok ? validation.value.temperature : 180;
+    const gg = validation.ok ? validation.value.gasGravity : 0.72;
+    const oApi = validation.ok ? validation.value.apiGravity : 35;
+    const rGor = validation.ok ? validation.value.gor : 600;
+
     const points = [];
     for (let p = 500; p <= 6000; p += 250) {
       const calc = calculatePVT({
         pressure: p,
-        temperature,
-        gammaG,
-        api,
-        gor,
+        temperature: t,
+        gammaG: gg,
+        api: oApi,
+        gor: rGor,
       });
 
       const displayP = unitSystem === "metric" ? Math.round(convert(p, "psi", "kPa")) : p;
@@ -82,7 +108,7 @@ export default function PVTCalculator() {
       });
     }
     return points;
-  }, [temperature, gammaG, api, gor, unitSystem]);
+  }, [validation, unitSystem]);
 
   // Phase envelope P-T data (bubble point and dew point curves)
   const phaseEnvelopeData = useMemo(() => {
@@ -120,12 +146,21 @@ export default function PVTCalculator() {
       {/* Header and Unit System Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Beaker className="w-6 h-6 text-primary" />
-            Cálculos e Análise de Fluidos PVT
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Beaker className="w-6 h-6 text-primary" />
+              Cálculos e Análise de Fluidos PVT
+            </h2>
+            <Badge variant="outline" className={validation.ok ? "text-emerald-600 border-emerald-500/30 bg-emerald-500/10" : "text-amber-600 border-amber-500/30 bg-amber-500/10"}>
+              {validation.ok ? (
+                <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Inputs Validados</span>
+              ) : (
+                <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-amber-500" /> Atenção / Limites Físicos</span>
+              )}
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Modelagem termodinâmica de propriedades de rocha-fluido, envelope de fases e correlações de Standing / Hall-Yarborough.
+            Modelagem termodinâmica de propriedades de rocha-fluido, envelope de fases e correlações de Standing / Hall-Yarborough com sanitização científica contra divisão por zero e pressões nulas.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -150,6 +185,28 @@ export default function PVTCalculator() {
           </div>
         </div>
       </div>
+
+      {/* Validation Alert Banner if inputs are out of bounds */}
+      {!validation.ok && (
+        <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-900 dark:text-red-200">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                Aviso de Inconsistência nos Dados Termodinâmicos (Fail-Loudly Guard)
+              </p>
+              <ul className="text-xs space-y-0.5 list-disc list-inside">
+                {validationErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Os cálculos termodinâmicos foram protegidos contra divisão por zero e singularidades. Por favor corrija os parâmetros acima.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Results Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -200,8 +257,11 @@ export default function PVTCalculator() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Input Parameters Form */}
         <Card className="lg:col-span-1 shadow-sm">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base font-semibold">Propriedades do Reservatório</CardTitle>
+            <Badge variant="outline" className="text-[10px]">
+              Sanitização Ativa
+            </Badge>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
@@ -214,8 +274,11 @@ export default function PVTCalculator() {
                 type="number"
                 value={pressure}
                 onChange={(e) => setPressure(Number(e.target.value))}
+                className={pressure <= 0 ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
-              <p className="text-[10px] text-muted-foreground">Base de cálculo: {pressure} psia</p>
+              <p className="text-[10px] text-muted-foreground">
+                Base de cálculo: {pressure} psia (deve ser estritamente &gt; 0)
+              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -228,7 +291,9 @@ export default function PVTCalculator() {
                 type="number"
                 value={temperature}
                 onChange={(e) => setTemperature(Number(e.target.value))}
+                className={temperature <= -459.67 ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
+              <p className="text-[10px] text-muted-foreground">Zero absoluto: -459.67 °F / -273.15 °C</p>
             </div>
 
             <div className="space-y-1.5">
@@ -239,7 +304,9 @@ export default function PVTCalculator() {
                 step="0.01"
                 value={gammaG}
                 onChange={(e) => setGammaG(Number(e.target.value))}
+                className={gammaG < 0.5 || gammaG > 2.0 ? "border-amber-500" : ""}
               />
+              <p className="text-[10px] text-muted-foreground">Faixa típica de hidrocarbonetos: 0.55 - 1.20</p>
             </div>
 
             <div className="space-y-1.5">
@@ -250,6 +317,7 @@ export default function PVTCalculator() {
                 step="0.5"
                 value={api}
                 onChange={(e) => setApi(Number(e.target.value))}
+                className={api <= 0 || api > 100 ? "border-red-500" : ""}
               />
             </div>
 
@@ -261,24 +329,37 @@ export default function PVTCalculator() {
                 step="10"
                 value={gor}
                 onChange={(e) => setGor(Number(e.target.value))}
+                className={gor < 0 ? "border-red-500" : ""}
               />
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs mt-2"
-              onClick={() => {
-                setPressure(3200);
-                setTemperature(180);
-                setGammaG(0.72);
-                setApi(34.5);
-                setGor(650);
-              }}
-            >
-              <RefreshCw className="w-3 h-3 mr-2" />
-              Restaurar Parâmetros Padrão
-            </Button>
+            <div className="pt-2 space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => {
+                  setPressure(3200);
+                  setTemperature(180);
+                  setGammaG(0.72);
+                  setApi(34.5);
+                  setGor(650);
+                }}
+              >
+                <RefreshCw className="w-3 h-3 mr-2" />
+                Restaurar Parâmetros Padrão
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-[11px] text-amber-600 hover:text-amber-700"
+                onClick={() => {
+                  setPressure(0); // Test boundary
+                }}
+              >
+                Testar Rejeição Estrita (P = 0)
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
