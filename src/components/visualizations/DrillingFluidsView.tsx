@@ -142,7 +142,7 @@ export default function DrillingFluidsView() {
       </div>
 
       <Tabs defaultValue="rheology" className="w-full">
-        <TabsList className="bg-muted p-1 grid grid-cols-2 lg:grid-cols-4">
+        <TabsList className="bg-muted p-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <TabsTrigger value="rheology" className="text-xs">
             Reologia Fann 35
           </TabsTrigger>
@@ -154,6 +154,9 @@ export default function DrillingFluidsView() {
           </TabsTrigger>
           <TabsTrigger value="chemistry" className="text-xs">
             Química &amp; Contaminação
+          </TabsTrigger>
+          <TabsTrigger value="carter-fluids" className="text-xs">
+            Carter Fluids v3
           </TabsTrigger>
         </TabsList>
 
@@ -713,6 +716,69 @@ export default function DrillingFluidsView() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="carter-fluids" className="space-y-6 pt-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Carter Ch. 4 Drilling Fluids Toolkit (5 Weight-Up Variants, OBM, Solids, Hydrocyclone & Centrifuge)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="wu-variants" className="w-full">
+                <TabsList className="bg-muted p-1">
+                  <TabsTrigger value="wu-variants">Weight-Up 5 Variants</TabsTrigger>
+                  <TabsTrigger value="obm-owr">OBM & OWR</TabsTrigger>
+                  <TabsTrigger value="hydrocyclone">Hydrocyclone</TabsTrigger>
+                  <TabsTrigger value="centrifuge">Centrifuge</TabsTrigger>
+                  <TabsTrigger value="downhole">Downhole ESD</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="wu-variants" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Carter Mud Weight Increase Shortcuts:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Short Formula (10→12 ppg):</span> <strong>128 sacks / 100 bbl (+8.7 bbl)</strong></p>
+                    <p className="flex justify-between"><span>Long Formula (SG 4.2):</span> <strong>128 sacks / 100 bbl (+8.7 bbl)</strong></p>
+                    <p className="flex justify-between"><span>With Liquid Wetting (2 gal/sk):</span> <strong>163 sacks (5.8 bbl wetting)</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="obm-owr" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Oil-Base Mud Formulation & Retort Ratio:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Oil/Water Ratio from Retort (60% O / 20% W):</span> <strong>75 / 25 OWR</strong></p>
+                    <p className="flex justify-between"><span>Add Oil to Change OWR (75/25 → 80/20):</span> <strong>+25 bbl Oil per 100 bbl</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="hydrocyclone" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Hydrocyclone Solids Removal Performance:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Underflow Solids Fraction:</span> <strong>27.4%</strong></p>
+                    <p className="flex justify-between"><span>Solids Mass Removal Rate:</span> <strong>5352.7 lb/hr</strong></p>
+                    <p className="flex justify-between"><span>Hydrocyclone Cut Point:</span> <strong>30.4 μm</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="centrifuge" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">High-Speed Centrifuge Evaluation:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Centrifuge Bowl Force @ 2500 RPM:</span> <strong>1242 G</strong></p>
+                    <p className="flex justify-between"><span>Barite Recovery Efficiency:</span> <strong>88.5%</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="downhole" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Downhole Density & Equivalent Static Density (ESD):</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Surface Mud Density:</span> <strong>12.0 ppg</strong></p>
+                    <p className="flex justify-between"><span>Equivalent Static Density @ 10,000 ft:</span> <strong>12.18 ppg</strong></p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

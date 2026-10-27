@@ -18,6 +18,16 @@ import EconomicsView from "@/components/visualizations/EconomicsView";
 import MLDashboardView from "@/components/visualizations/MLDashboardView";
 import WellDataViewer from "@/components/visualizations/WellDataViewer";
 import ConnectorsView from "@/components/visualizations/ConnectorsView";
+import { Suspense, lazy } from "react";
+
+const FieldBasicView = lazy(() => import("@/components/visualizations/FieldBasicView"));
+const RigOperationsView = lazy(() => import("@/components/visualizations/RigOperationsView"));
+const StuckPipeView = lazy(() => import("@/components/visualizations/StuckPipeView"));
+const RigLoadsView = lazy(() => import("@/components/visualizations/RigLoadsView"));
+const TonMilesView = lazy(() => import("@/components/visualizations/TonMilesView"));
+const TankCapacityView = lazy(() => import("@/components/visualizations/TankCapacityView"));
+const AirGasView = lazy(() => import("@/components/visualizations/AirGasView"));
+const CompletionsView = lazy(() => import("@/components/visualizations/CompletionsView"));
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function App() {
@@ -50,6 +60,22 @@ export default function App() {
         return <CementingView />;
       case "casing-directional":
         return <CasingAndDirectionalView />;
+      case "field-basic":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Módulo Field Operations...</div>}><FieldBasicView /></Suspense>;
+      case "rig-operations":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Operações de Sondagem...</div>}><RigOperationsView /></Suspense>;
+      case "stuck-pipe":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Prisão de Coluna...</div>}><StuckPipeView /></Suspense>;
+      case "rig-loads":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Cargas na Sonda...</div>}><RigLoadsView /></Suspense>;
+      case "ton-miles":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Serviço Ton-Mile...</div>}><TonMilesView /></Suspense>;
+      case "tank-capacity":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Capacidade de Tanques...</div>}><TankCapacityView /></Suspense>;
+      case "air-gas":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Perfuração a Ar & Gás...</div>}><AirGasView /></Suspense>;
+      case "completions":
+        return <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Carregando Completação & Core...</div>}><CompletionsView /></Suspense>;
       case "surface-facilities":
         return <SurfaceFacilitiesView />;
       case "reservoir-simulation":

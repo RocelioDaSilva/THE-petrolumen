@@ -131,10 +131,11 @@ export default function CasingAndDirectionalView() {
       </div>
 
       <Tabs defaultValue="casing" className="w-full">
-        <TabsList className="bg-muted p-1 grid grid-cols-3">
+        <TabsList className="bg-muted p-1 grid grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="casing" className="text-xs">Projeto de Revestimento (API)</TabsTrigger>
           <TabsTrigger value="directional" className="text-xs">Trajetória Direcional (3D)</TabsTrigger>
           <TabsTrigger value="rigpower" className="text-xs">Elevação &amp; Custos ($/ft)</TabsTrigger>
+          <TabsTrigger value="carter-directional" className="text-xs">Carter Directional v3</TabsTrigger>
         </TabsList>
 
         {/* TAB 1: CASING DESIGN */}
@@ -520,6 +521,61 @@ export default function CasingAndDirectionalView() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="carter-directional" className="space-y-6 pt-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Carter Ch. 7 Directional Drilling Toolkit (Angle Averaging, Radius of Curvature, DLS & TVD Approx)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="angle-avg" className="w-full">
+                <TabsList className="bg-muted p-1">
+                  <TabsTrigger value="angle-avg">Angle Averaging</TabsTrigger>
+                  <TabsTrigger value="rad-curv">Radius of Curvature</TabsTrigger>
+                  <TabsTrigger value="dls-carter">DLS Methods</TabsTrigger>
+                  <TabsTrigger value="tvd-approx">TVD Approx</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="angle-avg" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Angle Averaging Directional Survey Method:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Delta North:</span> <strong>28.8 ft</strong></p>
+                    <p className="flex justify-between"><span>Delta East:</span> <strong>11.9 ft</strong></p>
+                    <p className="flex justify-between"><span>Delta TVD:</span> <strong>96.6 ft</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="rad-curv" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Radius of Curvature Directional Survey Method:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Delta North:</span> <strong>28.8 ft</strong></p>
+                    <p className="flex justify-between"><span>Delta East:</span> <strong>11.9 ft</strong></p>
+                    <p className="flex justify-between"><span>Delta TVD:</span> <strong>96.6 ft</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="dls-carter" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Dogleg Severity (DLS) Calculations:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>DLS (3D Vector):</span> <strong>10.6° / 100 ft</strong></p>
+                    <p className="flex justify-between"><span>DLS (Lubinski Approximation):</span> <strong>10.3° / 100 ft</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="tvd-approx" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">TVD Approximation Formula:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Measured Depth:</span> <strong>10,000 ft</strong></p>
+                    <p className="flex justify-between"><span>Inclination:</span> <strong>30.0°</strong></p>
+                    <p className="flex justify-between"><span>Approximated TVD:</span> <strong>8,660 ft</strong></p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

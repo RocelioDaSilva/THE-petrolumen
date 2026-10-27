@@ -98,3 +98,126 @@ export const SALT_WATER_ACTIVITY: { salt: string; wtPct: number; activity: numbe
   { salt: 'CaCl2', wtPct: 35, activity: 0.53 },
   { salt: 'CaCl2', wtPct: 40, activity: 0.38 },
 ];
+
+export interface PipeCapacitySpec {
+  odInches: number;
+  weightLbFt: number;
+  idInches: number;
+  capacityBblFt: number;
+  displacementBblFt: number;
+}
+
+/**
+ * Drill Pipe Capacity and Displacement Table (Carter Appendix A, Table A.1)
+ */
+export const DRILL_PIPE_CAPACITY_DISPLACEMENT: PipeCapacitySpec[] = [
+  { odInches: 2.375, weightLbFt: 6.65, idInches: 1.815, capacityBblFt: 0.0032, displacementBblFt: 0.0025 },
+  { odInches: 2.875, weightLbFt: 10.4, idInches: 2.151, capacityBblFt: 0.0045, displacementBblFt: 0.0038 },
+  { odInches: 3.5, weightLbFt: 13.3, idInches: 2.764, capacityBblFt: 0.0074, displacementBblFt: 0.0045 },
+  { odInches: 3.5, weightLbFt: 15.5, idInches: 2.602, capacityBblFt: 0.0066, displacementBblFt: 0.0053 },
+  { odInches: 4.0, weightLbFt: 14.0, idInches: 3.34, capacityBblFt: 0.0108, displacementBblFt: 0.0047 },
+  { odInches: 4.5, weightLbFt: 16.6, idInches: 3.826, capacityBblFt: 0.0142, displacementBblFt: 0.0053 },
+  { odInches: 4.5, weightLbFt: 20.0, idInches: 3.64, capacityBblFt: 0.0129, displacementBblFt: 0.0067 },
+  { odInches: 5.0, weightLbFt: 19.5, idInches: 4.276, capacityBblFt: 0.0178, displacementBblFt: 0.0065 },
+  { odInches: 5.0, weightLbFt: 25.6, idInches: 4.0, capacityBblFt: 0.0155, displacementBblFt: 0.0087 },
+  { odInches: 5.5, weightLbFt: 21.9, idInches: 4.778, capacityBblFt: 0.0222, displacementBblFt: 0.0072 },
+  { odInches: 5.5, weightLbFt: 24.7, idInches: 4.67, capacityBblFt: 0.0212, displacementBblFt: 0.0082 },
+  { odInches: 6.625, weightLbFt: 25.2, idInches: 5.965, capacityBblFt: 0.0346, displacementBblFt: 0.0081 },
+];
+
+/**
+ * Heavy Weight Drill Pipe (HWDP) Capacity and Displacement Table (Carter Appendix A, Table A.2)
+ */
+export const HWDP_CAPACITY_DISPLACEMENT: PipeCapacitySpec[] = [
+  { odInches: 3.5, weightLbFt: 25.3, idInches: 2.25, capacityBblFt: 0.0049, displacementBblFt: 0.0070 },
+  { odInches: 4.0, weightLbFt: 29.7, idInches: 2.562, capacityBblFt: 0.0064, displacementBblFt: 0.0091 },
+  { odInches: 4.5, weightLbFt: 41.0, idInches: 2.75, capacityBblFt: 0.0073, displacementBblFt: 0.0123 },
+  { odInches: 5.0, weightLbFt: 49.3, idInches: 3.0, capacityBblFt: 0.0087, displacementBblFt: 0.0155 },
+  { odInches: 5.5, weightLbFt: 57.0, idInches: 3.25, capacityBblFt: 0.0103, displacementBblFt: 0.0189 },
+  { odInches: 6.625, weightLbFt: 78.5, idInches: 4.5, capacityBblFt: 0.0197, displacementBblFt: 0.0229 },
+];
+
+/**
+ * Drill Collar Capacity and Displacement Table (Carter Appendix A, Table A.3)
+ */
+export const DRILL_COLLAR_CAPACITY_DISPLACEMENT: PipeCapacitySpec[] = [
+  { odInches: 4.75, weightLbFt: 48.0, idInches: 2.25, capacityBblFt: 0.0049, displacementBblFt: 0.0170 },
+  { odInches: 6.25, weightLbFt: 83.0, idInches: 2.25, capacityBblFt: 0.0049, displacementBblFt: 0.0330 },
+  { odInches: 6.5, weightLbFt: 91.0, idInches: 2.8125, capacityBblFt: 0.0077, displacementBblFt: 0.0333 },
+  { odInches: 7.0, weightLbFt: 110.0, idInches: 2.8125, capacityBblFt: 0.0077, displacementBblFt: 0.0399 },
+  { odInches: 8.0, weightLbFt: 150.0, idInches: 2.8125, capacityBblFt: 0.0077, displacementBblFt: 0.0544 },
+  { odInches: 9.5, weightLbFt: 217.0, idInches: 3.0, capacityBblFt: 0.0087, displacementBblFt: 0.0789 },
+  { odInches: 10.0, weightLbFt: 243.0, idInches: 3.0, capacityBblFt: 0.0087, displacementBblFt: 0.0884 },
+];
+
+export interface SurfaceSystemCSS {
+  caseNumber: number;
+  description: string;
+  css: number;
+  standpipeFt: { length: number; id: number };
+  hoseFt: { length: number; id: number };
+  swivelFt: { length: number; id: number };
+  kellyFt: { length: number; id: number };
+}
+
+/**
+ * Surface System Friction Constant (CSS) Cases (Carter Ch. 6, Table 6.1)
+ */
+export const SURFACE_SYSTEM_CSS: SurfaceSystemCSS[] = [
+  {
+    caseNumber: 1,
+    description: "Case 1: 40 ft x 3.0 in. standpipe, 45 ft x 2.0 in. hose, 4 ft x 2.0 in. swivel, 40 ft x 2.25 in. kelly",
+    css: 25,
+    standpipeFt: { length: 40, id: 3.0 },
+    hoseFt: { length: 45, id: 2.0 },
+    swivelFt: { length: 4, id: 2.0 },
+    kellyFt: { length: 40, id: 2.25 },
+  },
+  {
+    caseNumber: 2,
+    description: "Case 2: 40 ft x 3.5 in. standpipe, 55 ft x 2.5 in. hose, 5 ft x 2.5 in. swivel, 40 ft x 3.25 in. kelly",
+    css: 8.6,
+    standpipeFt: { length: 40, id: 3.5 },
+    hoseFt: { length: 55, id: 2.5 },
+    swivelFt: { length: 5, id: 2.5 },
+    kellyFt: { length: 40, id: 3.25 },
+  },
+  {
+    caseNumber: 3,
+    description: "Case 3: 45 ft x 4.0 in. standpipe, 55 ft x 3.0 in. hose, 5 ft x 2.5 in. swivel, 40 ft x 3.25 in. kelly",
+    css: 4.2,
+    standpipeFt: { length: 45, id: 4.0 },
+    hoseFt: { length: 55, id: 3.0 },
+    swivelFt: { length: 5, id: 2.5 },
+    kellyFt: { length: 40, id: 3.25 },
+  },
+  {
+    caseNumber: 4,
+    description: "Case 4: 45 ft x 4.0 in. standpipe, 55 ft x 3.0 in. hose, 6 ft x 3.0 in. swivel, 40 ft x 4.0 in. top drive / kelly",
+    css: 2.0,
+    standpipeFt: { length: 45, id: 4.0 },
+    hoseFt: { length: 55, id: 3.0 },
+    swivelFt: { length: 6, id: 3.0 },
+    kellyFt: { length: 40, id: 4.0 },
+  },
+];
+
+export interface DrillLineCutoffGoal {
+  lineDiameterInches: number;
+  tonMileGoal: number;
+  recommendedCutoffLengthFt: number;
+}
+
+/**
+ * Recommended Drill Line Ton-Mile Goals (Carter Ch. 7, Table 7.1)
+ */
+export const DRILL_LINE_TON_MILE_GOAL: DrillLineCutoffGoal[] = [
+  { lineDiameterInches: 1.0, tonMileGoal: 800, recommendedCutoffLengthFt: 30 },
+  { lineDiameterInches: 1.125, tonMileGoal: 1050, recommendedCutoffLengthFt: 35 },
+  { lineDiameterInches: 1.25, tonMileGoal: 1350, recommendedCutoffLengthFt: 40 },
+  { lineDiameterInches: 1.375, tonMileGoal: 1650, recommendedCutoffLengthFt: 45 },
+  { lineDiameterInches: 1.5, tonMileGoal: 2000, recommendedCutoffLengthFt: 50 },
+  { lineDiameterInches: 1.625, tonMileGoal: 2350, recommendedCutoffLengthFt: 55 },
+  { lineDiameterInches: 1.75, tonMileGoal: 2700, recommendedCutoffLengthFt: 60 },
+  { lineDiameterInches: 2.0, tonMileGoal: 3500, recommendedCutoffLengthFt: 70 },
+];

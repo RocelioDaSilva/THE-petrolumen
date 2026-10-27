@@ -18,6 +18,8 @@ import {
   FlaskConical,
   Package,
   Compass,
+  Activity,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -72,6 +74,62 @@ export const APP_MODULES: NavModule[] = [
     icon: Compass,
     description: "Barlow, Colapso Biaxial & Curvatura 3D",
     category: "Perfuração & Poço",
+  },
+  {
+    id: "field-basic",
+    name: "Field Formulas",
+    icon: Wrench,
+    description: "Carter Ch. 1 Hydrostatics & Pump Output",
+    category: "Field Operations",
+  },
+  {
+    id: "rig-operations",
+    name: "Rig Operations",
+    icon: Gauge,
+    description: "Accumulator, Heavy Slug & Spotting Pills",
+    category: "Field Operations",
+  },
+  {
+    id: "stuck-pipe",
+    name: "Stuck Pipe & Fishing",
+    icon: ShieldAlert,
+    description: "Fishing Economics, Free Point & Force",
+    category: "Field Operations",
+  },
+  {
+    id: "rig-loads",
+    name: "Rig Loads",
+    icon: Boxes,
+    description: "Derrick, Fast Line & Safety Factors",
+    category: "Field Operations",
+  },
+  {
+    id: "ton-miles",
+    name: "Ton-Mile Service",
+    icon: Activity,
+    description: "Round Trip, Drilling & Line Cutoff",
+    category: "Field Operations",
+  },
+  {
+    id: "tank-capacity",
+    name: "Tank Capacity",
+    icon: Package,
+    description: "Rectangular, Cylindrical & Tapered Tanks",
+    category: "Field Operations",
+  },
+  {
+    id: "air-gas",
+    name: "Air & Gas Drilling",
+    icon: FlaskConical,
+    description: "Static Column & Compressible Circulation",
+    category: "Field Operations",
+  },
+  {
+    id: "completions",
+    name: "Completions",
+    icon: Layers,
+    description: "Dean Stark Core & Tubing Stretch",
+    category: "Field Operations",
   },
   {
     id: "surface-facilities",
