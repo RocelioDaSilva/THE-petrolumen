@@ -128,6 +128,8 @@ export function sizeHorizontalTwoPhaseSeparator(
   const CD = settling.dragCoefficient;
 
   // Eq. 4-8a: d * Leff = 420 * [(T * Z * Qg) / P] * [(rhoG / (rhoL - rhoG)) * (CD / dm)]^0.5
+  // Note: Arnold & Stewart Ex. 4-3 (p. 232) lists 55.04 in the worked solution, which is a book typo.
+  // The exact derivation from pp. 206-209 yields d*Leff = 39.85 (or 39.91 with exact rounded CD/densities).
   const gasTerm = (tRankine * z * qgMmscfd) / pPsia;
   const densityTerm = (rhoG / (rhoL - rhoG)) * (CD / dmMicrons);
   const dLeffGas = 420 * gasTerm * Math.sqrt(densityTerm);

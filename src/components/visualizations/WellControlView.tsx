@@ -385,11 +385,12 @@ export default function WellControlView() {
 
       {/* Tabs navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-muted p-1 grid grid-cols-2 lg:grid-cols-4 w-full">
+        <TabsList className="bg-muted p-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 w-full">
           <TabsTrigger value="kill-sheet">1. Kill Sheet & Influxo</TabsTrigger>
           <TabsTrigger value="volumes">2. Volumes & Trip Sheet</TabsTrigger>
           <TabsTrigger value="pressures">3. Pressões, LOT & Tripping</TabsTrigger>
           <TabsTrigger value="training">4. Modo Treinamento & Teste</TabsTrigger>
+          <TabsTrigger value="carter-well-control">5. Carter Well Control v3</TabsTrigger>
         </TabsList>
 
         {/* ========================================================= */}
@@ -1174,6 +1175,68 @@ export default function WellControlView() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="carter-well-control" className="pt-4 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Carter Ch. 3 Well Control Toolkit (Tapered, Deviated, Subsea, Workover & Barite Plug)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="tapered" className="w-full">
+                <TabsList className="bg-muted p-1">
+                  <TabsTrigger value="tapered">Tapered String</TabsTrigger>
+                  <TabsTrigger value="deviated">Deviated Well</TabsTrigger>
+                  <TabsTrigger value="subsea">Subsea MASP</TabsTrigger>
+                  <TabsTrigger value="workover">Workover</TabsTrigger>
+                  <TabsTrigger value="barite">Barite Plug</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="tapered" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Tapered Drill String Step-Down Pressure Schedule:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Section 1 (5" DP 7000 ft):</span> <strong>1250 psi @ 1063 stk</strong></p>
+                    <p className="flex justify-between"><span>Section 2 (3.5" DP 3000 ft):</span> <strong>1100 psi @ 1288 stk</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="deviated" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Deviated Well Kill Pressure Profile:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>KOP Surface Circulating Pressure:</span> <strong>850 psi</strong></p>
+                    <p className="flex justify-between"><span>Strokes to KOP:</span> <strong>388 stk</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="subsea" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Subsea Fracture Gradient & MASP:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Subsea MASP (Method 1):</span> <strong>8210 psi</strong></p>
+                    <p className="flex justify-between"><span>Subsea MASP (Method 2):</span> <strong>465 psi</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="workover" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Workover Bullheading & Lubrication:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>MATP Initial:</span> <strong>2800 psi</strong></p>
+                    <p className="flex justify-between"><span>Pressure Reduction per Barrel:</span> <strong>32.8 psi/bbl</strong></p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="barite" className="space-y-4 pt-3 text-xs">
+                  <p className="text-muted-foreground">Barite Plug Formulation:</p>
+                  <div className="p-3 bg-slate-50 rounded border space-y-1 font-mono">
+                    <p className="flex justify-between"><span>Plug Volume:</span> <strong>20 bbl</strong></p>
+                    <p className="flex justify-between"><span>Base Liquid Volume:</span> <strong>13.1 bbl</strong></p>
+                    <p className="flex justify-between"><span>Barite Sacks:</span> <strong>294 sacks</strong></p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

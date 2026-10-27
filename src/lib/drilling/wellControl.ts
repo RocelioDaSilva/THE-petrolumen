@@ -28,6 +28,645 @@ export interface WellControlValidation {
 }
 
 /**
+ * MASICP: Maximum Allowable Surface Pressure / Shut-In Casing Pressure
+ * Sourced: Carter Ch. 3, Eq. 3.1
+ * MASICP = (LOT - MWc) * 0.052 * Csgd
+ */
+export function masicp(lotPpg: number, mwcPpg: number, csgDTVDFt: number): number {
+  return (lotPpg - mwcPpg) * HYDROSTATIC_CONSTANT * csgDTVDFt;
+}
+
+/**
+ * Kill Mud Weight (rounds UP to 1 decimal place per Cormack rule)
+ * Sourced: Carter Ch. 3, Eq. 3.2
+ */
+export function killMudWeight_carter(sidppPsi: number, tvdFt: number, mwcPpg: number): number {
+  return killMudWeight(sidppPsi, tvdFt, mwcPpg);
+}
+
+/**
+ * Initial Circulating Pressure (ICP)
+ * Sourced: Carter Ch. 3, Eq. 3.3
+ */
+export function initialCirculatingPressure(sidppPsi: number, krpPsi: number): number {
+  return icp(krpPsi, sidppPsi);
+}
+
+/**
+ * Final Circulating Pressure (FCP)
+ * Sourced: Carter Ch. 3, Eq. 3.4
+ */
+export function finalCirculatingPressure(kmwPpg: number, krpPsi: number, mwcPpg: number): number {
+  return fcp(kmwPpg, mwcPpg, krpPsi);
+}
+
+/**
+ * Strokes per line on pressure chart
+ * Sourced: Carter Ch. 3, Eq. 3.5
+ */
+export function strokesPerLine(spbStrokes: number, lines: number = 10): number {
+  return spbStrokes / lines;
+}
+
+/**
+ * Pressure decrease per line on pressure chart
+ * Sourced: Carter Ch. 3, Eq. 3.6
+ */
+export function pressureDecreasePerLine(icpPsi: number, fcpPsi: number, lines: number = 10): number {
+  return (icpPsi - fcpPsi) / lines;
+}
+
+/**
+ * Digital pressure chart schedule
+ * Sourced: Carter Ch. 3, Section 3.2
+ */
+export function pressureChart_digital(icpPsi: number, fcpPsi: number, spbStrokes: number, lines: number = 10): { stroke: number; pressure: number }[] {
+  const chart: { stroke: number; pressure: number }[] = [];
+  const dStrokes = strokesPerLine(spbStrokes, lines);
+  const dP = pressureDecreasePerLine(icpPsi, fcpPsi, lines);
+  for (let i = 0; i <= lines; i++) {
+    chart.push({
+      stroke: Math.round(i * dStrokes),
+      pressure: Math.round(icpPsi - i * dP),
+    });
+  }
+  return chart;
+}
+
+/**
+ * Analog pressure chart schedule
+ * Sourced: Carter Ch. 3, Section 3.2
+ */
+export function pressureChart_analog(icpPsi: number, fcpPsi: number, stbTimeMin: number, lines: number = 10): { timeMin: number; pressure: number }[] {
+  const chart: { timeMin: number; pressure: number }[] = [];
+  const dt = stbTimeMin / lines;
+  const dP = pressureDecreasePerLine(icpPsi, fcpPsi, lines);
+  for (let i = 0; i <= lines; i++) {
+    chart.push({
+      timeMin: Math.round(i * dt * 10) / 10,
+      pressure: Math.round(icpPsi - i * dP),
+    });
+  }
+  return chart;
+}
+
+/**
+ * Tapered string section strokes
+ * Sourced: Carter Ch. 3, Eq. 3.7
+ */
+export function sectionStrokes(lengthFt: number, capacityBblFt: number, pumpOutputBblStk: number): number {
+  return (lengthFt * capacityBblFt) / pumpOutputBblStk;
+}
+
+/**
+ * Tapered string section pressure
+ * Sourced: Carter Ch. 3, Eq. 3.8
+ */
+export function sectionPressure(icpPsi: number, fcpPsi: number, sectionLengthFt: number, totalLengthFt: number): number {
+  return icpPsi - ((icpPsi - fcpPsi) * sectionLengthFt) / totalLengthFt;
+}
+
+/**
+ * Tapered kill sheet calculations
+ * Sourced: Carter Ch. 3, Section 3.3
+ */
+export function taperedKillSheet(sections: { name: string; lengthFt: number; capacityBblFt: number }[], icpPsi: number, fcpPsi: number, pumpOutputBblStk: number): { name: string; cumulativeStrokes: number; pressureAtEnd: number }[] {
+  const totalLength = sections.reduce((sum, s) => sum + s.lengthFt, 0);
+  let cumStrokes = 0;
+  let cumLength = 0;
+  return sections.map((sec) => {
+    const stks = sectionStrokes(sec.lengthFt, sec.capacityBblFt, pumpOutputBblStk);
+    cumStrokes += stks;
+    cumLength += sec.lengthFt;
+    const pEnd = sectionPressure(icpPsi, fcpPsi, cumLength, totalLength);
+    return {
+      name: sec.name,
+      cumulativeStrokes: Math.round(cumStrokes),
+      pressureAtEnd: Math.round(pEnd),
+    };
+  });
+}
+
+/**
+ * Strokes to KOP in deviated well
+ * Sourced: Carter Ch. 3, Eq. 3.9
+ */
+export function strokesToKOP(cdpBblFt: number, mdKopFt: number, opBblStk: number): number {
+  return (cdpBblFt * mdKopFt) / opBblStk;
+}
+
+/**
+ * Strokes from KOP to bit in deviated well
+ * Sourced: Carter Ch. 3, Eq. 3.10
+ */
+export function strokesFromKOP(cdpBblFt: number, mdBitFt: number, mdKopFt: number, opBblStk: number): number {
+  return (cdpBblFt * (mdBitFt - mdKopFt)) / opBblStk;
+}
+
+/**
+ * Kill weight mud in deviated well
+ * Sourced: Carter Ch. 3, Eq. 3.11
+ */
+export function killWeightMudDeviated(sidppPsi: number, tvdTdFt: number, mwcPpg: number): number {
+  return killMudWeight(sidppPsi, tvdTdFt, mwcPpg);
+}
+
+/**
+ * Circulating pressure at KOP
+ * Sourced: Carter Ch. 3, Eq. 3.12
+ */
+export function circulatingPressureAtKOP(icpPsi: number, kmwPpg: number, mwcPpg: number, tvdKopFt: number, tvdTdFt: number, sidppPsi: number, krpPsi: number): number {
+  const fcpVal = finalCirculatingPressure(kmwPpg, krpPsi, mwcPpg);
+  return icpPsi - ((icpPsi - fcpVal) * tvdKopFt) / tvdTdFt;
+}
+
+/**
+ * MASP Method 1 (Gas column to surface)
+ * Sourced: Carter Ch. 3, Eq. 3.13
+ */
+export function masp_method1(mwmPpg: number, mwsfPpg: number, tvdFt: number, gGasPsiFt: number = 0.115): number {
+  return (mwsfPpg - mwmPpg) * HYDROSTATIC_CONSTANT * tvdFt + (mwmPpg * HYDROSTATIC_CONSTANT - gGasPsiFt) * tvdFt;
+}
+
+/**
+ * MASP Method 2 (Fracture gradient & gas column)
+ * Sourced: Carter Ch. 3, Eq. 3.14
+ */
+export function masp_method2(fgPpg: number, mwsfPpg: number, tvdCsgFt: number, tvdTdFt: number, gGasPsiFt: number = 0.115): number {
+  return (fgPpg - mwsfPpg) * HYDROSTATIC_CONSTANT * tvdCsgFt - gGasPsiFt * (tvdTdFt - tvdCsgFt);
+}
+
+/**
+ * Trip margin
+ * Sourced: Carter Ch. 3, Eq. 3.15
+ */
+export function tripMargin(yp: number, dhInches: number, dpInches: number): number {
+  return yp / (11.7 * (dhInches - dpInches));
+}
+
+/**
+ * Diverter line diameter
+ * Sourced: Carter Ch. 3, Eq. 3.16
+ */
+export function diverterLineDiameter(dhInches: number, dpInches: number): number {
+  return Math.sqrt(Math.pow(dhInches, 2) - Math.pow(dpInches, 2));
+}
+
+/**
+ * Matthews & Kelly fracture gradient (Louisiana Offshore)
+ * Sourced: Carter Ch. 3, Eq. 3.17
+ */
+export function fgMatthewsKelly_Louisiana(pGradPsiFt: number, tvdFt: number): number {
+  const ki = 0.5 + 3e-5 * tvdFt;
+  const obg = 1.0;
+  const fgPsiFt = pGradPsiFt + ki * (obg - pGradPsiFt);
+  return fgPsiFt / HYDROSTATIC_CONSTANT;
+}
+
+/**
+ * Matthews & Kelly fracture gradient (Texas Gulf Coast)
+ * Sourced: Carter Ch. 3, Eq. 3.18
+ */
+export function fgMatthewsKelly_Texas(pGradPsiFt: number, tvdFt: number): number {
+  const ki = 0.6 + 2.5e-5 * tvdFt;
+  const obg = 1.0;
+  const fgPsiFt = pGradPsiFt + ki * (obg - pGradPsiFt);
+  return fgPsiFt / HYDROSTATIC_CONSTANT;
+}
+
+/**
+ * Eaton Overburden Gradient curve approximation
+ * Sourced: Carter Ch. 3, Section 3.8
+ */
+export function eatonOverburdenGradient(tvdFt: number): number {
+  return 0.85 + 0.15 * (1 - Math.exp(-tvdFt / 5000));
+}
+
+/**
+ * Eaton Poisson's Ratio curve approximation
+ * Sourced: Carter Ch. 3, Section 3.8
+ */
+export function eatonPoissonRatio(tvdFt: number): number {
+  return 0.25 + 0.2 * (tvdFt / 20000);
+}
+
+/**
+ * Eaton Fracture Gradient
+ * Sourced: Carter Ch. 3, Eq. 3.19
+ */
+export function fgEaton(obgPsiFt: number, pGradPsiFt: number, poissonRatio: number): number {
+  const fgPsiFt = pGradPsiFt + (poissonRatio / (1 - poissonRatio)) * (obgPsiFt - pGradPsiFt);
+  return fgPsiFt / HYDROSTATIC_CONSTANT;
+}
+
+/**
+ * Subsea Fracture Gradient
+ * Sourced: Carter Ch. 3, Eq. 3.20
+ */
+export function fgSubsea(obgPsiFt: number, pGradPsiFt: number, poissonRatio: number, waterDepthFt: number, airGapFt: number, tvdFt: number): number {
+  const seaWaterGrad = 0.444;
+  const obgAdj = (seaWaterGrad * waterDepthFt + obgPsiFt * (tvdFt - waterDepthFt - airGapFt)) / tvdFt;
+  return fgEaton(obgAdj, pGradPsiFt, poissonRatio);
+}
+
+/**
+ * FIT Surface Pressure Method 1
+ * Sourced: Carter Ch. 3, Eq. 3.21
+ */
+export function surfacePressure_FIT_method1(mwmPpg: number, mwcPpg: number, tvdCsgFt: number): number {
+  return (mwmPpg - mwcPpg) * HYDROSTATIC_CONSTANT * tvdCsgFt;
+}
+
+/**
+ * FIT Surface Pressure Method 2
+ * Sourced: Carter Ch. 3, Eq. 3.22
+ */
+export function surfacePressure_FIT_method2(targetEmwPpg: number, mwcPpg: number, tvdCsgFt: number): number {
+  return (targetEmwPpg - mwcPpg) * HYDROSTATIC_CONSTANT * tvdCsgFt;
+}
+
+/**
+ * FIT Surface Pressure Method 3
+ * Sourced: Carter Ch. 3, Eq. 3.23
+ */
+export function surfacePressure_FIT_method3(fgPpg: number, mwcPpg: number, tvdCsgFt: number): number {
+  return (fgPpg - mwcPpg) * HYDROSTATIC_CONSTANT * tvdCsgFt;
+}
+
+/**
+ * Maximum allowable pressure line
+ * Sourced: Carter Ch. 3, Eq. 3.24
+ */
+export function maxAllowablePressureLine(overburdenPsiFt: number, sf: number, tvdCsgFt: number, mwPpg: number): number {
+  return (overburdenPsiFt * sf - mwPpg * HYDROSTATIC_CONSTANT) * tvdCsgFt;
+}
+
+/**
+ * Estimated LOT pressure line
+ * Sourced: Carter Ch. 3, Eq. 3.25
+ */
+export function estimatedLOTPressureLine(fgPpg: number, mwPpg: number, tvdCsgFt: number): number {
+  return (fgPpg - mwPpg) * HYDROSTATIC_CONSTANT * tvdCsgFt;
+}
+
+/**
+ * Minimum acceptable LOT pressure line
+ * Sourced: Carter Ch. 3, Eq. 3.26
+ */
+export function minAcceptableLOTPressureLine(mwMxiPpg: number, mwPpg: number, tvdCsgFt: number): number {
+  return (mwMxiPpg - mwPpg) * HYDROSTATIC_CONSTANT * tvdCsgFt;
+}
+
+/**
+ * Mud compressibility factor
+ * Sourced: Carter Ch. 3, Eq. 3.27
+ */
+export function mudCompressibility(waterPct: number, oilPct: number, solidsPct: number): number {
+  return (waterPct * 3.0 + oilPct * 5.0 + solidsPct * 0.5) / 100;
+}
+
+/**
+ * LOT graph slope
+ * Sourced: Carter Ch. 3, Eq. 3.28
+ */
+export function lotGraphSlope(cm: number, vSystemBbl: number): number {
+  return 10000 / (vSystemBbl * (cm / 100));
+}
+
+/**
+ * Maximum allowable mud weight from LOT
+ * Sourced: Carter Ch. 3, Eq. 3.29
+ */
+export function maxAllowableMudWeight(lotPsi: number, tvdCsgFt: number, mwPpg: number): number {
+  return maxMudWeight(lotPsi, tvdCsgFt, mwPpg);
+}
+
+/**
+ * Kick tolerance intensity
+ * Sourced: Carter Ch. 3, Eq. 3.30
+ */
+export function ktIntensity(fgPpg: number, mwPpg: number, sfPpg: number, tmPpg: number, tvdCsgFt: number, tvdTdFt: number): number {
+  return ((fgPpg - sfPpg - tmPpg) * tvdCsgFt - mwPpg * (tvdTdFt - tvdCsgFt)) / tvdTdFt;
+}
+
+/**
+ * Kick tolerance maximum surface pressure
+ * Sourced: Carter Ch. 3, Eq. 3.31
+ */
+export function ktMaximumSurfacePressure(ktiPpg: number, tvdTdFt: number): number {
+  return ktiPpg * HYDROSTATIC_CONSTANT * tvdTdFt;
+}
+
+/**
+ * Kick tolerance maximum formation pressure
+ * Sourced: Carter Ch. 3, Eq. 3.32
+ */
+export function ktMaximumFormationPressure(ktiPpg: number, mwPpg: number, tvdTdFt: number): number {
+  return (mwPpg + ktiPpg) * HYDROSTATIC_CONSTANT * tvdTdFt;
+}
+
+/**
+ * Kick tolerance influx length
+ * Sourced: Carter Ch. 3, Eq. 3.33
+ */
+export function ktInfluxLength(masicpPsi: number, gMudPsiFt: number, gInfluxPsiFt: number): number {
+  return masicpPsi / (gMudPsiFt - gInfluxPsiFt);
+}
+
+/**
+ * Kick tolerance kick volume
+ * Sourced: Carter Ch. 3, Eq. 3.34
+ */
+export function ktVolume(fgPpg: number, tvdCsgFt: number, lInfluxFt: number, caBblFt: number, mwPpg: number, tvdTdFt: number): number {
+  return lInfluxFt * caBblFt;
+}
+
+/**
+ * BHP from SIDPP
+ * Sourced: Carter Ch. 3, Eq. 3.35
+ */
+export function BHPFromSIDPP(sidppPsi: number, mwPpg: number, tvdTdFt: number): number {
+  return sidppPsi + mwPpg * HYDROSTATIC_CONSTANT * tvdTdFt;
+}
+
+/**
+ * SIDPP from formation pressure
+ * Sourced: Carter Ch. 3, Eq. 3.36
+ */
+export function SIDPPFromFP(pfPsi: number, mwPpg: number, tvdTdFt: number): number {
+  return pfPsi - mwPpg * HYDROSTATIC_CONSTANT * tvdTdFt;
+}
+
+/**
+ * SICP from formation pressure and influx
+ * Sourced: Carter Ch. 3, Eq. 3.37
+ */
+export function SICPFromFP(pfPsi: number, mwPpg: number, tvdTdFt: number, gInfluxPsiFt: number, lInfluxFt: number): number {
+  return pfPsi - mwPpg * HYDROSTATIC_CONSTANT * (tvdTdFt - lInfluxFt) - gInfluxPsiFt * lInfluxFt;
+}
+
+/**
+ * Influx length single section
+ * Sourced: Carter Ch. 3, Eq. 3.38
+ */
+export function influxLength(vKickBbl: number, caBblFt: number): number {
+  return vKickBbl / caBblFt;
+}
+
+/**
+ * Influx length multi-section
+ * Sourced: Carter Ch. 3, Eq. 3.39
+ */
+export function influxLengthMultiSection(vKickBbl: number, cDcOhBblFt: number, lDcFt: number, cDpOhBblFt: number): number {
+  const vDc = cDcOhBblFt * lDcFt;
+  if (vKickBbl <= vDc) {
+    return vKickBbl / cDcOhBblFt;
+  }
+  return lDcFt + (vKickBbl - vDc) / cDpOhBblFt;
+}
+
+/**
+ * Influx type from density
+ * Sourced: Carter Ch. 3, Table 3.1
+ */
+export function influxTypeFromDensity(wkPpg: number): "Gas" | "Combination Gas/Oil" | "Oil" | "Salt Water" {
+  if (wkPpg <= 3.0) return "Gas";
+  if (wkPpg <= 5.0) return "Combination Gas/Oil";
+  if (wkPpg <= 7.0) return "Oil";
+  return "Salt Water";
+}
+
+/**
+ * Original mud weight from gas-cut mud
+ * Sourced: Carter Ch. 3, Eq. 3.40
+ */
+export function originalMudWeightFromGasCut(mwGc: number, mwD: number, mwBl: number): number {
+  return (mwGc * mwD) / mwBl;
+}
+
+/**
+ * Gas content fraction from cut mud
+ * Sourced: Carter Ch. 3, Eq. 3.41
+ */
+export function gasContentFromCutMud(mwOrig: number, mwCut: number): number {
+  return (mwOrig - mwCut) / mwOrig;
+}
+
+/**
+ * Reduction in mud weight without a kick
+ * Sourced: Carter Ch. 3, Eq. 3.42
+ */
+export function reductionInMudWeightNoKick(ropFtHr: number, dhInches: number, porosityPct: number, wSolidsPpg: number, mwPpg: number, pBhPsi: number, qGpm: number): number {
+  const qCuttings = (ropFtHr * Math.pow(dhInches, 2)) / 1471;
+  return (qCuttings * (1 - porosityPct / 100) * (wSolidsPpg - mwPpg)) / (qGpm / 42);
+}
+
+/**
+ * Gas migration rate
+ * Sourced: Carter Ch. 3, Eq. 3.43
+ */
+export function gasMigrationRate(sicp2Psi: number, sicp1Psi: number, mwPpg: number, timeHours: number): number {
+  if (timeHours <= 0 || mwPpg <= 0) return 0;
+  return (sicp2Psi - sicp1Psi) / (mwPpg * HYDROSTATIC_CONSTANT * timeHours);
+}
+
+/**
+ * Hydrostatic pressure decrease from influx
+ * Sourced: Carter Ch. 3, Eq. 3.44
+ */
+export function hpDecreaseFromInflux(tvdFt: number, mwgPpg: number, vKickBbl: number, caBblFt: number, gInfluxPsiFt: number): number {
+  const lInflux = vKickBbl / caBblFt;
+  return lInflux * (mwgPpg * HYDROSTATIC_CONSTANT - gInfluxPsiFt);
+}
+
+/**
+ * Hydrostatic pressure decrease gradient method
+ * Sourced: Carter Ch. 3, Eq. 3.45
+ */
+export function hpDecreaseGradientMethod(mwgPpg: number, gInfluxPsiFt: number, caBblFt: number, vKickBbl: number): number {
+  return hpDecreaseFromInflux(0, mwgPpg, vKickBbl, caBblFt, gInfluxPsiFt);
+}
+
+/**
+ * Moore equations - Formation pressure
+ * Sourced: Carter Ch. 3, Eq. 3.46
+ */
+export function mooreFormationPressure(sidppPsi: number, mwPpg: number, tvdFt: number): number {
+  return sidppPsi + mwPpg * HYDROSTATIC_CONSTANT * tvdFt;
+}
+
+/**
+ * Moore equations - Influx length
+ * Sourced: Carter Ch. 3, Eq. 3.47
+ */
+export function mooreInfluxLength(vKickBbl: number, caBblFt: number): number {
+  return vKickBbl / caBblFt;
+}
+
+/**
+ * Moore equations - Influx hydrostatic pressure
+ * Sourced: Carter Ch. 3, Eq. 3.48
+ */
+export function mooreHydrostaticInflux(pfPsi: number, mwPpg: number, tvdFt: number, lInfluxFt: number, sicpPsi: number): number {
+  return pfPsi - mwPpg * HYDROSTATIC_CONSTANT * (tvdFt - lInfluxFt) - sicpPsi;
+}
+
+/**
+ * Moore equations - Influx gradient
+ * Sourced: Carter Ch. 3, Eq. 3.49
+ */
+export function mooreInfluxGradient(pInfluxPsi: number, lInfluxFt: number): number {
+  if (lInfluxFt <= 0) return 0;
+  return pInfluxPsi / lInfluxFt;
+}
+
+/**
+ * Moore equations - Temperature in Rankine
+ * Sourced: Carter Ch. 3, Eq. 3.50
+ */
+export function mooreTemperatureRankin(tSurfaceDegF: number, tempGradDegFFt: number, tvdFt: number): number {
+  return tSurfaceDegF + tempGradDegFFt * tvdFt + 459.67;
+}
+
+/**
+ * Moore equations - Pressure at top of gas bubble
+ * Sourced: Carter Ch. 3, Eq. 3.51
+ */
+export function moorePressureAtTopOfBubble(aBblFt: number, mwgPpg: number, pfPsi: number, zFactor: number, tCsgR: number, lInfluxFt: number, tvdTdFt: number): number {
+  const hpMudAbove = mwgPpg * HYDROSTATIC_CONSTANT * (tvdTdFt - lInfluxFt);
+  return pfPsi - hpMudAbove;
+}
+
+/**
+ * Moore equations - Kill weight mud
+ * Sourced: Carter Ch. 3, Eq. 3.52
+ */
+export function mooreKillWeightMud(sidppPsi: number, tvdFt: number, mwPpg: number): number {
+  return killMudWeight(sidppPsi, tvdFt, mwPpg);
+}
+
+/**
+ * Moore equations - Pressure at casing shoe
+ * Sourced: Carter Ch. 3, Eq. 3.53
+ */
+export function moorePressureAtShoe(pSurfacePsi: number, mwPpg: number, tvdShoeFt: number): number {
+  return pSurfacePsi + mwPpg * HYDROSTATIC_CONSTANT * tvdShoeFt;
+}
+
+/**
+ * Gas flow into wellbore
+ * Sourced: Carter Ch. 3, Eq. 3.54
+ */
+export function gasFlowIntoWellbore(kMd: number, pDiffPsi: number, lFt: number, muCp: number, reFt: number, rwFt: number): number {
+  return (0.00708 * kMd * pDiffPsi * lFt) / (muCp * Math.log(reFt / rwFt));
+}
+
+/**
+ * Gas flow through choke
+ * Sourced: Carter Ch. 3, Eq. 3.55
+ */
+export function gasFlowThroughChoke(cd: number, pUpstreamPsi: number, gasSg: number, tempR: number): number {
+  return 825 * cd * pUpstreamPsi * Math.sqrt(gasSg / tempR);
+}
+
+/**
+ * Workover MATP Initial
+ * Sourced: Carter Ch. 3, Eq. 3.56
+ */
+export function matpInitial(fgPpg: number, tvdPerfsFt: number, hptPsi: number): number {
+  return fgPpg * HYDROSTATIC_CONSTANT * tvdPerfsFt - hptPsi;
+}
+
+/**
+ * Workover MATP Final
+ * Sourced: Carter Ch. 3, Eq. 3.57
+ */
+export function matpFinal(fgPpg: number, tvdPerfsFt: number, hptPsi: number, kwfPpg: number): number {
+  return fgPpg * HYDROSTATIC_CONSTANT * tvdPerfsFt - kwfPpg * HYDROSTATIC_CONSTANT * tvdPerfsFt;
+}
+
+/**
+ * Tubing capacity to perforations
+ * Sourced: Carter Ch. 3, Eq. 3.58
+ */
+export function tubingCapacityToPerfs(cTubingBblFt: number, dPerfsFt: number): number {
+  return cTubingBblFt * dPerfsFt;
+}
+
+/**
+ * Pressure reduction per barrel
+ * Sourced: Carter Ch. 3, Eq. 3.59
+ */
+export function pressureReductionPerBarrel(cTubingBblFt: number, kwfPpg: number): number {
+  return (kwfPpg * HYDROSTATIC_CONSTANT) / cTubingBblFt;
+}
+
+/**
+ * Pressure to bleed off
+ * Sourced: Carter Ch. 3, Eq. 3.60
+ */
+export function pressureToBleedOff(vLubeBbl: number, mwPpg: number, cTubingBblFt: number): number {
+  return (vLubeBbl / cTubingBblFt) * mwPpg * HYDROSTATIC_CONSTANT;
+}
+
+/**
+ * Lubricate & bleed volume method
+ * Sourced: Carter Ch. 3, Eq. 3.61
+ */
+export function lubeVolumeMethod(gMudPsiFt: number, cAnnulusBblFt: number): number {
+  return gMudPsiFt * cAnnulusBblFt;
+}
+
+/**
+ * Lubricate & bleed pressure method
+ * Sourced: Carter Ch. 3, Eq. 3.62
+ */
+export function lubePressureMethod(p1Psi: number, p2Psi: number): number {
+  return p1Psi - p2Psi;
+}
+
+/**
+ * Barite plug open hole capacity
+ * Sourced: Carter Ch. 3, Eq. 3.63
+ */
+export function baritePlug_ohCapacity(dBitInches: number, washOutPct: number = 0): number {
+  const dEffective = dBitInches * (1 + washOutPct / 100);
+  return Math.pow(dEffective, 2) / 1029.4;
+}
+
+/**
+ * Barite plug base liquid volume
+ * Sourced: Carter Ch. 3, Eq. 3.64
+ */
+export function baritePlug_baseLiquid(vPlugBbl: number, wMudSg: number, mwLiquidPpg: number, mwPlugPpg: number): number {
+  return vPlugBbl * ((mwPlugPpg - wMudSg * 8.34) / (mwPlugPpg - mwLiquidPpg));
+}
+
+/**
+ * Barite plug length with pipe in hole
+ * Sourced: Carter Ch. 3, Eq. 3.65
+ */
+export function baritePlug_lengthWithPipe(vPlugBbl: number, cAnnularBblFt: number): number {
+  return vPlugBbl / cAnnularBblFt;
+}
+
+/**
+ * Barite plug length without pipe in hole
+ * Sourced: Carter Ch. 3, Eq. 3.66
+ */
+export function baritePlug_lengthNoPipe(vPlugBbl: number, cHoleBblFt: number): number {
+  return vPlugBbl / cHoleBblFt;
+}
+
+/**
+ * Barite plug sacks required
+ * Sourced: Carter Ch. 3, Eq. 3.67
+ */
+export function baritePlug_sacks(vPlugBbl: number, sacksPerBbl: number = 14.7): number {
+  return Math.round(vPlugBbl * sacksPerBbl);
+}
+
+/**
  * Formation pressure from SIDPP: String HP + SIDPP
  * Sourced: Cormack Sect. 4, Eq. 4.1
  */
