@@ -51,6 +51,9 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
   ];
 
   const modulesStatus = [
+    { id: "well-control", name: "Controle de Poço & Kick Sheet", status: "active", desc: "KMW, ICP/FCP, MAASP, Método Wait & Weight e Influx ID" },
+    { id: "drilling-hydraulics", name: "Hidráulica de Perfuração & ECD", status: "active", desc: "Jatos na Broca (TFA, HHP, JIF), Bingham Plastic e Teste LOT" },
+    { id: "surface-facilities", name: "Instalações & Separadores", status: "active", desc: "Dimensionamento 2/3 Fases (Arnold & Stewart) e Coluna TEG" },
     { id: "reservoir-simulation", name: "Simulação de Reservatórios", status: "active", desc: "Solucionador IMPES 1D & Malha Geocelular 3D" },
     { id: "production-dca", name: "Análise de Declínio (DCA)", status: "active", desc: "Modelos Arps (Exp/Hip/Harm) e Duong" },
     { id: "pvt", name: "Cálculos e Termodinâmica PVT", status: "active", desc: "Equações Standing, Hall-Yarborough e Envelope P-T" },
@@ -68,15 +71,15 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-blue-900/10 via-indigo-900/10 to-purple-900/10 p-6 rounded-xl border border-blue-500/20">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            PetroLúmen • Plataforma de Engenharia de Reservatórios
+            PetroLúmen • Plataforma Integrada de Engenharia de Petróleo
           </h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Ambiente integrado para simulação hidrodinâmica, análise de dados de produção, termodinâmica de fluidos PVT e modelagem econômica.
+            Ambiente integrado para controle de poço, hidráulica de perfuração, instalações de superfície, simulação hidrodinâmica, termodinâmica PVT e análise de produção.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 text-xs">
-            Todos os 9 Módulos Operacionais
+            Todos os 12 Módulos Operacionais
           </Badge>
         </div>
       </div>

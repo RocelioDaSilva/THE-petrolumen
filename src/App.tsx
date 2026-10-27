@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Sidebar, { APP_MODULES } from "@/components/Sidebar";
 import DashboardOverview from "@/components/visualizations/DashboardOverview";
+import WellControlView from "@/components/visualizations/WellControlView";
+import DrillingHydraulicsView from "@/components/visualizations/DrillingHydraulicsView";
+import SurfaceFacilitiesView from "@/components/visualizations/SurfaceFacilitiesView";
 import ReservoirSimulationView from "@/components/visualizations/ReservoirSimulationView";
 import ReservoirGrid3D from "@/components/visualizations/ReservoirGrid3D";
 import DeclineCurveAnalysis from "@/components/visualizations/DeclineCurveAnalysis";
@@ -34,6 +37,12 @@ export default function App() {
     switch (activeModule) {
       case "dashboard":
         return <DashboardOverview onNavigate={setActiveModule} />;
+      case "well-control":
+        return <WellControlView />;
+      case "drilling-hydraulics":
+        return <DrillingHydraulicsView />;
+      case "surface-facilities":
+        return <SurfaceFacilitiesView />;
       case "reservoir-simulation":
         return (
           <div className="space-y-6">
