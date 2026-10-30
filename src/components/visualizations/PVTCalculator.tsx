@@ -19,6 +19,8 @@ import { convert, UnitSystem } from "@/lib/units";
 import { sanitizePVT } from "@/lib/pvt/sanitize";
 import { Beaker, Droplets, Flame, Activity, Zap, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
+import { useSessionRegistry } from "@/lib/sessionRegistry";
+import { useUnit } from "@/lib/unitContext";
 
 interface ComponentEntry {
   name: string;
@@ -30,12 +32,39 @@ interface ComponentEntry {
 }
 
 export default function PVTCalculator() {
-  const [unitSystem, setUnitSystem] = useState<UnitSystem>("field");
-  const [pressure, setPressure] = useState<number>(3200); // psia
-  const [temperature, setTemperature] = useState<number>(180); // °F
-  const [gammaG, setGammaG] = useState<number>(0.72);
-  const [api, setApi] = useState<number>(34.5);
-  const [gor, setGor] = useState<number>(650);
+  const { unitSystem, setUnitSystem } = useUnit();
+  const { activeScenario, updateActiveParameters } = useSessionRegistry();
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  const [pressure, setPressure] = useState<number>(activeScenario?.parameters?.reservoirPressurePsia ?? 3200); // psia
+  const [temperature, setTemperature] = useState<number>(activeScenario?.parameters?.reservoirTempF ?? 180); // °F
+  const [gammaG, setGammaG] = useState<number>(activeScenario?.parameters?.gasSpecificGravity ?? 0.72);
+  const [api, setApi] = useState<number>(activeScenario?.parameters?.oilApiGravity ?? 34.5);
+  const [gor, setGor] = useState<number>(activeScenario?.parameters?.solutionGorScfStb ?? 650);
+
+  // Sync state when active scenario changes
+  React.useEffect(() => {
+    if (activeScenario?.parameters) {
+      const p = activeScenario.parameters;
+      if (p.reservoirPressurePsia) setPressure(p.reservoirPressurePsia);
+      if (p.reservoirTempF) setTemperature(p.reservoirTempF);
+      if (p.gasSpecificGravity) setGammaG(p.gasSpecificGravity);
+      if (p.oilApiGravity) setApi(p.oilApiGravity);
+      if (p.solutionGorScfStb) setGor(p.solutionGorScfStb);
+    }
+  }, [activeScenario?.id]);
+
+  const handleSaveToScenario = () => {
+    updateActiveParameters({
+      reservoirPressurePsia: pressure,
+      reservoirTempF: temperature,
+      gasSpecificGravity: gammaG,
+      oilApiGravity: api,
+      solutionGorScfStb: gor,
+    });
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+  };
 
   // Composition table
   const [composition, setComposition] = useState<ComponentEntry[]>([
@@ -162,6 +191,19 @@ export default function PVTCalculator() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Modelagem termodinâmica de propriedades de rocha-fluido, envelope de fases e correlações de Standing / Hall-Yarborough com sanitização científica contra divisão por zero e pressões nulas.
           </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs bg-muted/60 border-primary/30 text-primary">
+              Cenário: {activeScenario.name}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs h-6 px-2.5 ${saveSuccess ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600" : ""}`}
+              onClick={handleSaveToScenario}
+            >
+              {saveSuccess ? "✓ Salvo no Cenário!" : "Salvar no Cenário Ativo"}
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-semibold text-muted-foreground">Sistema de Unidades:</span>

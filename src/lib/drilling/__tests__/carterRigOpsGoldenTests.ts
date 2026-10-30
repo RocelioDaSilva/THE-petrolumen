@@ -105,3 +105,11 @@ export function runCarterRigOpsGoldenTests(): CarterRigOpsGoldenTestResult[] {
 
   return results;
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("carterRigOpsGoldenTests")) {
+  const res = runCarterRigOpsGoldenTests();
+  const passed = res.filter((r) => r.passed).length;
+  console.log(`\n[Carter Ch. 2 Rig Operations] ${passed}/${res.length} passed`);
+  res.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.description} -> ${r.actual}`));
+  if (passed !== res.length) process.exit(1);
+}

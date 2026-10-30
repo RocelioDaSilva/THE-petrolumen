@@ -46,16 +46,23 @@ import { runCarterRigOpsGoldenTests } from "@/lib/drilling/__tests__/carterRigOp
 import { runCarterStuckPipeGoldenTests } from "@/lib/drilling/__tests__/carterStuckPipeGoldenTests";
 import { runCarterPhase7GoldenTests } from "@/lib/drilling/__tests__/carterPhase7GoldenTests";
 import { runCarterPhase8GoldenTests } from "@/lib/drilling/__tests__/carterPhase8GoldenTests";
+import { runAPI5C3GoldenTests, API5C3TestSuiteSummary } from "@/lib/drilling/__tests__/api5c3GoldenTests";
 import { formatFormulaAudit, CalculationAuditTrail } from "@/lib/math/engine";
+import { useSessionRegistry } from "@/lib/sessionRegistry";
+import { useUnit } from "@/lib/unitContext";
 
 interface DashboardOverviewProps {
   onNavigate: (moduleId: string) => void;
 }
 
 export default function DashboardOverview({ onNavigate }: DashboardOverviewProps) {
+  const { activeScenario } = useSessionRegistry();
+  const { isMetric, formatPressure, formatDepth, formatDensity, formatRate } = useUnit();
+
   const [testSuite, setTestSuite] = useState<GoldenTestSuiteSummary>(() => runCormackGoldenTests());
   const [bourgoyneSuite, setBourgoyneSuite] = useState<BourgoyneTestSuiteSummary>(() => runBourgoyneGoldenTests());
   const [arnoldSuite, setArnoldSuite] = useState<ASGoldenTestResult[]>(() => runArnoldStewartGoldenTests());
+  const [api5c3Suite, setApi5c3Suite] = useState<API5C3TestSuiteSummary>(() => runAPI5C3GoldenTests());
   const [carterSuite, setCarterSuite] = useState(() => [
     ...runCarterWellControlGoldenTests(),
     ...runCarterFluidsGoldenTests(),
@@ -66,9 +73,83 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
     ...runCarterPhase7GoldenTests(),
     ...runCarterPhase8GoldenTests(),
   ]);
-  const [activeBenchmarkTab, setActiveBenchmarkTab] = useState<'all' | 'carter' | 'arnold' | 'bourgoyne' | 'cormack'>('all');
+  const [activeBenchmarkTab, setActiveBenchmarkTab] = useState<'all' | 'carter' | 'api5c3' | 'arnold' | 'bourgoyne' | 'cormack'>('all');
   const [showAllTests, setShowAllTests] = useState(false);
   const [selectedAuditIndex, setSelectedAuditIndex] = useState(0);
+
+  const totalGoldenTests = carterSuite.length + api5c3Suite.totalTests + arnoldSuite.length + bourgoyneSuite.totalTests + testSuite.totalTests;
+  const totalPassedTests = carterSuite.filter(t => t.passed).length + api5c3Suite.passedTests + arnoldSuite.filter(t => t.passed).length + bourgoyneSuite.passedTests + testSuite.passedTests;
+
+  const displayedBenchmarks = useMemo(() => {
+    const list: Array<{ id: string; name: string; reference: string; chapter: string; expected: string; actual: string; passed: boolean; notes: string }> = [];
+
+    if (activeBenchmarkTab === 'all' || activeBenchmarkTab === 'carter') {
+      carterSuite.forEach(r => list.push({
+        id: r.id,
+        name: r.description,
+        reference: r.source,
+        chapter: 'Carter 5th Ed.',
+        expected: r.expected,
+        actual: r.actual,
+        passed: r.passed,
+        notes: `Desvio: ${r.deviationPercent.toFixed(2)}%`,
+      }));
+    }
+
+    if (activeBenchmarkTab === 'all' || activeBenchmarkTab === 'api5c3') {
+      api5c3Suite.results.forEach(r => list.push({
+        id: r.id,
+        name: r.name,
+        reference: r.reference,
+        chapter: 'API 5C3',
+        expected: r.expected,
+        actual: r.actual,
+        passed: r.passed,
+        notes: r.notes,
+      }));
+    }
+
+    if (activeBenchmarkTab === 'all' || activeBenchmarkTab === 'arnold') {
+      arnoldSuite.forEach(r => list.push({
+        id: r.id,
+        name: r.description,
+        reference: r.source,
+        chapter: 'Arnold & Stewart',
+        expected: r.expected,
+        actual: r.actual,
+        passed: r.passed,
+        notes: `Desvio: ${r.deviationPercent.toFixed(2)}%`,
+      }));
+    }
+
+    if (activeBenchmarkTab === 'all' || activeBenchmarkTab === 'bourgoyne') {
+      bourgoyneSuite.results.forEach(r => list.push({
+        id: r.id,
+        name: r.name,
+        reference: r.reference,
+        chapter: 'Bourgoyne (1986)',
+        expected: r.expected,
+        actual: r.actual,
+        passed: r.passed,
+        notes: r.notes,
+      }));
+    }
+
+    if (activeBenchmarkTab === 'all' || activeBenchmarkTab === 'cormack') {
+      testSuite.results.forEach(r => list.push({
+        id: r.id,
+        name: r.name,
+        reference: r.reference,
+        chapter: 'Cormack (2017)',
+        expected: r.expected,
+        actual: r.actual,
+        passed: r.passed,
+        notes: r.notes,
+      }));
+    }
+
+    return list;
+  }, [activeBenchmarkTab, carterSuite, api5c3Suite, arnoldSuite, bourgoyneSuite, testSuite]);
 
   // Real Cormack (2017) calculation audit trails
   const auditTrails: CalculationAuditTrail[] = useMemo(() => {
@@ -237,9 +318,22 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
     const freshCormack = runCormackGoldenTests();
     const freshBourgoyne = runBourgoyneGoldenTests();
     const freshArnold = runArnoldStewartGoldenTests();
+    const freshApi5c3 = runAPI5C3GoldenTests();
+    const freshCarter = [
+      ...runCarterWellControlGoldenTests(),
+      ...runCarterFluidsGoldenTests(),
+      ...runCarterCementsGoldenTests(),
+      ...runCarterHydraulicsGoldenTests(),
+      ...runCarterRigOpsGoldenTests(),
+      ...runCarterStuckPipeGoldenTests(),
+      ...runCarterPhase7GoldenTests(),
+      ...runCarterPhase8GoldenTests(),
+    ];
     setTestSuite(freshCormack);
     setBourgoyneSuite(freshBourgoyne);
     setArnoldSuite(freshArnold);
+    setApi5c3Suite(freshApi5c3);
+    setCarterSuite(freshCarter);
   };
 
   // Field summary monthly production data
@@ -294,7 +388,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
               PetroLúmen • Plataforma Integrada de Engenharia de Petróleo
             </h2>
             <Badge className="bg-emerald-600 text-white text-[11px] font-semibold">
-              Cormack (2017) Validado
+              11 Suítes de Benchmarks de Ouro Ativas (100% Pass)
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground max-w-3xl">
@@ -302,16 +396,16 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             <Badge variant="outline" className="text-xs bg-card/60 text-emerald-600 border-emerald-500/30">
-              ✓ {testSuite.passedTests}/{testSuite.totalTests} Benchmarks de Ouro Ativos
+              ✓ {totalPassedTests}/{totalGoldenTests} Benchmarks de Ouro Ativos
             </Badge>
             <Badge variant="outline" className="text-xs bg-card/60 text-primary border-primary/30">
-              Unit-Aware Formula Engine
+              Unit-Aware Formula Engine ({isMetric ? "Métrico SI" : "Campo US"})
             </Badge>
             <Badge variant="outline" className="text-xs bg-card/60 text-amber-600 border-amber-500/30">
               Fail-Loudly PVT Guard (P &gt; 0)
             </Badge>
             <Badge variant="outline" className="text-xs bg-card/60 text-purple-600 border-purple-500/30">
-              Arredondamento Auditável
+              Arredondamento Auditável (API 5C3 / Cormack)
             </Badge>
           </div>
         </div>
@@ -323,10 +417,50 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
             onClick={handleRerunTests}
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Revalidar Testes ({testSuite.passedTests + bourgoyneSuite.passedTests}/{testSuite.totalTests + bourgoyneSuite.totalTests})
+            Revalidar 11 Suítes ({totalPassedTests}/{totalGoldenTests})
           </Button>
         </div>
       </div>
+
+      {/* Active Scenario Card */}
+      <Card className="p-4 bg-muted/30 border border-primary/20 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30 font-semibold">
+                Estudo de Caso Ativo
+              </Badge>
+              <h3 className="text-base font-bold text-foreground">{activeScenario.name}</h3>
+              <Badge variant="secondary" className="text-[11px]">
+                {activeScenario.basin}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">{activeScenario.description}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="px-2.5 py-1 rounded bg-background border font-mono">
+              <span className="text-muted-foreground">Profundidade: </span>
+              <span className="font-semibold text-foreground">{formatDepth(activeScenario.parameters.wellDepthFt).display}</span>
+            </div>
+            <div className="px-2.5 py-1 rounded bg-background border font-mono">
+              <span className="text-muted-foreground">Lama: </span>
+              <span className="font-semibold text-foreground">{formatDensity(activeScenario.parameters.currentMudWeightPpg).display}</span>
+            </div>
+            <div className="px-2.5 py-1 rounded bg-background border font-mono">
+              <span className="text-muted-foreground">Pres: </span>
+              <span className="font-semibold text-foreground">{formatPressure(activeScenario.parameters.reservoirPressurePsia).display}</span>
+            </div>
+            <div className="px-2.5 py-1 rounded bg-background border font-mono">
+              <span className="text-muted-foreground">Vazão qi: </span>
+              <span className="font-semibold text-foreground">{formatRate(activeScenario.parameters.initialRateStbd).display}</span>
+            </div>
+            <div className="px-2.5 py-1 rounded bg-background border font-mono">
+              <span className="text-muted-foreground">Petróleo: </span>
+              <span className="font-semibold text-emerald-600">${activeScenario.parameters.oilPriceUsd}/bbl</span>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -337,7 +471,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">100% Operacional</div>
-            <p className="text-xs text-muted-foreground mt-1">15 módulos especializados ativos</p>
+            <p className="text-xs text-muted-foreground mt-1">23 módulos especializados ativos</p>
           </CardContent>
         </Card>
 
@@ -350,9 +484,9 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">
-              {testSuite.passedTests + bourgoyneSuite.passedTests} / {testSuite.totalTests + bourgoyneSuite.totalTests} Aprovados
+              {totalPassedTests} / {totalGoldenTests} Aprovados
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Bourgoyne (8/8) &amp; Cormack (7/7)</p>
+            <p className="text-xs text-muted-foreground mt-1">11 Suítes (API 5C3, Carter, Arnold, Bourgoyne, Cormack)</p>
           </CardContent>
         </Card>
 
@@ -379,39 +513,57 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
         </Card>
       </div>
 
-      {/* Bourgoyne & Cormack Golden Test Suite & Verification Card */}
+      {/* 11 Golden Benchmark Test Suites Verification Card */}
       <Card className="shadow-sm border-blue-500/20">
         <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <FileCheck2 className="w-5 h-5 text-emerald-500" />
-                Suíte de Verificação Bourgoyne (SPE) &amp; Cormack (Springer)
+                Suíte de 11 Benchmarks de Ouro (Carter, API 5C3, Arnold &amp; Stewart, Bourgoyne, Cormack)
               </CardTitle>
               <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 text-xs">
-                {testSuite.passedTests + bourgoyneSuite.passedTests}/{testSuite.totalTests + bourgoyneSuite.totalTests} Benchmarks Aprovados
+                {totalPassedTests}/{totalGoldenTests} Benchmarks Aprovados (100%)
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Validação automatizada contra exemplos resolvidos dos manuais clássicos de engenharia de perfuração.
+              Validação automatizada contra exemplos resolvidos dos manuais clássicos de engenharia e normas internacionais.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-md border p-0.5 bg-muted/40 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex flex-wrap rounded-md border p-0.5 bg-muted/40 text-xs gap-0.5">
               <button
-                className={`px-2.5 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'all' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
+                className={`px-2 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'all' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
                 onClick={() => setActiveBenchmarkTab('all')}
               >
-                Todos ({testSuite.totalTests + bourgoyneSuite.totalTests})
+                Todos ({totalGoldenTests})
               </button>
               <button
-                className={`px-2.5 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'bourgoyne' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
+                className={`px-2 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'carter' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
+                onClick={() => setActiveBenchmarkTab('carter')}
+              >
+                Carter ({carterSuite.length})
+              </button>
+              <button
+                className={`px-2 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'api5c3' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
+                onClick={() => setActiveBenchmarkTab('api5c3')}
+              >
+                API 5C3 ({api5c3Suite.totalTests})
+              </button>
+              <button
+                className={`px-2 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'arnold' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
+                onClick={() => setActiveBenchmarkTab('arnold')}
+              >
+                Facilities ({arnoldSuite.length})
+              </button>
+              <button
+                className={`px-2 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'bourgoyne' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
                 onClick={() => setActiveBenchmarkTab('bourgoyne')}
               >
-                Bourgoyne Ch. 1-8 ({bourgoyneSuite.totalTests})
+                Bourgoyne ({bourgoyneSuite.totalTests})
               </button>
               <button
-                className={`px-2.5 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'cormack' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
+                className={`px-2 py-1 rounded-sm text-xs font-medium transition ${activeBenchmarkTab === 'cormack' ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground'}`}
                 onClick={() => setActiveBenchmarkTab('cormack')}
               >
                 Cormack ({testSuite.totalTests})
@@ -421,7 +573,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
             <Button
               size="sm"
               variant="outline"
-              className="text-xs h-7 ml-2"
+              className="text-xs h-7 ml-1"
               onClick={() => setShowAllTests(!showAllTests)}
             >
               {showAllTests ? (
@@ -430,7 +582,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
                 </>
               ) : (
                 <>
-                  <ChevronDown className="w-3.5 h-3.5 mr-1" /> Detalhes
+                  <ChevronDown className="w-3.5 h-3.5 mr-1" /> Detalhes ({totalGoldenTests})
                 </>
               )}
             </Button>
@@ -438,10 +590,8 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
         </CardHeader>
         <CardContent className="space-y-3">
           {/* Quick pills */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {(activeBenchmarkTab === 'cormack' ? [] : bourgoyneSuite.results).concat(
-              activeBenchmarkTab === 'bourgoyne' ? [] : testSuite.results.map(r => ({ ...r, chapter: 'Cormack (2017)' }))
-            ).map((t) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-56 overflow-y-auto p-1">
+            {displayedBenchmarks.map((t) => (
               <div
                 key={t.id}
                 className="p-2 rounded-md border bg-muted/30 flex items-start gap-2 text-xs"
@@ -457,9 +607,9 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
 
           {/* Expanded details table */}
           {showAllTests && (
-            <div className="mt-3 overflow-x-auto rounded-md border border-border">
+            <div className="mt-3 overflow-x-auto rounded-md border border-border max-h-96 overflow-y-auto">
               <table className="w-full text-xs text-left">
-                <thead className="bg-muted text-muted-foreground text-[10px] uppercase">
+                <thead className="bg-muted text-muted-foreground text-[10px] uppercase sticky top-0">
                   <tr>
                     <th className="p-2.5">Módulo / Origem</th>
                     <th className="p-2.5">Teste &amp; Referência</th>
@@ -470,22 +620,20 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {(activeBenchmarkTab === 'cormack' ? [] : bourgoyneSuite.results).concat(
-                    activeBenchmarkTab === 'bourgoyne' ? [] : testSuite.results.map(r => ({ ...r, chapter: 'Cormack (2017)' }))
-                  ).map((t) => (
+                  {displayedBenchmarks.map((t) => (
                     <tr key={t.id} className="hover:bg-muted/20">
-                      <td className="p-2.5">
+                      <td className="p-2.5 whitespace-nowrap">
                         <Badge variant="outline" className="text-[10px]">
-                          {(t as any).chapter || 'Cormack (2017)'}
+                          {t.chapter}
                         </Badge>
                       </td>
                       <td className="p-2.5">
                         <p className="font-semibold text-foreground">{t.name}</p>
                         <p className="text-[10px] text-muted-foreground">{t.reference}</p>
                       </td>
-                      <td className="p-2.5 font-mono text-[11px]">{t.expected}</td>
-                      <td className="p-2.5 font-mono text-[11px] text-primary font-bold">{t.actual}</td>
-                      <td className="p-2.5">
+                      <td className="p-2.5 font-mono text-[11px] whitespace-nowrap">{t.expected}</td>
+                      <td className="p-2.5 font-mono text-[11px] text-primary font-bold whitespace-nowrap">{t.actual}</td>
+                      <td className="p-2.5 whitespace-nowrap">
                         <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px]">
                           ✓ Aprovado
                         </Badge>

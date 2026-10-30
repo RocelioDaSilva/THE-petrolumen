@@ -18,15 +18,40 @@ import { Badge } from "@/components/ui/badge";
 import { calculateEconomics, EconomicsInput } from "@/lib/reservoirMath";
 import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import { DollarSign, TrendingUp, Calculator, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
+import { useSessionRegistry } from "@/lib/sessionRegistry";
 
 export default function EconomicsView() {
-  const [oilPrice, setOilPrice] = useState<number>(75);
-  const [opex, setOpex] = useState<number>(18);
-  const [capex, setCapex] = useState<number>(2500000);
-  const [discountRate, setDiscountRate] = useState<number>(10); // percentage
+  const { activeScenario, updateActiveParameters } = useSessionRegistry();
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  const [oilPrice, setOilPrice] = useState<number>(activeScenario?.parameters?.oilPriceUsd ?? 75);
+  const [opex, setOpex] = useState<number>(activeScenario?.parameters?.opexUsdPerBbl ?? 18);
+  const [capex, setCapex] = useState<number>(activeScenario?.parameters?.capexUsd ?? 2500000);
+  const [discountRate, setDiscountRate] = useState<number>(activeScenario?.parameters?.discountRatePercent ?? 10); // percentage
   const [productionProfileStr, setProductionProfileStr] = useState<string>(
     "120000, 105000, 92000, 80000, 70000, 61000, 53000, 46000, 40000, 35000"
   );
+
+  React.useEffect(() => {
+    if (activeScenario?.parameters) {
+      const p = activeScenario.parameters;
+      if (p.oilPriceUsd) setOilPrice(p.oilPriceUsd);
+      if (p.opexUsdPerBbl) setOpex(p.opexUsdPerBbl);
+      if (p.capexUsd) setCapex(p.capexUsd);
+      if (p.discountRatePercent) setDiscountRate(p.discountRatePercent);
+    }
+  }, [activeScenario?.id]);
+
+  const handleSaveToScenario = () => {
+    updateActiveParameters({
+      oilPriceUsd: oilPrice,
+      opexUsdPerBbl: opex,
+      capexUsd: capex,
+      discountRatePercent: discountRate,
+    });
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+  };
 
   const results = useMemo(() => {
     const profile = productionProfileStr
@@ -72,6 +97,19 @@ export default function EconomicsView() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Fluxo de caixa descontado, VPL (NPV), Taxa Interna de Retorno (TIR/IRR), Payback e sensibilidade ao preço do barril.
           </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs bg-muted/60 border-primary/30 text-primary">
+              Cenário: {activeScenario.name}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs h-6 px-2.5 ${saveSuccess ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600" : ""}`}
+              onClick={handleSaveToScenario}
+            >
+              {saveSuccess ? "✓ Salvo no Cenário!" : "Salvar no Cenário Ativo"}
+            </Button>
+          </div>
         </div>
         <Badge
           variant="outline"

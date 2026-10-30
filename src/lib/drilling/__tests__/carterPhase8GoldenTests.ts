@@ -77,3 +77,11 @@ export function runCarterPhase8GoldenTests(): CarterPhase8GoldenTestResult[] {
 
   return results;
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("carterPhase8GoldenTests")) {
+  const res = runCarterPhase8GoldenTests();
+  const passed = res.filter((r) => r.passed).length;
+  console.log(`\n[Carter Phase 8 Directional Surveying & DLS] ${passed}/${res.length} passed`);
+  res.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.description} -> ${r.actual}`));
+  if (passed !== res.length) process.exit(1);
+}
