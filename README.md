@@ -26,7 +26,7 @@
    - Modelos empíricos de Arps (Exponencial, Hiperbólico e Harmônico) e modelo não-convencional de Duong (Shale / Tight Gas).
    - Estimativa de EUR (Estimated Ultimate Recovery) e exportação de relatórios executivos em PDF.
 6. **Termodinâmica e Propriedades PVT**:
-   - Correlações de fator $Z$ do gás (Hall-Yarborough / Standing-Katz), $B_o$, $B_g$, $R_s$, $P_b$ e viscosidades.
+   - Correlações de fator $Z$ do gás (Hall-Yarborough / Standing-Katz), $B_o$, $B_g$, $R_s$, $P_b$ e viscosidades com sanitização estrita e fail-loudly em parâmetros não-físicos.
    - Editor de frações molares para misturas composicionais ($C_1$ a $C_7+$, $N_2$, $CO_2$) e diagrama P-T de envelope de fases.
    - Suporte universal a conversão instantânea entre Sistema de Campo (psia, °F, bbl) e Sistema Internacional (kPa, °C, m³).
 7. **Análise Nodal & Elevação de Fluidos**:
@@ -39,17 +39,21 @@
 10. **Analytics & Machine Learning**:
     - Algoritmos supervisionados (XGBoost, SVR, LSTM) com métricas de erro ($R^2$, RMSE, MAE) e importância de variáveis SHAP.
 11. **Perfis de Poço (LAS Logs)**:
-    - Visualizador de perfis de poço multifaixa (GR, RT, RHOB, NPHI) para interpretação petrofísica.
+    - Visualizador de perfis de poço multifaixa (GR, RT, RHOB, NPHI) com parser robusto de arquivos LAS 2.0 para interpretação petrofísica.
 
 ---
 
 ## 🛠️ Tecnologias e Arquitetura
 
 - **Frontend & Core Engine**: React 18, TypeScript 5.7, Vite 6.0
-- **Estilização**: Tailwind CSS 3.4 com tema Claro/Escuro
+- **Roteamento & Carregamento Dinâmico**: Code-splitting 100% sob demanda com `React.lazy()` e `Suspense` acompanhado de skeletons visuais
+- **Estilização**: Tailwind CSS 3.4 com tema Claro/Escuro persistido em `localStorage`
+- **Isolamento de Estado**: `SessionRegistry` com tipagem estrita e guardas contra vazamento de estado
+- **Tratamento de Erros**: `ErrorBoundary` desacoplado, internacionalizado (PT/EN) com diagnóstico em modo desenvolvimento
 - **Visualização**: Recharts, Canvas 2D/3D Voxel Engine
 - **Exportação**: jsPDF & html2canvas
 - **Ícones**: Lucide React
+- **Infraestrutura de Testes**: Vitest + Testing Library + Test Runner customizado para benchmarks de engenharia
 
 ---
 
@@ -71,25 +75,30 @@ npm run dev
 npm run lint
 ```
 
-### Compilação de Produção
+### Execução de Todos os Testes (Benchmarks + Vitest)
 ```bash
-npm run build
+npm test
+# Executa simultaneamente:
+# 1. 92 benchmarks físicos em 11 suítes de golden tests
+# 2. 18 testes unitários de integração via Vitest
 ```
 
-### Execução dos Testes Científicos Benchmark (Golden Tests)
-A plataforma inclui 11 suítes de testes científicos fundamentadas em literaturas de referência da indústria de petróleo:
+### Testes Individuais
 ```bash
-npx tsx src/lib/drilling/__tests__/bourgoyneGoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterCementsGoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterFluidsGoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterHydraulicsGoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterPhase7GoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterPhase8GoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterRigOpsGoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterStuckPipeGoldenTests.ts
-npx tsx src/lib/drilling/__tests__/carterWellControlGoldenTests.ts
-npx tsx src/lib/drilling/__tests__/cormackGoldenTests.ts
-npx tsx src/lib/facilities/__tests__/arnoldStewartGoldenTests.ts
+# Executa apenas as 11 suítes de benchmarks de engenharia (92 testes)
+npm run test:benchmarks
+
+# Executa apenas a suíte de testes unitários Vitest (18 testes)
+npm run test:unit
+```
+
+### Compilação de Produção & Empacotamento
+```bash
+# Build de produção
+npm run build
+
+# Cria pacote de distribuição pronto para release (petrolumen-release.zip)
+npm run package
 ```
 
 ---
@@ -98,5 +107,6 @@ npx tsx src/lib/facilities/__tests__/arnoldStewartGoldenTests.ts
 
 Toda a documentação técnica e relatórios de auditoria estão centralizados no diretório [`docs/`](./docs/):
 - [Guia do Desenvolvedor (`docs/DEVELOPER_ONBOARDING.md`)](./docs/DEVELOPER_ONBOARDING.md)
-- [Relatório de Auditoria do Estado Atual (`docs/audits/CURRENT_STATE_AUDIT.md`)](./docs/audits/CURRENT_STATE_AUDIT.md)
-- [Estado do Ambiente (`docs/ENVIRONMENT_STATE.md`)](./docs/ENVIRONMENT_STATE.md)
+- [Estado do Ambiente & Infraestrutura (`docs/ENVIRONMENT_STATE.md`)](./docs/ENVIRONMENT_STATE.md)
+- [Auditoria do Estado Atual (`docs/audits/CURRENT_STATE_AUDIT.md`)](./docs/audits/CURRENT_STATE_AUDIT.md)
+- [Instruções de Agentes & Princípios de Engenharia (`AGENTS.md`)](./AGENTS.md)

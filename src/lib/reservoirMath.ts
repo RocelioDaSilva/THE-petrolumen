@@ -39,9 +39,27 @@ export function getPseudoCriticalProps(gammaG: number) {
  * Calculates gas compressibility factor (Z) using Hall-Yarborough correlation
  */
 export function calculateZFactor(pressure: number, tempF: number, gammaG: number): number {
+  // Fail loudly on unphysical parameters (AGENTS.md requirement).
+  // Silent clamping would produce misleading results; throw instead.
+  if (!Number.isFinite(pressure) || pressure <= 0) {
+    throw new RangeError(
+      `calculateZFactor: pressure must be a positive finite value (psia). Got: ${pressure}`
+    );
+  }
+  if (!Number.isFinite(tempF) || tempF <= -459.67) {
+    throw new RangeError(
+      `calculateZFactor: temperature must be above absolute zero (-459.67 degF). Got: ${tempF}`
+    );
+  }
+  if (!Number.isFinite(gammaG) || gammaG <= 0) {
+    throw new RangeError(
+      `calculateZFactor: gas specific gravity must be positive. Got: ${gammaG}`
+    );
+  }
+
   const { Ppc, Tpc } = getPseudoCriticalProps(gammaG);
   const tempR = tempF + 459.67;
-  const Ppr = Math.max(0.05, pressure / Ppc);
+  const Ppr = pressure / Ppc;
   const Tpr = Math.max(1.05, tempR / Tpc);
 
   const t = 1.0 / Tpr;

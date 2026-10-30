@@ -4,6 +4,7 @@ import Sidebar, { APP_MODULES } from "@/components/Sidebar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import DocumentationModal from "@/components/DocumentationModal";
+import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { UnitProvider } from "@/lib/unitContext";
 import { SessionRegistryProvider } from "@/lib/sessionRegistry";
@@ -75,10 +76,8 @@ function MainApp() {
   const activeModuleMeta = APP_MODULES.find((m) => m.id === activeModule) || APP_MODULES[0];
   const activeCategory = (t.categories as Record<string, string>)[activeModuleMeta.categoryKey] || activeModuleMeta.defaultCategory;
 
-  /** Shared Suspense loading fallback. */
-  const loadingFallback = (
-    <div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>
-  );
+  /** Shared Suspense loading fallback with skeleton styling. */
+  const loadingFallback = <LoadingSkeleton label={t.loadingModule} />;
 
   /**
    * Resolves the active module JSX.

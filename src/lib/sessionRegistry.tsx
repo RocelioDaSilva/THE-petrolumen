@@ -312,16 +312,9 @@ export const SessionRegistryProvider: React.FC<{ children: ReactNode }> = ({ chi
 export function useSessionRegistry(): SessionRegistryContextType {
   const context = useContext(SessionRegistryContext);
   if (!context) {
-    return {
-      activeScenario: BASELINE_SCENARIOS[0],
-      scenarios: BASELINE_SCENARIOS,
-      selectScenario: () => {},
-      createScenario: (name) => BASELINE_SCENARIOS[0],
-      cloneScenario: () => BASELINE_SCENARIOS[0],
-      updateActiveParameters: () => {},
-      deleteScenario: () => false,
-      exportScenarioJson: () => JSON.stringify(BASELINE_SCENARIOS[0]),
-    };
+    throw new Error(
+      "useSessionRegistry must be called inside a <SessionRegistryProvider>. Ensure the provider wraps your component tree (see App.tsx)."
+    );
   }
   return context;
 }
