@@ -1,24 +1,42 @@
 # PetroLúmen Project Documentation
 
-This directory houses project-wide documentation that applies to the PetroLúmen application as a whole or doesn't fit specifically within the `backend/docs_sphinx/` or `petrolumen/docs/` directories.
+Welcome to the central documentation index for the **PetroLúmen Petroleum & Reservoir Engineering Platform**.
 
-## Purpose
+---
 
-The `docs/` directory at the root of the project serves as a central repository for:
+## 📚 Navigation & Directory Map
 
-*   **High-Level Architectural Overviews:** Diagrams and descriptions of the overall system architecture, interactions between frontend and backend, and major data flows.
-*   **Audit Reports (`docs/audits/`):** Backend, dependency, concurrency, and repository audit reports.
-*   **Development Plans & Roadmaps (`docs/plans/`):** Feature plans, internationalization strategies, and improvement backlogs.
-*   **Contribution Guidelines (Overall Project):** General guidelines for contributing to any part of the PetroLúmen project, supplementing specific guidelines in sub-modules.
-*   **Architecture Decision Records (ADRs):** Documents that capture important architectural decisions made throughout the project's lifecycle.
-*   **Cross-Cutting Concerns:** Documentation related to security policies, deployment strategies, and project-wide conventions.
+* **Onboarding & Setup:**
+  - [Developer Onboarding Guide (`docs/DEVELOPER_ONBOARDING.md`)](./DEVELOPER_ONBOARDING.md) - Local setup, execution commands, and developer checklist.
+  - [Environment & System State (`docs/ENVIRONMENT_STATE.md`)](./ENVIRONMENT_STATE.md) - System specifications, dependency inventory, build metrics, and operational scripts.
 
-## Navigating Documentation
+* **Audits & Quality Assurance:**
+  - [Current State Audit Report (`docs/audits/CURRENT_STATE_AUDIT.md`)](./audits/CURRENT_STATE_AUDIT.md) - Latest comprehensive audit findings, scorecard, test results, vulnerability findings, and bundle metrics.
+  - [Deep Repository Audit (`docs/audits/DEEP_AUDIT_REPORT.md`)](./audits/DEEP_AUDIT_REPORT.md) - Deep dive into mathematical engines, golden benchmarks, and code structure.
+  - [Dependency Audit (`docs/audits/DEPENDENCY_AUDIT_REPORT.md`)](./audits/DEPENDENCY_AUDIT_REPORT.md) - Historical dependency analysis.
 
-*   For **backend-specific (Python/FastAPI) generated API documentation and technical details**, see `backend/docs_sphinx/` and `backend/README.md`.
-*   For **frontend-specific (Next.js/Tauri) documentation**, including UI component guidelines, see `petrolumen/docs/` and `petrolumen/README.md`.
-*   For **developer onboarding**, see [DEVELOPER_ONBOARDING.md](./DEVELOPER_ONBOARDING.md).
-*   For **audit reports**, see [docs/audits/](./audits/).
-*   For **future plans and roadmaps**, see [docs/plans/](./plans/).
+* **Architecture & Future Roadmaps:**
+  - [Session Registry Design (`docs/design/SESSION_REGISTRY.md`)](./design/SESSION_REGISTRY.md) - Architectural design for session management.
+  - [Future Enhancements (`docs/plans/FUTURE_IMPROVEMENTS_JULY.md`)](./plans/FUTURE_IMPROVEMENTS_JULY.md) - Long-term feature backlog and improvement roadmap.
+  - [Internationalization Plan (`docs/plans/I18N_L10N_PLAN.md`)](./plans/I18N_L10N_PLAN.md) - Multilingual support plan.
 
-This centralized `docs/` directory aims to make it easier to find information that is crucial for understanding and contributing to the PetroLúmen project effectively.
+---
+
+## 🛠 Quick Terminal Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Check TypeScript types
+npm run lint
+
+# Compile production build
+npm run build
+
+# Run all golden test suites
+for f in src/lib/drilling/__tests__/*.ts src/lib/facilities/__tests__/*.ts; do npx tsx "$f"; done
+```
