@@ -237,3 +237,11 @@ export function runArnoldStewartGoldenTests(): GoldenTestResult[] {
 
   return results;
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("arnoldStewartGoldenTests")) {
+  const res = runArnoldStewartGoldenTests();
+  const passed = res.filter((r) => r.passed).length;
+  console.log(`\n[Arnold & Stewart 2008 Facilities] ${passed}/${res.length} passed`);
+  res.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.description} -> ${r.actual}`));
+  if (passed !== res.length) process.exit(1);
+}

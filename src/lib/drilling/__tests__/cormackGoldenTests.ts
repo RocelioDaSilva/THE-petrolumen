@@ -222,3 +222,10 @@ export function runCormackGoldenTests(): GoldenTestSuiteSummary {
     results,
   };
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("cormackGoldenTests")) {
+  const summary = runCormackGoldenTests();
+  console.log(`\n[Cormack 2017 Well Control] ${summary.passedTests}/${summary.totalTests} passed`);
+  summary.results.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.name} -> ${r.actual}`));
+  if (!summary.allPassed) process.exit(1);
+}

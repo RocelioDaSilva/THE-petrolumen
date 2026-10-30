@@ -187,7 +187,7 @@ export default function Header({
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
             <span className="hidden md:inline">{t.docsButton}</span>
             <span className="text-[10px] font-mono bg-emerald-500/20 px-1 rounded hidden sm:inline">
-              32/32
+              11/11
             </span>
           </Button>
 

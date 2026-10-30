@@ -162,3 +162,10 @@ export function runAPI5C3GoldenTests(): API5C3TestSuiteSummary {
 
 export const runApi5c3GoldenTests = runAPI5C3GoldenTests;
 
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("api5c3GoldenTests")) {
+  const summary = runAPI5C3GoldenTests();
+  console.log(`\n[API Bulletin 5C3 & Teale 1962] ${summary.passedTests}/${summary.totalTests} passed`);
+  summary.results.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.name} -> ${r.actual}`));
+  if (!summary.allPassed) process.exit(1);
+}
+

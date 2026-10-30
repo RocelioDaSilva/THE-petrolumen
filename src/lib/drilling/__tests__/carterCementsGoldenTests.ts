@@ -67,3 +67,11 @@ export function runCarterCementsGoldenTests(): CarterCementsGoldenTestResult[] {
 
   return results;
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("carterCementsGoldenTests")) {
+  const res = runCarterCementsGoldenTests();
+  const passed = res.filter((r) => r.passed).length;
+  console.log(`\n[Carter Ch. 5 Cementing] ${passed}/${res.length} passed`);
+  res.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.description} -> ${r.actual}`));
+  if (passed !== res.length) process.exit(1);
+}

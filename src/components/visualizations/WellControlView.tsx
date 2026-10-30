@@ -60,22 +60,28 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { useSessionRegistry } from "@/lib/sessionRegistry";
+import { useUnit } from "@/lib/unitContext";
 
 export default function WellControlView() {
+  const { activeScenario, updateActiveParameters } = useSessionRegistry();
+  const { isMetric, formatPressure, formatDepth, formatDensity, formatVolume } = useUnit();
+
   const [activeTab, setActiveTab] = useState<string>("kill-sheet");
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
   // ==========================================
   // TAB 1: KILL SHEET & WELL CONTROL STATE
   // ==========================================
-  const [tvd, setTvd] = useState<number>(10000); // ft
-  const [md, setMd] = useState<number>(10800); // ft
-  const [currentMw, setCurrentMw] = useState<number>(10.2); // ppg
-  const [casingShoeTvd, setCasingShoeTvd] = useState<number>(7500); // ft
+  const [tvd, setTvd] = useState<number>(activeScenario?.parameters?.wellDepthFt ?? 10000); // ft
+  const [md, setMd] = useState<number>(Math.round((activeScenario?.parameters?.wellDepthFt ?? 10000) * 1.08)); // ft
+  const [currentMw, setCurrentMw] = useState<number>(activeScenario?.parameters?.currentMudWeightPpg ?? 10.2); // ppg
+  const [casingShoeTvd, setCasingShoeTvd] = useState<number>(activeScenario?.parameters?.casingShoeDepthFt ?? 7500); // ft
   const [lotTestMw, setLotTestMw] = useState<number>(10.0); // ppg
   const [lotSurfacePressure, setLotSurfacePressure] = useState<number>(1755); // psi
-  const [sidpp, setSidpp] = useState<number>(480); // psi
-  const [sicp, setSicp] = useState<number>(680); // psi
-  const [pitGainBbl, setPitGainBbl] = useState<number>(24); // bbl
+  const [sidpp, setSidpp] = useState<number>(activeScenario?.parameters?.sidppPsi ?? 480); // psi
+  const [sicp, setSicp] = useState<number>(activeScenario?.parameters?.sicpPsi ?? 680); // psi
+  const [pitGainBbl, setPitGainBbl] = useState<number>(activeScenario?.parameters?.pitGainBbl ?? 24); // bbl
   const [scrPressure, setScrPressure] = useState<number>(750); // psi
   const [scrSpm, setScrSpm] = useState<number>(30); // spm
   const [drillStringStrokes, setDrillStringStrokes] = useState<number>(1150); // surface to bit
@@ -83,6 +89,33 @@ export default function WellControlView() {
   const [dcOhAnnCap, setDcOhAnnCap] = useState<number>(0.029); // bbl/ft
   const [dpOhAnnCap, setDpOhAnnCap] = useState<number>(0.0459); // bbl/ft
   const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  // Sync state whenever the active scenario changes
+  React.useEffect(() => {
+    if (activeScenario?.parameters) {
+      const p = activeScenario.parameters;
+      if (p.wellDepthFt) setTvd(p.wellDepthFt);
+      if (p.wellDepthFt) setMd(Math.round(p.wellDepthFt * 1.08));
+      if (p.currentMudWeightPpg) setCurrentMw(p.currentMudWeightPpg);
+      if (p.casingShoeDepthFt) setCasingShoeTvd(p.casingShoeDepthFt);
+      if (p.sidppPsi !== undefined) setSidpp(p.sidppPsi);
+      if (p.sicpPsi !== undefined) setSicp(p.sicpPsi);
+      if (p.pitGainBbl !== undefined) setPitGainBbl(p.pitGainBbl);
+    }
+  }, [activeScenario?.id]);
+
+  const handleSaveToScenario = () => {
+    updateActiveParameters({
+      wellDepthFt: tvd,
+      currentMudWeightPpg: currentMw,
+      casingShoeDepthFt: casingShoeTvd,
+      sidppPsi: sidpp,
+      sicpPsi: sicp,
+      pitGainBbl: pitGainBbl,
+    });
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+  };
 
   const wellControlResults = useMemo(() => {
     return calculateAdvancedWellControl({
@@ -368,13 +401,31 @@ export default function WellControlView() {
               Módulo Unit-Aware de Cálculos de Perfuração & Controle de Poço
             </h2>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Suíte integrada com 4 motores matemáticos: Cálculo e Regras da Companhia, Engenharia de Volumes & Trip Sheet, Engenharia de Pressões e Controle de Poço IADC/IWCF.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <p className="text-sm text-muted-foreground">
+              Suíte integrada com 4 motores matemáticos: Cálculo e Regras da Companhia, Engenharia de Volumes & Trip Sheet, Engenharia de Pressões e Controle de Poço IADC/IWCF.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs bg-muted/60 border-primary/30 text-primary">
+              Cenário: {activeScenario.name}
+            </Badge>
+            <Badge variant="outline" className="text-xs bg-muted/60">
+              Sistema: {isMetric ? "Métrico (SI: m, bar, m³)" : "Campo (US: ft, psi, bbl, ppg)"}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs h-6 px-2.5 ${saveSuccess ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600" : ""}`}
+              onClick={handleSaveToScenario}
+            >
+              {saveSuccess ? "✓ Salvo no Cenário!" : "Salvar no Cenário Ativo"}
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs px-3 py-1 font-semibold bg-rose-500/10 text-rose-600 border-rose-500/30">
-            KMW = {wellControlResults.kmw} ppg (Arredondado p/ Cima)
+            KMW = {wellControlResults.kmw} ppg {isMetric && `(${Math.round(wellControlResults.kmw * 0.119826 * 100) / 100} sg)`}
           </Badge>
           <Button variant="outline" size="sm" onClick={exportKillSheetPDF} disabled={isExporting}>
             <Download className="w-4 h-4 mr-2" />

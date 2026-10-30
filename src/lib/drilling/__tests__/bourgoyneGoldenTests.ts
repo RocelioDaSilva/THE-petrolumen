@@ -186,3 +186,10 @@ export function runBourgoyneGoldenTests(): BourgoyneTestSuiteSummary {
     results,
   };
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("bourgoyneGoldenTests")) {
+  const summary = runBourgoyneGoldenTests();
+  console.log(`\n[Bourgoyne et al. 1986 Drilling] ${summary.passedTests}/${summary.totalTests} passed`);
+  summary.results.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.name} -> ${r.actual}`));
+  if (!summary.allPassed) process.exit(1);
+}

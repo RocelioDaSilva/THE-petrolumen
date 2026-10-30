@@ -423,7 +423,7 @@ export default function Sidebar({
               className="w-full text-xs h-7.5 gap-1.5 border-border bg-card hover:bg-muted font-medium"
             >
               <BookOpen className="w-3.5 h-3.5 text-primary" />
-              {t.docsButton} (32/32)
+              {t.docsButton} (11/11)
             </Button>
           )}
         </div>

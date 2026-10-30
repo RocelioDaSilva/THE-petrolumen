@@ -16,19 +16,43 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { run1DReservoirSimulation } from "@/lib/reservoirMath";
 import { Droplets, Play, RefreshCw, Activity, Layers } from "lucide-react";
+import { useSessionRegistry } from "@/lib/sessionRegistry";
 
 export default function ReservoirSimulationView() {
+  const { activeScenario, updateActiveParameters } = useSessionRegistry();
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
   const [nx, setNx] = useState<number>(10);
   const [dx, setDx] = useState<number>(120); // ft
-  const [permeability, setPermeability] = useState<number>(65); // mD
-  const [porosity, setPorosity] = useState<number>(0.22);
+  const [permeability, setPermeability] = useState<number>(activeScenario?.parameters?.permeabilityMd ?? 65); // mD
+  const [porosity, setPorosity] = useState<number>(activeScenario?.parameters?.porosityFraction ?? 0.22);
   const [viscosity, setViscosity] = useState<number>(1.4); // cP
-  const [pi, setPi] = useState<number>(3600); // psia
+  const [pi, setPi] = useState<number>(activeScenario?.parameters?.reservoirPressurePsia ?? 3600); // psia
   const [dt, setDt] = useState<number>(10); // days
   const [nSteps, setNSteps] = useState<number>(20); // 200 days total
   const [wellRate, setWellRate] = useState<number>(-600); // STB/d
 
   const [isRunning, setIsRunning] = useState<boolean>(false);
+
+  // Sync state with active scenario
+  React.useEffect(() => {
+    if (activeScenario?.parameters) {
+      const p = activeScenario.parameters;
+      if (p.permeabilityMd) setPermeability(p.permeabilityMd);
+      if (p.porosityFraction) setPorosity(p.porosityFraction);
+      if (p.reservoirPressurePsia) setPi(p.reservoirPressurePsia);
+    }
+  }, [activeScenario?.id]);
+
+  const handleSaveToScenario = () => {
+    updateActiveParameters({
+      permeabilityMd: permeability,
+      porosityFraction: porosity,
+      reservoirPressurePsia: pi,
+    });
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+  };
 
   const history = useMemo(() => {
     return run1DReservoirSimulation({
@@ -74,6 +98,19 @@ export default function ReservoirSimulationView() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Solução por diferenças finitas para difusividade de pressão em meio poroso radial/linear com poço produtor no Bloco 1.
           </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs bg-muted/60 border-primary/30 text-primary">
+              Cenário: {activeScenario.name}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs h-6 px-2.5 ${saveSuccess ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600" : ""}`}
+              onClick={handleSaveToScenario}
+            >
+              {saveSuccess ? "✓ Salvo no Cenário!" : "Salvar no Cenário Ativo"}
+            </Button>
+          </div>
         </div>
         <Button onClick={handleRun} disabled={isRunning} className="shadow-md">
           <Play className={`w-4 h-4 mr-2 ${isRunning ? "animate-spin" : ""}`} />
