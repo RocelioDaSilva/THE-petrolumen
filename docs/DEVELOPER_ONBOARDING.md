@@ -1,78 +1,94 @@
 # PetroLúmen Developer Onboarding Guide
 
-Welcome to the PetroLúmen project! This guide is intended to help new developers get up to speed with the project structure, setup, and development workflows.
+Welcome to the PetroLúmen project! This guide is designed to help new developers quickly understand the project architecture, set up their local environment, run development tools, and execute the automated scientific benchmark test suites.
 
-## 1. Purpose of This Guide
+---
 
-This document provides a quick start for developers joining the PetroLúmen project. It complements the more detailed README files found within specific parts of the repository.
+## 1. Project Overview
+
+PetroLúmen is a web application for Petroleum & Reservoir Engineering built with **React 18**, **TypeScript 5**, **Vite 6**, and **Tailwind CSS**.
+
+The project integrates 22 specialized interactive domain views covering:
+* **Drilling & Well Operations:** Well Control, Mud Hydraulics, Drilling Fluids, Cementing, Directional Surveying, Stuck Pipe, Rig Loads, Ton-Miles, Air/Gas Drilling, Core Analysis, and Completions.
+* **Surface Facilities:** 2-Phase and 3-Phase Separator Sizing (Arnold & Stewart 2008), Oil & Water Treating, Tank Capacities.
+* **Reservoir Engineering & Simulation:** 1D IMPES Pressure Diffusivity Solver, 3D Geocellular Voxel Grid ($8 \times 8 \times 4$), Decline Curve Analysis (Arps & Duong), PVT Thermodynamics & Phase Envelope Editor, Nodal Analysis (Vogel/Darcy + Beggs & Brill), Rate Transient Analysis (FMB), Production Economics, Machine Learning Forecasting, and LAS Log Visualizer.
+
+---
 
 ## 2. Essential Project Documentation
 
-Before diving into the code, please familiarize yourself with the following key documents:
+* **Root Project README:** [`README.md`](../README.md) - High-level overview, feature catalog, and execution commands.
+* **Audit Documentation:**
+  * [`docs/audits/CURRENT_STATE_AUDIT.md`](./audits/CURRENT_STATE_AUDIT.md) - Comprehensive deep audit report, scorecard, and vulnerability findings.
+  * [`docs/audits/DEEP_AUDIT_REPORT.md`](./audits/DEEP_AUDIT_REPORT.md) - Technical mathematical analysis.
+  * [`docs/ENVIRONMENT_STATE.md`](./ENVIRONMENT_STATE.md) - Current system environment, build output metrics, and dependency inventory.
+* **Agent Guidelines:** [`AGENTS.md`](../AGENTS.md) - Rules and best practices for AI agents working in this repository.
 
-*   **Root Project README**: [README.md](../README.md) - Provides a general overview of the PetroLúmen project.
-*   **Backend README**: [backend/README.md](../backend/README.md) - Detailed information about the Python FastAPI backend, including setup, running, and testing.
-*   **Frontend README**: [petrolumen/README.md](../petrolumen/README.md) - Detailed information about the Next.js/Tauri frontend application, including setup, running, and building.
-*   **Agent Instructions**: [AGENTS.md](../AGENTS.md) - Guidelines for AI agents working with this codebase.
-*   **Security Policy**: [SECURITY.md](../SECURITY.md) - Important security best practices for development.
+---
 
-## 3. Initial Developer Setup Checklist
+## 3. Developer Setup Checklist
 
-Here's a summarized checklist to get your development environment ready:
+Follow these steps to get your local environment running:
 
-*   **[ ] Clone the Repository**:
-    ```bash
-    git clone <repository_url>
-    cd <repository_name>
-    ```
-*   **[ ] Backend Setup (Python/FastAPI)**:
-    *   Navigate to `backend/`.
-    *   Create and activate a Python virtual environment (`python -m venv venv && source venv/bin/activate` or `venv\Scripts\activate`).
-    *   Install dependencies: `pip install -r requirements.txt`.
-    *   Set up environment variables: Copy `backend/.env.example` to `backend/.env` and configure (especially `SECRET_KEY` and `DATABASE_URL`).
-    *   Run database migrations: `alembic upgrade head`.
-    *   Refer to `backend/README.md` for more details.
-*   **[ ] Frontend Setup (Next.js 15/Tauri v2/pnpm)**:
-    *   Navigate to `petrolumen/`.
-    *   Install dependencies: `pnpm install`.
-    *   Set up environment variables: If `petrolumen/.env.local.example` exists, copy it to `petrolumen/.env.local` and configure.
-    *   Refer to `petrolumen/README.md` for more details, including Rust setup for Tauri.
-*   **[ ] Verify Setup**:
-    *   Run the backend server (from `backend/`): `uvicorn main:app --reload --port 8000`.
-    *   Run the frontend development server (from `petrolumen/`): `pnpm tauri dev`.
+1. **Prerequisites:**
+   - Node.js version 20 or higher.
+   - npm version 10 or higher.
 
-## 4. Version Control Strategy
+2. **Clone and Install:**
+   ```bash
+   git clone <repository-url>
+   cd petrolumen
+   npm install
+   ```
 
-*   **Branching**:
-    *   Create new branches from `main`.
-    *   Use descriptive branch names (e.g., `feature/name-of-feature`, `fix/issue-description`, `docs/update-readme`).
-*   **Commits**:
-    *   Make small, logical commits.
-    *   Write clear and concise commit messages.
-*   **Pull Requests (PRs)**:
-    *   Push your branch to the remote repository and open a PR against `main`.
-    *   Ensure your PR includes a clear description of the changes and links to relevant issues.
-    *   Ensure all automated checks and test suites pass.
+3. **Start Development Server:**
+   ```bash
+   npm run dev
+   # Open browser at http://localhost:3000
+   ```
 
-## 5. Testing Guidelines
+4. **Verify Type Safety & Compilation:**
+   ```bash
+   npm run lint
+   # Executes `tsc --noEmit`
+   ```
 
-Running tests is crucial to maintain code quality.
+5. **Build for Production:**
+   ```bash
+   npm run build
+   # Generates distribution build artifacts in `dist/`
+   ```
 
-*   **Backend Tests**:
-    *   Navigate to `backend/` (with virtual environment activated).
-    *   Run: `pytest`
-    *   For coverage: `pytest --cov=gaia_genesis --cov-report=html`
-*   **Frontend Tests**:
-    *   Navigate to `petrolumen/`.
-    *   Unit/Component tests: `pnpm test`
-    *   End-to-End tests: `pnpm test:e2e`
+---
 
-Always ensure tests pass before submitting a Pull Request.
+## 4. Testing Guidelines
 
-## 6. Staying Updated and Contributing
+The engineering calculation engines in `src/lib/` are continuously verified against canonical benchmark standards using golden test suites.
 
-*   **Future Improvements**: For an overview of planned enhancements and areas for contribution, please see [FUTURE_IMPROVEMENTS_JULY.md](./plans/FUTURE_IMPROVEMENTS_JULY.md).
-*   **Code Style**: Adhere to existing code style and conventions (PEP 8 for Python, standard TypeScript/React practices for frontend).
-*   **Pre-commit Hooks**: Pre-commit hooks (`.pre-commit-config.yaml`) run automatically to ensure linting and formatting.
+Run all golden benchmark test suites via `npx tsx`:
 
-Happy coding!
+```bash
+# Drilling & Well Engineering Benchmark Suites
+npx tsx src/lib/drilling/__tests__/bourgoyneGoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterCementsGoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterFluidsGoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterHydraulicsGoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterPhase7GoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterPhase8GoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterRigOpsGoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterStuckPipeGoldenTests.ts
+npx tsx src/lib/drilling/__tests__/carterWellControlGoldenTests.ts
+npx tsx src/lib/drilling/__tests__/cormackGoldenTests.ts
+
+# Surface Facilities Sizing Benchmark Suite
+npx tsx src/lib/facilities/__tests__/arnoldStewartGoldenTests.ts
+```
+
+---
+
+## 5. Coding Standards & Best Practices
+
+* **TypeScript Strictness:** Always maintain strict type annotations. Avoid `any` types.
+* **Component Architecture:** Reusable primitive components reside in `src/components/ui/`, while domain-specific views are located in `src/components/visualizations/`.
+* **Mathematical Engines:** Core formulas reside in `src/lib/drilling/`, `src/lib/facilities/`, and `src/lib/field/`. All calculations must include unit handling (`src/lib/units.ts`) and input sanitization (`src/lib/pvt/sanitize.ts`).
+* **Pre-commit Verification:** Always execute `npm run lint`, `npm run build`, and golden test suites before submitting pull requests.
