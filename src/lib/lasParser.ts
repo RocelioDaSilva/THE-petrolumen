@@ -49,9 +49,12 @@ export function parseLASContent(content: string, fileName: string): ParsedWellLo
     }
 
     if (!inAsciiSection) {
-      if (line.toUpperCase().includes("WELL.")) {
-        const match = line.match(/WELL\.\s*([^:]+):/);
-        if (match && match[1]) wellName = match[1].trim();
+      if (/WELL\s*\./i.test(line)) {
+        const match = line.match(/WELL\s*\.\s*([^:]+):/i) || line.match(/WELL\s*\.[^:]*:\s*([^:\r\n#]+)/i);
+        if (match && match[1]) {
+          const val = match[1].trim();
+          if (val) wellName = val;
+        }
       }
       continue;
     }

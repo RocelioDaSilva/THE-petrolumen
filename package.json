@@ -7,9 +7,12 @@
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "tsc && vite build",
     "lint": "tsc --noEmit",
-    "test": "npx tsx src/testRunner.ts",
+    "test": "npx tsx src/testRunner.ts && vitest run",
+    "test:benchmarks": "npx tsx src/testRunner.ts",
+    "test:unit": "vitest run",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview --port 3000"
+    "preview": "vite preview --port 3000",
+    "package": "npm run build && powershell -Command \"Compress-Archive -Path dist/* -DestinationPath petrolumen-release.zip -Force\""
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -25,14 +28,18 @@
     "dompurify": "^3.2.4"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.10.7",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^5.0.5"
   }
 }

@@ -66,3 +66,7 @@ backend/venv/
 
 # Sphinx documentation output
 backend/docs_sphinx/_build/
+
+# Release Packages
+petrolumen-release.zip
+*.zip
