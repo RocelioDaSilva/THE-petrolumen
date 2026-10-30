@@ -7,17 +7,22 @@
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "tsc && vite build",
     "lint": "tsc --noEmit",
+    "test": "npx tsx src/testRunner.ts",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview --port 3000"
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.15.0",
     "tailwind-merge": "^2.6.0"
+  },
+  "overrides": {
+    "dompurify": "^3.2.4"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",

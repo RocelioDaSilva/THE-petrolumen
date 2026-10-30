@@ -113,9 +113,11 @@ export function triplexPumpFactor(
   strokeLengthInches: number,
   volumetricEfficiency: number = 0.95
 ): number {
-  // Triplex single-acting pump:
-  // Fp = (3 * pi / 4) * (Ls / 12) * dl^2 * (1 / 1029.4) * Ev * 12
-  const fp = (3 * Math.PI / 4) * (strokeLengthInches / 12) * Math.pow(linerIdInches, 2) * (1 / 1029.4) * volumetricEfficiency;
+  // Triplex single-acting pump displacement per stroke:
+  // Sourced: Bourgoyne Ch. 1, Eq. 1.10 - 1.12 & API formulas
+  // Fp = 3 * (Ls / 12) * (dl^2 / 1029.4) * Ev = (Ls * dl^2 / 4117.6) * Ev (bbl/stk)
+  const strokeFt = strokeLengthInches / 12;
+  const fp = (3 * strokeFt * Math.pow(linerIdInches, 2) / 1029.4) * volumetricEfficiency;
   return Math.round(fp * 1000) / 1000;
 }
 
@@ -180,8 +182,8 @@ export function estimateTripTimeHours(
 }
 
 /**
- * 5.1 Rotary Drilling Bits - Penetration Rate & Specific Energy
- * Sourced: Bourgoyne Ch. 5, Section 5.3 & Eq. 5.1
+ * 5.1 Rotary Drilling Bits - Penetration Rate & Mechanical Specific Energy (MSE)
+ * Sourced: Teale (1962), "The Concept of Specific Energy in Rock Drilling" & Bourgoyne Ch. 5, Eq. 5.15
  */
 export function bitSpecificEnergy(
   wobLbf: number,
@@ -192,9 +194,10 @@ export function bitSpecificEnergy(
 ): number {
   const bitAreaSqIn = (Math.PI / 4) * Math.pow(bitDiameterInches, 2);
   if (ropFtHr <= 0 || bitAreaSqIn <= 0) return 0;
-  // E_s = (W / A) + (2 * pi * N * T) / (A * ROP)
+  // Teale (1962) MSE equation:
+  // E_s = (WOB / A) + (120 * pi * N * T) / (A * ROP)
   const axialTerm = wobLbf / bitAreaSqIn;
-  const rotaryTerm = (2 * Math.PI * (rpm * 60) * torqueFtLbf) / (bitAreaSqIn * (ropFtHr * 12));
+  const rotaryTerm = (120 * Math.PI * rpm * torqueFtLbf) / (bitAreaSqIn * ropFtHr);
   return Math.round(axialTerm + rotaryTerm);
 }
 

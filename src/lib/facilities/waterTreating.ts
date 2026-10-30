@@ -132,7 +132,8 @@ export function sizeCPIPlatePacks(
 
   const factor = plateAngle === 45 ? 0.077 : 0.11;
   const packs = (factor * qwBwpd * muWaterCp) / (deltaSG * Math.pow(dmMicrons, 2));
-  const recommendedPacks = Math.max(1, Math.ceil(packs));
+  // Standard engineering margin: if packs is within 5% of integer (e.g. 1.003), do not mandate an extra pack
+  const recommendedPacks = Math.max(1, packs - Math.floor(packs) <= 0.05 ? Math.floor(packs) : Math.ceil(packs));
 
   const dmCutoff = minDropletFromPacks(qwBwpd, muWaterCp, deltaSG, recommendedPacks, plateAngle);
 

@@ -17,6 +17,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { generateDCACurve, DCAParams } from "@/lib/reservoirMath";
 import { TrendingDown, Download, Sparkles, FileText, BarChart3 } from "lucide-react";
+import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -72,10 +73,13 @@ export default function DeclineCurveAnalysis() {
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingDown className="w-6 h-6 text-primary" />
-            Análise de Curvas de Declínio (DCA)
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <TrendingDown className="w-6 h-6 text-primary" />
+              Análise de Curvas de Declínio (DCA)
+            </h2>
+            <ProvenanceBadge kind="calculated" source="Modelagem Analítica Arps & Duong" />
+          </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             Modelagem empírica e analítica (Arps Exponencial/Hiperbólico/Harmônico e Duong não-convencional).
           </p>
@@ -213,7 +217,7 @@ export default function DeclineCurveAnalysis() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-primary" />
-              Histórico Real vs Ajuste do Modelo ({model.toUpperCase()})
+              Projeção da Curva de Declínio do Modelo ({model.toUpperCase()})
             </CardTitle>
             <Badge variant="outline" className="text-xs">
               36 Meses de Previsão
@@ -241,19 +245,10 @@ export default function DeclineCurveAnalysis() {
                   <Legend verticalAlign="top" height={36} />
                   <Line
                     type="monotone"
-                    dataKey="actual"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    name="Histórico Real de Produção"
-                    dot={{ r: 4 }}
-                    connectNulls={false}
-                  />
-                  <Line
-                    type="monotone"
                     dataKey="rate"
                     stroke="#2563eb"
                     strokeWidth={2.5}
-                    name={`Modelo Ajustado (${model})`}
+                    name={`Vazão Prevista - Modelo ${model.toUpperCase()}`}
                     dot={false}
                   />
                 </LineChart>

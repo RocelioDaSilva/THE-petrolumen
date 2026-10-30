@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Layers, Eye, RefreshCw, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import ProvenanceBadge from "@/components/ui/ProvenanceBadge";
 
 interface Cell3D {
   x: number;
@@ -104,12 +105,15 @@ export default function ReservoirGrid3D() {
     <Card className="shadow-md">
       <CardHeader className="flex flex-col md:flex-row md:items-center justify-between pb-4 gap-4">
         <div>
-          <CardTitle className="text-xl flex items-center gap-2">
-            <Layers className="w-5 h-5 text-primary" />
-            Visualização 3D da Malha do Reservatório
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Layers className="w-5 h-5 text-primary" />
+              Visualização 3D da Malha do Reservatório
+            </CardTitle>
+            <ProvenanceBadge kind="illustrative" source="Demonstração Conceitual (Sem Dados Reais de Campo)" />
+          </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Modelo geocelular 3D de alta fidelidade (nx: 8, ny: 8, nz: 4 = 256 blocos) com projeção isométrica interativa.
+            Demonstração de renderização isométrica de malha celular tridimensional (8×8×4 blocos).
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">

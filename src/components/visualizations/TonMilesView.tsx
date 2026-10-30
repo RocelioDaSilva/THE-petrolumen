@@ -15,12 +15,25 @@ export const TonMilesView: React.FC = () => {
   const [blockWeight, setBlockWeight] = useState<number>(25000);
 
   const [cumulativeTM, setCumulativeTM] = useState<number>(() => {
-    const saved = localStorage.getItem("petrolumen_cumulative_ton_miles");
-    return saved ? parseFloat(saved) : 420.0;
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const saved = localStorage.getItem("petrolumen_cumulative_ton_miles");
+        return saved ? parseFloat(saved) : 420.0;
+      }
+    } catch {
+      // Fallback if localStorage is inaccessible or blocked in sandboxed iframe
+    }
+    return 420.0;
   });
 
   useEffect(() => {
-    localStorage.setItem("petrolumen_cumulative_ton_miles", cumulativeTM.toString());
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        localStorage.setItem("petrolumen_cumulative_ton_miles", cumulativeTM.toString());
+      }
+    } catch {
+      // Ignore storage errors in sandboxed iframe environments
+    }
   }, [cumulativeTM]);
 
   const rttm = TonMiles.roundTripTonMiles(depth, standLength, dpWeight, dcWeight, dcLength, blockWeight);

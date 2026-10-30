@@ -192,7 +192,8 @@ export function mistExtractorPerformance(
   maxVaporVelocityFtS: number;
   estimatedDryPressureDropPsi: number;
 } {
-  const vMax = kFactor * Math.sqrt((rhoL - rhoG) / Math.max(0.01, rhoL));
+  // Arnold & Stewart Eq. 4-1: V_max = K * sqrt((rhoL - rhoG) / rhoG)
+  const vMax = kFactor * Math.sqrt((rhoL - rhoG) / Math.max(0.0001, rhoG));
   // Eq. 4-2: DeltaP_dry = (f * H * a * rhoG * V^2) / (981 * 10^3)  [with typical f=0.15, a=100 ft2/ft3]
   const deltaPDry = (0.15 * thicknessInches * 100 * rhoG * Math.pow(gasVelocityFtS, 2)) / (981 * 1000);
   return {

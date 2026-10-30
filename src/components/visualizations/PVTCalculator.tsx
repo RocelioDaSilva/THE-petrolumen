@@ -18,6 +18,7 @@ import { calculatePVT, calculateZFactor } from "@/lib/reservoirMath";
 import { convert, UnitSystem } from "@/lib/units";
 import { sanitizePVT } from "@/lib/pvt/sanitize";
 import { Beaker, Droplets, Flame, Activity, Zap, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 
 interface ComponentEntry {
   name: string;
@@ -110,30 +111,29 @@ export default function PVTCalculator() {
     return points;
   }, [validation, unitSystem]);
 
-  // Phase envelope P-T data (bubble point and dew point curves)
+  // Phase envelope P-T data (Standing correlation bubble point curve)
   const phaseEnvelopeData = useMemo(() => {
     const points = [];
-    // Critical point approximately 220 °F, 3800 psia for this composition
-    const cricondentherm = 320;
-    for (let t = 40; t <= cricondentherm; t += 20) {
-      const norm = (t - 40) / (cricondentherm - 40);
-      // Bubble point curve rises to critical point
-      const pBubble = 2400 + 1800 * Math.sin(norm * Math.PI * 0.7);
-      // Dew point curve drops
-      const pDew = Math.max(300, 2400 * Math.sin(norm * Math.PI) * (1 - norm * 0.3));
+    const minTemp = 60;
+    const maxTemp = 300;
+    for (let t = minTemp; t <= maxTemp; t += 15) {
+      // Standing (1947) Bubble point pressure as function of temperature
+      const standingPb = 18.2 * (
+        Math.pow(gor / Math.max(0.4, gammaG), 0.83) *
+        Math.pow(10, 0.00091 * t - 0.0125 * api) - 1.4
+      );
+      const pBubble = Math.max(50, Math.round(standingPb));
 
       const displayT = unitSystem === "metric" ? Math.round(convert(t, "F", "C")) : t;
-      const displayPBubble = unitSystem === "metric" ? Math.round(convert(pBubble, "psi", "kPa")) : Math.round(pBubble);
-      const displayPDew = unitSystem === "metric" ? Math.round(convert(pDew, "psi", "kPa")) : Math.round(pDew);
+      const displayPBubble = unitSystem === "metric" ? Math.round(convert(pBubble, "psi", "kPa")) : pBubble;
 
       points.push({
         temp: displayT,
         bubblePoint: displayPBubble,
-        dewPoint: displayPDew,
       });
     }
     return points;
-  }, [unitSystem]);
+  }, [gor, gammaG, api, unitSystem]);
 
   const pUnit = unitSystem === "metric" ? "kPa" : "psia";
   const tUnit = unitSystem === "metric" ? "°C" : "°F";
@@ -414,12 +414,15 @@ export default function PVTCalculator() {
           {/* Phase Envelope (P-T Diagram) */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Flame className="w-4 h-4 text-amber-500" />
-                Envelope de Fases P-T (Diagrama de Pressão vs Temperatura)
-              </CardTitle>
-              <Badge variant="outline" className="text-[11px] bg-amber-500/10 text-amber-600">
-                Ponto Crítico ~ {unitSystem === "metric" ? "104 °C" : "220 °F"}
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-amber-500" />
+                  Curva de Ponto de Bolha vs Temperatura (Standing 1947)
+                </CardTitle>
+                <ProvenanceBadge kind="calculated" source="Standing Pb(T)" />
+              </div>
+              <Badge variant="outline" className="text-[11px] bg-emerald-500/10 text-emerald-600">
+                Pb @ {displayTemp}{tUnit}: {results.pb} {pUnit}
               </Badge>
             </CardHeader>
             <CardContent>
@@ -437,18 +440,10 @@ export default function PVTCalculator() {
                     <Line
                       type="monotone"
                       dataKey="bubblePoint"
-                      name="Curva de Ponto de Bolha"
+                      name={`Ponto de Bolha Standing (Pb)`}
                       stroke="#ef4444"
                       strokeWidth={2}
-                      dot={{ r: 3 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="dewPoint"
-                      name="Curva de Ponto de Orvalho"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
+                      dot={{ r: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

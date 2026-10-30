@@ -1,0 +1,581 @@
+# PetroLúmen — Master Remediation Report
+
+## All Changes Required Before Any New Feature Work
+
+**Repository:** `RocelioDaSilva/THE-petrolumen`, branch `main`, commit `33dce6b`
+**Audit basis:** 260 confirmed defects across 12 categories (`PetroLumen_Master_Defect_Register.md`, plus the Deep Audit, Deep Audit Addendum, Generated Outputs Check, and API Audit)
+**Scope of this report:** every change that must be made before the platform can be used for any real engineering purpose. It is not a feature request. It is a **remediation plan**.
+
+---
+
+## Part 0 — Strategic Framing: Why This Is the Next Project
+
+The previous Jules runs (Cormack, Bourgoyne, Arnold & Stewart, Carter Phases 0–8) built feature layers on top of a foundation that has never been verified. The audits show that:
+
+1. **The foundation is not safe.** The casing collapse calculation overstates ratings by 50–65%. A user could select casing that would collapse in service. The triplex pump output is 21% wrong. The mechanical specific energy is 12× wrong. The friction model uses pipe constants for annular flow.
+
+2. **The platform presents fabricated data as real results.** Well logs are `Math.random()`. The LAS upload reports "450 samples processed" without reading the file. The Connectors screen shows six "active" connections to internal hostnames that don't exist. The dashboard shows failing tests as green. The 3D reservoir model is trigonometry. The phase envelope is a sine wave. The DCA "actual" series is the model plus noise. The ML metrics are constants.
+
+3. **The repository contains material that must not be public.** Student email addresses and ID numbers in competition registration forms. Two commercial textbooks (≈50 MB). Internal hostnames. Stray AI planning text.
+
+4. **There is no test harness that runs.** CI calls `pnpm test` — which doesn't exist. The golden test files are named `*Tests.ts` and return objects that nothing asserts on. The build succeeds; nothing else does.
+
+5. **There is no backend.** `openapi.json` describes 60 operations for a "PetroLúmen Backend API". The repo contains zero lines of server code. The frontend makes zero network requests. The specification is a fiction.
+
+**Adding a Carter field operations layer on top of this foundation multiplies the risk.** More formulas, more views, more test files that don't run, on a base that's already broken.
+
+**The next Jules project must be remediation, not feature expansion.** Once the foundation is safe and honest, feature work can resume. Until then, feature work is a liability.
+
+---
+
+## Part 1 — The Remediation Doctrine
+
+Every change in this report follows four rules:
+
+**Rule 1 — Safety first.** A calculation that could lead to equipment failure, injury, or environmental harm gets fixed before anything else. The casing collapse defect is the highest-priority item in the entire register.
+
+**Rule 2 — Honesty is not optional.** Any output that could be mistaken for a result must either be a real result or be visibly labelled as sample / simulated / illustrative. The label must be next to the number, not buried in a tooltip.
+
+**Rule 3 — If it can't be tested, it isn't done.** A fix is not complete until a test proves the defect is gone and the fix stays gone.
+
+**Rule 4 — Every change is traceable.** Every change in this report cites a register ID. Every register ID has a corresponding acceptance test. When the harness runs, it must show the change is complete.
+
+---
+
+## Part 2 — Phase A: Emergency Stop-the-Harm (Critical, Week 1)
+
+These changes stop active harm. They take less time to implement than the feature work already done and are the highest-value work in the entire report.
+
+### A.1 — Fix the casing collapse calculation (ENG-01, ENG-02, ENG-03, ENG-04)
+
+**Current state:**
+- The plastic-collapse linear coefficient is `0.10679×10⁻⁴` instead of the API 5C3 value of `0.10679×10⁻⁵`.
+- The transition-collapse constants are fixed at `2.063` and `0.0546` instead of being derived from the API grade factors `F` and `G`.
+- The regime boundaries are hard-coded at D/t = 14, 25, 37 instead of the grade-dependent values.
+- `F_factor` and `G_factor` are invented formulas (`3.14·√(Yp/10⁴)`) with no API basis.
+
+**Evidence:**
+- 7-in 29 lb/ft N-80: code gives 10,756 psi; API 5C3 correct value is ~7,020 psi (52% overstatement).
+- 9⅝-in 47 lb/ft N-80: code gives 7,896 psi; API 5C3 correct value is ~4,750 psi (66% overstatement).
+
+**Required changes:**
+1. Replace the linear coefficient with `0.10679×10⁻⁵`.
+2. Derive `F` and `G` from `A` and `B` per API 5C3 §3 (formulas in the standard).
+3. Replace the hard-coded D/t boundaries with the grade-dependent values that `dtYield`, `dtPlastic`, and `dtTransition` compute (they exist but are unused).
+4. Delete the invented `F_factor` and `G_factor` formulas; replace with the API values.
+5. Add a regression test that compares every grade × weight × size combination in the API 5C3 table against the published rating. Tolerance ±1%.
+6. Obtain sign-off from a qualified casing engineer before merging.
+
+**Acceptance test:** every casing rating in the API 5C3 table matches to within ±1%. The test file cites the API 5C3 edition used.
+
+### A.2 — Remove every fabricated output (DAT-01 through DAT-19)
+
+The audits identified 10+ outputs that look like results but are generated, hard-coded, or random. Each must either be **removed** or **labelled**:
+
+| # | Output | Current producer | Required change |
+|---|---|---|---|
+| 1 | Well-log curves (`WellDataViewer.tsx:46–49`) | `Math.random()` | Remove. Replace with sample data explicitly labelled "Sample log — not real field data" OR implement a real LAS parser. |
+| 2 | LAS upload success message (`WellDataViewer.tsx:65`) | Hard-coded from file size | Parse the file. Show real sample count. Show error if parse fails. Never show success unless the parse succeeded. |
+| 3 | Connectors "Ativo" with hosts and latency (`ConnectorsView.tsx:18–23`) | Hard-coded + `setTimeout(600ms)` | Show "Not configured" for all six. Remove hostnames. Remove the fake latency. Remove the ping timer. |
+| 4 | Dashboard tiles, "100% Operacional", "24 Simulações", "8 / 8 Ativos" (`DashboardOverview.tsx:313, 339, 350`) | Fixed `CheckCircle2` icons, literal text | Derive every icon and count from the corresponding test result. Include the Arnold & Stewart suite (currently absent). Remove the three literal status strings. |
+| 5 | DCA "actual" series (`reservoirMath.ts:190`) | `Math.sin(t*1.5)` and `Math.sin(t*3)` noise | Remove. Show only the model curve. Label as "Model" not "Actual". If real production data is available, plot it separately and label "Production data". |
+| 6 | Phase envelope (`PVTCalculator.tsx:121`) | `2400 + 1800·sin(norm·π·0.7)` | Either implement a real EOS calculation or remove the envelope and show only the Standing bubble point from the PVT card. Reconcile: the card says 2,765.5 psia at 180°F; the envelope says 4,004 psia. They cannot both be right. |
+| 7 | 3D reservoir grid (`ReservoirGrid3D.tsx:37`) | Trig + modular arithmetic formulas | Either connect to real geological data or replace the visualization with an explicit "Demonstration only — no data connected" placeholder. Do not show a working 3D property model that isn't tied to anything. |
+| 8 | LOT curve (`drillingMath.ts:591`) | Linear + 12% sine overshoot | Remove the post-breakdown overshoot. Rename `maasp` return value to `lotPressure` (see ENG-06). Reconcile with the separate `calculateLOTAndMAASP` function which computes MAASP correctly. |
+| 9 | ML metrics R², RMSE, MAE (`MLDashboardView.tsx:28–30`) | Constants | Remove the ML view entirely (no model is trained) or train a real model. If removed, remove the sidebar entry. |
+| 10 | Kick schedules (`wellControlAdv.ts:82`) | `sicpPsi + sin(fraction·π)·150` + linear offset | Replace with a physical model OR remove from the operational view and label "Illustrative only — do not use for well control". |
+
+**Acceptance test:** every remaining numeric output in the UI traces to a real calculation (verifiable by reading the code) or carries a visible label. A "Provenance" field is added to every output type: `'calculated' | 'sample' | 'simulated' | 'illustrative'`.
+
+### A.3 — Emergency security fixes (SEC-01 through SEC-11)
+
+| Fix | Detail |
+|---|---|
+| Dev server binding | Change `vite.config.ts` from `host: '0.0.0.0'` to `host: 'localhost'`. Remove `allowedHosts: true`; use an explicit list if network access is needed. Remove `--host 0.0.0.0` from the `dev` script in `package.json`. |
+| Vulnerable dependency | Upgrade `jspdf` to a version that depends on `dompurify ≥ 3.4.17`. Verify with `npm audit` that the critical and high findings are gone. Retest the PDF export manually (it currently fails silently — see DAT-20). |
+| Personal data in repo | Remove the competition registration forms from the working tree AND from git history (use `git filter-repo` or similar). Confirm the four student email addresses and the student ID numbers are not recoverable. **This requires coordination with the team before force-pushing.** |
+| Textbooks in repo | Remove the two commercial textbooks (Bourgoyne, Arnold & Stewart) from the working tree and from history. They are not covered by the MIT license. Same coordination requirement. |
+| Internal hostnames | Removed as part of A.2 fix #3 (`ConnectorsView.tsx`). |
+| Stray AI text | Delete `public/assets/aistudio/Paste_October_27__2026_….txt`. Audit `public/assets/aistudio/` for similar files. |
+| `SECURITY.md` contact | Replace `security@example.com` with a real monitored address. |
+| `CODEOWNERS` | Replace `* @everyone` with named owners. |
+| `metadata.json` | Remove the "server-side Gemini capability" claim (not implemented). |
+
+**Acceptance test:** `npm audit` reports 0 vulnerabilities. `git log --all -S "isptec"` returns nothing (after history rewrite). `git log --all -S "Bourgoyne"` returns nothing. `.env.example` has no real secrets.
+
+### A.4 — Correct the two highest-value engineering calculation bugs
+
+**Triplex pump factor (ENG-15):** `triplexPumpFactor` applies `π/4` twice, producing a value 21% low. The Casing & Directional view uses this function; the Well Control view uses the correct `pumpOutputTriplex`. Two different modules report two different values for the same pump. **Fix:** consolidate to one implementation, delete the other, and update all callers. Add a golden test that matches the standard `F_p = (3π/4)·L_s·E_v·d_l²` formula.
+
+**Mechanical specific energy (ENG-14):** The MSE rotary term is 12× too small (missing in→ft conversion). Not reachable from the UI today, but it's the base of every bit-efficiency calculation in Bourgoyne. **Fix:** use `120π·N·T/(A·ROP)`. Add a golden test against the Teale 1962 value.
+
+**Acceptance test:** the well control and casing/directional views both show the same pump output for the same inputs. MSE matches Teale's equation to within ±1%.
+
+---
+
+## Part 3 — Phase B: Fix the Math (Week 2–3)
+
+### B.1 — Every confirmed calculation defect
+
+These are the remaining confirmed calculation errors after Phase A. Each requires a code change plus a golden test.
+
+| Register | Fix |
+|---|---|
+| ENG-05 | Kick schedule casing-pressure profile — replace with a physical model or label illustrative. |
+| ENG-06 | `generateLOTCurve` — remove the `maasp` return field. Rename it to `lotPressure`. The UI must call the separate `calculateLOTAndMAASP` function to display MAASP. |
+| ENG-07 | `generateLOTCurve` — remove the 12% sine overshoot after breakdown. |
+| ENG-08, ENG-09, ENG-10 | `processTripSheet` — reorder status checks (gain warning before transfer). Make the 1.5 bbl tolerance configurable. Add a UI caller OR delete the function. |
+| ENG-11, ENG-12 | `calculateHydraulics` — use the annular Bingham constant (200, not 225) for annular flow. Add flow-regime detection (Reynolds-based). Delegate to `hydraulicsBourgoyne` for consistency. |
+| ENG-13 | Cuttings transport ratio — remove the unsourced `55 + 25·CCI` heuristic or label it explicitly "Illustrative index (not a published correlation)". |
+| ENG-16 | Two triplex pump implementations — consolidate to one; see A.4. |
+| ENG-17 | Mist extractor — use gas density in the Souders-Brown denominator. |
+| ENG-18 | Vessel golden tests — diagnose the 3 failing tests (AS-Ex-4.3, AS-Ex-6.1, AS-Ex-9-1). Apply the fixes from Phase 0 remediation (book typo, skirt rounding, `minDropletFromPacks`). |
+| ENG-19 | Cormack golden test kill-sheet volume — reconcile 1,142.4 bbl against the source worksheet's 1,147.0 bbl. |
+| ENG-20 | `discountRate \|\| 0.1` — use `?? 0.1` and validate non-negative. |
+| ENG-21 | IRR search — return `undefined` / "not defined" for unprofitable projects instead of the bound value. |
+| ENG-24 | Simulator stability cap — replace the 0.45 cap with a smaller `dt` or an implicit scheme. Relabel the time axis to match the actual simulated time. |
+| ENG-26 | DCA rate floor — remove the silent 1 STB/d floor or only apply where economic. Recompute EUR. |
+| ENG-27 | DCA "actual" series — see A.2 fix #5. |
+| ENG-28 | DCA hyperbolic `b` clamp — support `b > 1` or reject with a clear error. Do not silently clamp. |
+| ENG-29 | FMB OGIP — implement a real `p/z` vs `Gp` fit. Do not return the input. |
+| ENG-33 | `calculatePVT` zero coercion — validate and reject. Do not silently replace 0 with default. |
+| ENG-34 | Z-factor non-convergence — raise or flag; do not return 0.88 silently. |
+| ENG-43 | `findRootBrent` — throw on invalid bracket (no sign change). |
+| ENG-44, ENG-45 | `round()` — use decimal-safe rounding. `round(1.005, 2)` must return 1.01. |
+| ENG-46, ENG-47, ENG-48 | Units — pick one converter (delete the other). Throw on unknown pairs. Use a canonical `Unit` enum instead of free-text strings. |
+| ENG-49 | Intermediate rounding — round only final outputs. Do not round intermediate pressures. |
+| ENG-51, ENG-52, ENG-53, ENG-54, ENG-55, ENG-58, ENG-59, ENG-60, ENG-61, ENG-62 | Unverified constants and correlations — verify each against the cited standard (GPSA, API 2000, ASME II-D, Arnold & Stewart) or remove. **These are the "U" items in the register — no code change until the reference is confirmed.** |
+
+**Acceptance test:** every confirmed defect in this table has a passing golden test that fails on the pre-fix commit and passes on the post-fix commit.
+
+### B.2 — Cross-module constant reconciliation (DEF-01 through DEF-12)
+
+Create a single `src/lib/examples/defaultWell.ts` file that defines the canonical example well. Every module that uses example defaults imports from this file.
+
+```typescript
+export const EXAMPLE_WELL = {
+  reservoirPressure: 3500,     // psia — pick one value; currently 3200/3400/3600
+  temperature: 180,             // °F
+  gasGravity: 0.7,              // currently 0.65/0.68/0.72
+  gor: 600,                     // scf/STB — currently 500/600/650
+  oilApi: 35,
+  waterCut: 0.25,
+  simulationPermeability: 50,   // mD
+  simulationPorosity: 0.2,
+  simulationViscosity: 1.5,     // cP
+  simulationBlockSize: 100,     // ft
+  productionRate: -500,         // STB/d
+  discountRate: 0.1,            // decimal, always
+} as const;
+```
+
+Every view replaces its hard-coded defaults with imports from this file. The library defaults match the example well.
+
+**Acceptance test:** changing `EXAMPLE_WELL` in one place changes the defaults in every module. A "reset to example" button works identically across the platform.
+
+### B.3 — Fix the harness to catch what it missed
+
+The audit harness currently passes 25 of 58 checks. Several checks pass for the wrong reason:
+
+- **DCA b-clamp** (TST-04): the tolerance was 1% while the error was 0.2%, so the test passed even though the bug was present. Tolerance is now tightened.
+- **Lockfile check** (TST-04): a shell precedence bug (`||` vs `&&`) made the result correct by accident. Fixed.
+- **Bourgoyne dogleg** (TST-05): tolerance ±0.05 accepts both the wrong expected value (3.28) and the correct value (3.32). Tighten the tolerance and correct the expected value.
+
+Add to the harness:
+- A UI smoke test that navigates all 17 modules and asserts no runtime errors (currently the smoke test exists but isn't committed).
+- A test that every output in the UI has a provenance label.
+- A test that every `EXAMPLE_WELL` reference matches the canonical file.
+- A test that `round()` is decimal-safe for known edge cases.
+- A test that `convert()` throws on unknown pairs.
+
+**Acceptance test:** the harness is stable across two runs. The count matches the register. Adding a defect causes a test to fail.
+
+---
+
+## Part 4 — Phase C: Testing Infrastructure (Week 3–4)
+
+### C.1 — Install a real test runner (TST-01, TST-02, TST-03, TST-06, TST-07, TST-09)
+
+**Current state:** No test runner. Golden test files return result objects. Nothing asserts on them. CI runs `pnpm test` which doesn't exist.
+
+**Required changes:**
+
+1. Install Vitest as a dev dependency.
+2. Add `"test": "vitest run"` and `"test:watch": "vitest"` to `package.json`.
+3. Add `vitest.config.ts` with `environment: 'jsdom'` for component tests.
+4. Convert every `run*GoldenTests()` function to a `describe`/`it` block. The function returns an array; iterate it and call `expect(result.passed).toBe(true)` for each entry.
+5. Add Playwright for UI smoke tests. A single test navigates all 17 modules and asserts no console errors.
+6. Install `@vitest/coverage-v8`. Add `"test:coverage": "vitest run --coverage"`.
+7. Add `"typecheck": "tsc --noEmit"` and `"test:e2e": "playwright test"` to satisfy the existing CI workflow names.
+
+**Acceptance test:** `npm test` returns green for all golden tests. `npm run test:e2e` returns green for the smoke test. `npm run test:coverage` produces a report. `npm run lint` (currently undefined) returns 0.
+
+### C.2 — Add ESLint and Prettier (ARC-16, ARC-17)
+
+1. Install ESLint with `@typescript-eslint` and `eslint-plugin-react`.
+2. Add `.eslintrc.json` with `extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:react/recommended']`.
+3. Install Prettier with a shared config.
+4. Add a pre-commit hook that runs both.
+5. Fix every existing lint violation (currently 181 unused-variable errors under strict mode, and unknown additional issues once ESLint rules are added).
+
+**Acceptance test:** `npm run lint` returns 0. `pre-commit run --all-files` returns 0.
+
+### C.3 — Enable TypeScript strict mode (ARC-09)
+
+1. Set `"strict": true` in `tsconfig.json`.
+2. Set `"noUnusedLocals": true` and `"noUnusedParameters": true`.
+3. Fix the 181 unused-variable errors that this will surface.
+4. Replace the 13 `as any` casts with proper types.
+
+**Acceptance test:** `tsc --noEmit` returns 0 with `strict: true`.
+
+---
+
+## Part 5 — Phase D: Repository Hygiene and CI (Week 4–5)
+
+### D.1 — Fix CI (OPS-01, OPS-02, OPS-04, OPS-05)
+
+**Current state:**
+- Frontend CI job points to `petrolumen/` (missing directory).
+- Backend CI job points to `backend/` (missing directory).
+- Dependabot points to both missing directories.
+- `.pre-commit-config.yaml` excludes a missing directory and has Python hooks for a missing backend.
+
+**Required changes:**
+
+1. Fix `.github/workflows/ci.yml`: paths should reference the repo root, not `petrolumen/`.
+2. Remove `.github/workflows/backend-ci.yml` or add a backend directory.
+3. Fix `.github/dependabot.yml`: remove entries for missing directories, keep npm ecosystem.
+4. Fix `.pre-commit-config.yaml`: remove the missing-directory exclude and the Python hooks.
+5. Commit `package-lock.json` (currently missing, so `--frozen-lockfile` in CI cannot work).
+6. Pin Node version locally: add `.nvmrc` with `20` and `"engines": { "node": ">=20" }` in `package.json`.
+
+**Acceptance test:** `act` (local GitHub Actions runner) or a push to `main` produces a green CI run. `pre-commit run --all-files` returns 0. `npm ci` installs from the lockfile.
+
+### D.2 — Clean the working tree (OPS-06, OPS-08, OPS-09, OPS-10)
+
+1. Remove the 18 LaTeX build artifacts (`.aux`, `.out`, `.toc`, `.fls`, `.fdb_latexmk`) from tracking. Add `*.aux`, `*.out`, `*.toc`, `*.fls`, `*.fdb_latexmk`, `*.log` to `.gitignore`.
+2. Keep only one version of the duplicated registration PDF.
+3. Rename files with mojibake names and remove spaces from directory names.
+4. Delete `public/assets/aistudio/Paste_October_27__2026_….txt` (see A.3).
+
+**Acceptance test:** `git ls-files | grep -E '\.(aux|out|toc|fls|fdb_latexmk)$'` returns nothing. Directory names have no spaces.
+
+### D.3 — Rewrite the documentation (OPS-11, OPS-12, OPS-13, OPS-14, OPS-18)
+
+The current documentation describes a Next.js 15 / Tauri v2 / FastAPI / Zustand / Prophet stack that doesn't exist.
+
+1. Rewrite `AGENTS.md`, `CONTRIBUTING.md`, and `DEVELOPER_ONBOARDING.md` to describe the actual stack: React 18 + Vite 6 + TypeScript + Tailwind.
+2. Archive `docs/audits/` into a `docs/audits/archive/` folder with a README explaining they are historical.
+3. Fill `docs/ENVIRONMENT_STATE.md` with the actual state.
+4. Bilingual README: Portuguese (primary) plus English section, with at least 3 screenshots, a quick-start, and a live demo link if available.
+
+**Acceptance test:** documentation accurately describes the code. No mention of Tauri, Next.js, Zustand, Prophet, or FastAPI unless the actual code contains them.
+
+### D.4 — Repository polish (OPS-16, OPS-17, OPS-19, OPS-20, OPS-22, OPS-23)
+
+1. Create a `v0.1.0` tag and GitHub release after Phase A–D complete.
+2. Add issue and pull-request templates.
+3. Replace the placeholder favicon and logo with real brand assets.
+4. Clarify the `LICENSE` — MIT covers the source code, but the textbooks and personal documents must be removed (A.3).
+5. Add `CHANGELOG.md`.
+
+**Acceptance test:** repository has a release, templates, and a non-placeholder favicon.
+
+---
+
+## Part 6 — Phase E: API Contract (Week 5–6)
+
+### E.1 — Decide: build the backend or remove the spec (API-01)
+
+**Current state:** `openapi.json` describes 60 operations. Zero server code. Zero frontend network calls.
+
+**Two paths, pick one:**
+
+**Path 1 — Remove the spec.** Delete `openapi.json`. Remove the "PetroLúmen Backend API" claims from `metadata.json`, `README.md`, and `AGENTS.md`. The platform is explicitly offline-only until a backend exists. This is the faster path.
+
+**Path 2 — Build the backend.** Implement the backend, apply all the fixes below, and deploy it.
+
+**Recommendation:** Path 1 for now. The audit shows the spec has 33 defects of its own before it can be trusted. Adding a backend to a broken spec is a two-year project. Removing the spec is a one-hour task.
+
+### E.2 — If Path 2 (build the backend), apply these fixes before shipping
+
+Every fix below is required before the backend can be trusted:
+
+- **Authentication:** one login endpoint, not two. Token expiry. Refresh. `401` and `403` documented per operation. Password policy (min 12 chars, breach check).
+- **Registration:** invite-only or admin-approval. Rate-limit login and registration (`429` documented).
+- **Authorization:** encode required roles in the security scheme. Remove the `role` field from any schema reachable without admin rights.
+- **Debug endpoints:** remove `economics/run` and `flowsim/reset` from the public contract.
+- **Validation:** `minimum` and `maximum` on every numeric property. `enum` on all 23 documented-enum string properties. Length-equality rule for arrays that must align (`time` and `rate`).
+- **Units:** one unit system, encoded in property names or a `Quantity` schema. Document in `info.description`.
+- **Servers:** add `servers` block. Add global `security`. Add `tags` at the top level.
+- **Errors:** shared error envelope with business codes (`WELL_NOT_FOUND`, `SIMULATION_DIVERGED`, etc.). Document `404`, `409`, `500`.
+- **Long-running operations:** job pattern for Monte Carlo, AI training, simulation. `POST` returns `202` with a job ID. `GET /jobs/{id}` reports status.
+- **Pagination:** every list endpoint.
+- **Idempotency:** keys on create endpoints.
+- **Duplication:** merge the 8 duplicated capability groups. Choose one OGIP. Choose one economics model. Choose one login.
+- **Naming:** rename `gaia` to a meaningful prefix or document it. Fix the `/static-modeling/static-modeling/` stutter. Standardise on one casing (kebab-case for paths).
+- **Operation IDs:** set `operation_id` overrides to short, human-readable names.
+- **Reconciliation:** the economics model must match the frontend (tax or no tax, fixed+variable or single). The three OGIP endpoints must produce the same result or two must be retired.
+
+**Acceptance test:** a typed client generated from the spec has short method names, and every operation has examples, units, and documented error responses.
+
+---
+
+## Part 7 — Phase F: Provenance and Honesty Labels
+
+Every output in the UI must carry a provenance label next to the number. This is the core honesty fix.
+
+### F.1 — Add the provenance type
+
+```typescript
+export type Provenance =
+  | 'calculated'   // computed from user inputs by a formula
+  | 'sample'       // fixed sample data, clearly labelled
+  | 'simulated'    // generated by a model, not measured
+  | 'illustrative' // shown for teaching, not for use
+  | 'unknown';     // not yet classified — must be eliminated
+```
+
+### F.2 — Add the label component
+
+```typescript
+<ProvenanceLabel kind="calculated" source="Hall-Yarborough (1973)" />
+// renders: [Calculated · Hall-Yarborough 1973]
+// with a tooltip explaining the calculation
+```
+
+### F.3 — Apply the label to every output
+
+Every output card, chart, table, and KPI in the platform must have a provenance label:
+- Calculated: shows the formula name and citation.
+- Sample: shows "Sample data — not real field data".
+- Simulated: shows "Simulated — not measured".
+- Illustrative: shows "Illustrative only — do not use for decision-making".
+
+**Acceptance test:** a test iterates every output in the DOM and asserts each has a provenance label. No output with `kind: 'unknown'` renders in production.
+
+### F.4 — Remove the developer jargon from the UI (DAT-23)
+
+Current UI shows: "v1.0 React", "Fail-Loudly", "Unit-Aware Formula Engine", "Benchmarks", "Analytics Avançado", "Dashboard Geral".
+
+Replace with user-facing text:
+- "v1.0 React" → "Version 1.0" (or remove)
+- "Fail-Loudly" → remove
+- "Unit-Aware Formula Engine" → "Engineering Calculator"
+- "Benchmarks" → "Verification"
+- "Analytics Avançado" → "Advanced Analytics" (or in Portuguese if Portuguese is primary: "Análise Avançada")
+- "Dashboard Geral" → "Overview" / "Visão Geral"
+
+**Acceptance test:** no developer jargon appears in the UI. A string audit returns clean.
+
+---
+
+## Part 8 — Phase G: Architecture Cleanup (Week 6–7)
+
+### G.1 — Split the giant view files (ARC-02, ARC-03, ARC-04, ARC-05)
+
+| File | Current lines | Target |
+|---|---|---|
+| `SurfaceFacilitiesView.tsx` | 1,209 | Split into `SurfaceFacilitiesView`, `SeparatorSizingTab`, `TankCapacityTab`, `WaterTreatingTab`, `OilTreatingTab` |
+| `WellControlView.tsx` | 1,181 | Split into `WellControlView`, `KillSheetTab`, `KickToleranceTab`, `KillSheetTaperedTab`, `KillSheetDeviatedTab`, `BaritePlugTab` |
+| `DrillingFluidsView.tsx` | 720 | Split into `DrillingFluidsView`, `RheologyTab`, `WeightingTab`, `SolidsAnalysisTab`, `ChemicalTreatmentTab` |
+| `DashboardOverview.tsx` | 648 | Split into `DashboardOverview`, `TestResultsPanel`, `ProvenanceBadges`, `QuickLinksGrid` |
+
+**Acceptance test:** each file ≤ 400 lines. Each tab is independently testable.
+
+### G.2 — Move calculation logic out of components (ARC-07)
+
+Current: some engineering logic is inside view files. Move to `src/lib/`. Add tests for the moved logic.
+
+### G.3 — Remove dead code (ARC-01)
+
+82 of 221 exported functions are referenced nowhere. Options:
+
+1. Remove the function and its test.
+2. Add a JSDoc `@public` tag and document why it's kept (for future use).
+3. Move to `src/lib/experimental/` with an "experimental, not exposed in UI" label.
+
+Prefer option 1. Dead code carries the same bugs as live code.
+
+### G.4 — Consolidate duplicates (ARC-10, ARC-11)
+
+- Two unit converters → one (see B.1 ENG-46/47/48).
+- Two separator sizers → one (see A.4 ENG-15/16).
+- Two triplex pump implementations → one.
+- Two Z-factor implementations → one.
+- Two DCA namespaces → one.
+
+**Acceptance test:** `grep -r "function pumpOutputTriplex"` returns one result. `grep -r "function convertUnit"` returns one result.
+
+### G.5 — Adopt a design system (ARC-12)
+
+9 files in `components/ui/` duplicate patterns. Adopt a component library (e.g., shadcn/ui, Radix) or define a design token file. Do not add more one-off components.
+
+### G.6 — Bundle size (ARC-19)
+
+Current: 1.49 MB minified. Vite warns.
+
+1. Lazy-load each module (already partially done for views).
+2. Lazy-load heavy libraries (recharts, jspdf) only when the corresponding view is opened.
+3. Consider dynamic imports for the PDF export.
+4. Audit `node_modules` for unused dependencies.
+
+**Acceptance test:** main bundle < 500 KB minified. First contentful paint < 2s on a 3G connection.
+
+---
+
+## Part 9 — Phase H: Accessibility, i18n, Visual (Week 7–8)
+
+### H.1 — Accessibility (A11Y-01 through A11Y-13)
+
+1. Add ARIA labels to every icon button. Every status region has `role="status"` and `aria-live="polite"`.
+2. Add `alt` to every image or `aria-hidden="true"` if decorative.
+3. Text sizes: minimum 12 px. Replace the ~240 instances of 10–11 px text.
+4. Status: use shape + text + colour, not just colour.
+5. Add labels to the two unlabeled inputs.
+6. Verify WCAG AA contrast for all text.
+7. Fix mobile layout: at 390 px width, the sidebar must collapse to a drawer and the content must scroll.
+8. Add a skip link and keyboard shortcuts (at minimum Escape closes modals and drawers).
+9. Focus management: on module switch, move focus to the module heading.
+10. `lang` attribute per locale (see H.2).
+11. Charts: add text alternatives (a summary `<figcaption>` or a table fallback).
+12. Red/green status: add shape and text redundancy.
+13. `prefers-reduced-motion`: disable or reduce the 26 transitions when set.
+
+**Acceptance test:** axe-core returns zero violations on every page. Mobile at 390 px has no horizontal scroll and all content is reachable.
+
+### H.2 — Internationalization (I18N-01 through I18N-06)
+
+1. Install `react-i18next`.
+2. Extract the 283 hard-coded Portuguese strings to `src/locales/pt-BR.json`.
+3. Create an English `src/locales/en.json` with translations.
+4. Choose one language per screen. Do not mix Portuguese and English.
+5. Use `Intl.NumberFormat` and `Intl.DateTimeFormat` for locale-aware formatting.
+6. Add a language switcher in the header.
+
+**Acceptance test:** every user-facing string comes from the i18n resources. Switching locale changes every string. No Portuguese strings are hard-coded in components.
+
+### H.3 — Visual design (VIS-01 through VIS-21)
+
+1. Define design tokens: color palette, typography scale, spacing scale, elevation. Put in `tailwind.config.js` and `src/styles/tokens.css`.
+2. Load a custom typeface (e.g., Inter).
+3. Simplify the hero banner: remove the four badges and the developer jargon. Show the active case name and a one-line summary.
+4. Live case summary on the dashboard.
+5. Style and annotate the charts: add equations where relevant, use the design tokens for colors.
+6. Fix chart ranges: the simulation axis extends past the curves.
+7. Fix the phase-envelope label overlap.
+8. Separate the dual-axis PVT chart into two charts.
+9. State that the pressure axis is not zero-based in the simulation chart (or zero-base it).
+10. One numeric font across all numeric cards.
+11. Fix the unit wrapping in the Bg card.
+12. Fix the sanitiser badge wrapping.
+13. Move the 28 hard-coded colours to design tokens.
+14. Add loading and empty states.
+15. Verify dark mode contrast.
+16. Show validation errors next to the field (not just a grey hint).
+17. Clarify the "Executar Simulação" button (auto-run or manual).
+18. Use the shared example well defaults (see B.2).
+19. Add units to every input field.
+20. Add input and case persistence (localStorage with a clear scope).
+21. Add a command palette (Cmd/Ctrl-K).
+
+**Acceptance test:** every chart, card, and input uses design tokens. No hard-coded colours in components. Every input has a visible unit.
+
+---
+
+## Part 10 — Phase I: Backend Decision (Future)
+
+**Recommendation:** do not build the backend until Phases A–H are complete. The audit shows the frontend has 260 defects. A backend built on top of a broken frontend will inherit those defects. Fix the frontend first. Then decide whether a backend is needed.
+
+If a backend is built after Phase H:
+
+1. Choose one framework (FastAPI is a reasonable choice given the current spec shape).
+2. Implement the spec with all Phase E.2 fixes applied.
+3. Add authentication, authorization, pagination, error envelope, job pattern.
+4. Generate the frontend client from the spec (no hand-written fetch calls).
+5. Add end-to-end tests that exercise both the frontend and the backend together.
+
+**Acceptance test:** a request from the frontend to the backend returns a real result from a real calculation, with provenance, from a real database.
+
+---
+
+## Part 11 — Acceptance Criteria per Phase
+
+| Phase | Acceptance Criteria | Estimated Effort |
+|---|---|---|
+| A | Casing ratings match API 5C3 to ±1%. No fabricated output remains unlabelled. `npm audit` returns 0. Personal data and textbooks removed from history. `npm run build` passes. | 3–4 days |
+| B | Every confirmed ENG defect has a passing golden test. Cross-module constants are reconciled. Harness catches the DCA bug. | 5–7 days |
+| C | `npm test` runs Vitest, all golden tests pass. `npm run lint` returns 0. `tsc --noEmit` returns 0 with `strict: true`. `npm run test:e2e` returns green. Coverage report exists. | 4–5 days |
+| D | CI passes on `main`. Lockfile committed. LaTeX artifacts removed. Docs describe the actual code. `v0.1.0` tag exists. | 3–4 days |
+| E | Either `openapi.json` is deleted (Path 1) or the spec has units, enums, bounds, servers, auth, errors, pagination, idempotency (Path 2). | 1 day (Path 1) or 4–6 weeks (Path 2) |
+| F | Every output has a provenance label. Developer jargon removed from UI. | 2–3 days |
+| G | Every view file ≤ 400 lines. No duplicate implementations. Dead code removed or documented. Main bundle ≤ 500 KB. | 5–7 days |
+| H | Axe-core returns zero violations. Locale switch works. Design tokens replace hard-coded values. Mobile works at 390 px. | 7–10 days |
+| I | Backend decision made and documented (build or remove). | 1 day (decision) or 4–6 months (build) |
+
+**Total estimated effort for Phases A–H:** 30–45 working days for one engineer, or 8–10 weeks calendar time if done sequentially.
+
+---
+
+## Part 12 — The Jules Command Structure
+
+Do not hand this entire report to Jules as one task. It will fail, and it will fail in ways that make the code worse.
+
+**Split into 8 Jules tasks, one per phase:**
+
+1. **Task A — Stop the harm.** Casing collapse, fabricated output removal, security essentials.
+2. **Task B — Fix the math.** Confirmed ENG defects, constant reconciliation, harness improvement.
+3. **Task C — Testing infrastructure.** Vitest, Playwright, ESLint, Prettier, strict TS.
+4. **Task D — Repository hygiene and CI.** CI fix, lockfile, artifacts, docs, release.
+5. **Task E — API contract decision.** Delete or fix.
+6. **Task F — Provenance labels.** Type, component, apply everywhere.
+7. **Task G — Architecture cleanup.** File splits, dead code, duplication.
+8. **Task H — Accessibility, i18n, visual.** ARIA, i18n, design tokens, mobile.
+
+Each task should:
+- Take one commit
+- Have explicit acceptance criteria (the ones above)
+- Be followed by a full harness re-run
+- Not be merged until the harness passes
+
+**Do not combine tasks.** Each task is large enough to need its own review. Combining them guarantees a merge conflict and a partial fix.
+
+---
+
+## Part 13 — What the Next Jules Project Should NOT Do
+
+**Do not:**
+- Add more feature layers (Carter field ops, additional views, additional formulas) until Phases A–H are complete.
+- Build a backend until the frontend is honest.
+- Add more tests without first making the existing tests run.
+- Refactor for style before fixing the bugs.
+- Upgrade React, Vite, or Tailwind until Phase C is green (upgrading a codebase that doesn't have tests is asking for regressions).
+- Rewrite the casing or hydraulics calculations without a petroleum engineer sign-off.
+- Force-push to `main` without team coordination (Phase A.3 requires history rewrite).
+
+---
+
+## Part 14 — Immediate Next Actions
+
+1. **Read the audits.** If you haven't read the 5 audit documents in full, do so before starting Jules. The register is the index; the deep audits are the substance.
+2. **Form a small review team.** At minimum: one petroleum engineer (casing, hydraulics, well control), one backend engineer (for the API decision), one frontend engineer (for the honesty fixes).
+3. **Get sign-off on Phase A before writing code.** The casing fix requires a petroleum engineer to confirm the API 5C3 values. The removal of fake data requires team agreement on what the platform is (demo or tool). The history rewrite requires team coordination on force-push timing.
+4. **Set up the harness locally.** Run `petrolumen_audit_harness.tar.gz` on your clone. Confirm the 33 failures match the register. This is your baseline.
+5. **Start with Task A.** One commit. One review. One harness re-run. Merge.
+6. **Then Task B.** Repeat.
+7. **Do not skip ahead.** The phases are ordered for a reason. Task A stops harm. Task B fixes math. Task C makes tests work. Task D makes CI work. Task E resolves the API fiction. Task F makes outputs honest. Task G cleans the code. Task H makes it usable.
+
+---
+
+## Part 15 — Final Word
+
+The platform has genuine engineering content — correct Hall-Yarborough, Standing, Beggs-Robinson, minimum-curvature, Arps, Duong, Vogel, Colebrook, kill-sheet, MAASP, casing-table, cement-class implementations. The UI is clean. The build succeeds. Dark mode works. The four books are implemented.
+
+**None of that matters if the casing collapse is wrong and the well logs are random.**
+
+The remediation plan above fixes the defects. It does not add features. That is the point. Add features after the foundation is safe. The next Jules project should be **boring, careful, and slow** — one phase at a time, one commit at a time, one harness run at a time.
+
+If you do that, in 8–10 weeks you will have a platform you can hand to an engineer without a warning label. If you skip it, you will have a platform with more features on a foundation that still can't be trusted.
+
+**The remediation is the next feature.**
