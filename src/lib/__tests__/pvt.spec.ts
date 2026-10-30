@@ -36,4 +36,25 @@ describe('PVT Engineering Calculations', () => {
     expect(results.oilViscosity).toBeGreaterThan(0.1);
     expect(results.oilViscosity).toBeLessThan(50);
   });
+
+  // --- Fail-loudly guards (AGENTS.md requirement) ---
+
+  it('throws RangeError for negative pressure', () => {
+    expect(() => calculateZFactor(-500, 180, 0.65)).toThrow(RangeError);
+    expect(() => calculateZFactor(-500, 180, 0.65)).toThrow(/pressure/i);
+  });
+
+  it('throws RangeError for zero pressure', () => {
+    expect(() => calculateZFactor(0, 180, 0.65)).toThrow(RangeError);
+  });
+
+  it('throws RangeError for temperature below absolute zero', () => {
+    expect(() => calculateZFactor(3000, -500, 0.65)).toThrow(RangeError);
+    expect(() => calculateZFactor(3000, -500, 0.65)).toThrow(/temperature/i);
+  });
+
+  it('throws RangeError for non-positive gas gravity', () => {
+    expect(() => calculateZFactor(3000, 180, 0)).toThrow(RangeError);
+    expect(() => calculateZFactor(3000, 180, -0.1)).toThrow(RangeError);
+  });
 });

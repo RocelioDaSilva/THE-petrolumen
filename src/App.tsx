@@ -1,23 +1,6 @@
-import React, { useState, useEffect, Suspense, lazy } from "react";
+import React, { useState, useEffect, useMemo, Suspense, lazy } from "react";
 import Header from "@/components/Header";
 import Sidebar, { APP_MODULES } from "@/components/Sidebar";
-import DashboardOverview from "@/components/visualizations/DashboardOverview";
-import WellControlView from "@/components/visualizations/WellControlView";
-import DrillingHydraulicsView from "@/components/visualizations/DrillingHydraulicsView";
-import DrillingFluidsView from "@/components/visualizations/DrillingFluidsView";
-import CementingView from "@/components/visualizations/CementingView";
-import CasingAndDirectionalView from "@/components/visualizations/CasingAndDirectionalView";
-import SurfaceFacilitiesView from "@/components/visualizations/SurfaceFacilitiesView";
-import ReservoirSimulationView from "@/components/visualizations/ReservoirSimulationView";
-import ReservoirGrid3D from "@/components/visualizations/ReservoirGrid3D";
-import DeclineCurveAnalysis from "@/components/visualizations/DeclineCurveAnalysis";
-import PVTCalculator from "@/components/visualizations/PVTCalculator";
-import NodalAnalysisView from "@/components/visualizations/NodalAnalysisView";
-import FlowingMaterialBalanceView from "@/components/visualizations/FlowingMaterialBalanceView";
-import EconomicsView from "@/components/visualizations/EconomicsView";
-import MLDashboardView from "@/components/visualizations/MLDashboardView";
-import WellDataViewer from "@/components/visualizations/WellDataViewer";
-import ConnectorsView from "@/components/visualizations/ConnectorsView";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import DocumentationModal from "@/components/DocumentationModal";
@@ -25,6 +8,28 @@ import { I18nProvider, useI18n } from "@/lib/i18n";
 import { UnitProvider } from "@/lib/unitContext";
 import { SessionRegistryProvider } from "@/lib/sessionRegistry";
 
+// ---------------------------------------------------------------------------
+// Code-split ALL heavy view modules via React.lazy so they are only fetched
+// on first visit.  This dramatically reduces the JS parsed at cold start.
+// Previously 14 components were eagerly imported, loading 300+ KB upfront.
+// ---------------------------------------------------------------------------
+const DashboardOverview = lazy(() => import("@/components/visualizations/DashboardOverview"));
+const WellControlView = lazy(() => import("@/components/visualizations/WellControlView"));
+const DrillingHydraulicsView = lazy(() => import("@/components/visualizations/DrillingHydraulicsView"));
+const DrillingFluidsView = lazy(() => import("@/components/visualizations/DrillingFluidsView"));
+const CementingView = lazy(() => import("@/components/visualizations/CementingView"));
+const CasingAndDirectionalView = lazy(() => import("@/components/visualizations/CasingAndDirectionalView"));
+const SurfaceFacilitiesView = lazy(() => import("@/components/visualizations/SurfaceFacilitiesView"));
+const ReservoirSimulationView = lazy(() => import("@/components/visualizations/ReservoirSimulationView"));
+const ReservoirGrid3D = lazy(() => import("@/components/visualizations/ReservoirGrid3D"));
+const DeclineCurveAnalysis = lazy(() => import("@/components/visualizations/DeclineCurveAnalysis"));
+const PVTCalculator = lazy(() => import("@/components/visualizations/PVTCalculator"));
+const NodalAnalysisView = lazy(() => import("@/components/visualizations/NodalAnalysisView"));
+const FlowingMaterialBalanceView = lazy(() => import("@/components/visualizations/FlowingMaterialBalanceView"));
+const EconomicsView = lazy(() => import("@/components/visualizations/EconomicsView"));
+const MLDashboardView = lazy(() => import("@/components/visualizations/MLDashboardView"));
+const WellDataViewer = lazy(() => import("@/components/visualizations/WellDataViewer"));
+const ConnectorsView = lazy(() => import("@/components/visualizations/ConnectorsView"));
 const FieldBasicView = lazy(() => import("@/components/visualizations/FieldBasicView"));
 const RigOperationsView = lazy(() => import("@/components/visualizations/RigOperationsView"));
 const StuckPipeView = lazy(() => import("@/components/visualizations/StuckPipeView"));
@@ -34,11 +39,22 @@ const TankCapacityView = lazy(() => import("@/components/visualizations/TankCapa
 const AirGasView = lazy(() => import("@/components/visualizations/AirGasView"));
 const CompletionsView = lazy(() => import("@/components/visualizations/CompletionsView"));
 
+/** Dark-mode preference localStorage key. */
+const DARK_MODE_KEY = "petrolumen_dark_mode";
+
 function MainApp() {
   const { t } = useI18n();
+
+  // Initialise dark mode from persisted user preference
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(DARK_MODE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [isDocsOpen, setIsDocsOpen] = useState<boolean>(false);
 
   // Sync dark class on document root
@@ -49,80 +65,64 @@ function MainApp() {
       } else {
         document.documentElement.classList.remove("dark");
       }
+      // Persist preference across page reloads
+      localStorage.setItem(DARK_MODE_KEY, isDarkMode ? "1" : "0");
     } catch {
-      // safe fallback
+      // safe fallback — localStorage may be unavailable in restricted environments
     }
   }, [isDarkMode]);
 
   const activeModuleMeta = APP_MODULES.find((m) => m.id === activeModule) || APP_MODULES[0];
   const activeCategory = (t.categories as Record<string, string>)[activeModuleMeta.categoryKey] || activeModuleMeta.defaultCategory;
 
-  const renderActiveModule = () => {
+  /** Shared Suspense loading fallback. */
+  const loadingFallback = (
+    <div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>
+  );
+
+  /**
+   * Resolves the active module JSX.
+   * Memoised on `activeModule` so switching modules does not re-instantiate
+   * every Suspense boundary on every unrelated render.
+   */
+  const activeModuleView = useMemo(() => {
+    const wrap = (node: React.ReactNode) => (
+      <Suspense fallback={loadingFallback}>{node}</Suspense>
+    );
+
     switch (activeModule) {
       case "dashboard":
-        return <DashboardOverview onNavigate={setActiveModule} />;
+        return wrap(<DashboardOverview onNavigate={setActiveModule} />);
       case "well-control":
-        return <WellControlView />;
+        return wrap(<WellControlView />);
       case "drilling-hydraulics":
-        return <DrillingHydraulicsView />;
+        return wrap(<DrillingHydraulicsView />);
       case "drilling-fluids":
-        return <DrillingFluidsView />;
+        return wrap(<DrillingFluidsView />);
       case "cementing":
-        return <CementingView />;
+        return wrap(<CementingView />);
       case "casing-directional":
-        return <CasingAndDirectionalView />;
+        return wrap(<CasingAndDirectionalView />);
       case "field-basic":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <FieldBasicView />
-          </Suspense>
-        );
+        return wrap(<FieldBasicView />);
       case "rig-operations":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <RigOperationsView />
-          </Suspense>
-        );
+        return wrap(<RigOperationsView />);
       case "stuck-pipe":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <StuckPipeView />
-          </Suspense>
-        );
+        return wrap(<StuckPipeView />);
       case "rig-loads":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <RigLoadsView />
-          </Suspense>
-        );
+        return wrap(<RigLoadsView />);
       case "ton-miles":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <TonMilesView />
-          </Suspense>
-        );
+        return wrap(<TonMilesView />);
       case "tank-capacity":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <TankCapacityView />
-          </Suspense>
-        );
+        return wrap(<TankCapacityView />);
       case "air-gas":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <AirGasView />
-          </Suspense>
-        );
+        return wrap(<AirGasView />);
       case "completions":
-        return (
-          <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">{t.loadingModule}</div>}>
-            <CompletionsView />
-          </Suspense>
-        );
+        return wrap(<CompletionsView />);
       case "surface-facilities":
-        return <SurfaceFacilitiesView />;
+        return wrap(<SurfaceFacilitiesView />);
       case "reservoir-simulation":
-        return (
+        return wrap(
           <div className="space-y-6">
             <Tabs defaultValue="impes" className="w-full">
               <TabsList className="bg-muted p-1">
@@ -139,25 +139,26 @@ function MainApp() {
           </div>
         );
       case "production-dca":
-        return <DeclineCurveAnalysis />;
+        return wrap(<DeclineCurveAnalysis />);
       case "pvt":
-        return <PVTCalculator />;
+        return wrap(<PVTCalculator />);
       case "nodal":
-        return <NodalAnalysisView />;
+        return wrap(<NodalAnalysisView />);
       case "rta":
-        return <FlowingMaterialBalanceView />;
+        return wrap(<FlowingMaterialBalanceView />);
       case "economics":
-        return <EconomicsView />;
+        return wrap(<EconomicsView />);
       case "ai-analytics":
-        return <MLDashboardView />;
+        return wrap(<MLDashboardView />);
       case "well-logs":
-        return <WellDataViewer />;
+        return wrap(<WellDataViewer />);
       case "connectors":
-        return <ConnectorsView />;
+        return wrap(<ConnectorsView />);
       default:
-        return <DashboardOverview onNavigate={setActiveModule} />;
+        return wrap(<DashboardOverview onNavigate={setActiveModule} />);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeModule, t.loadingModule]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
@@ -185,9 +186,13 @@ function MainApp() {
             <ErrorBoundary
               key={activeModule}
               fallbackTitle={`${t.moduleFailure}: ${activeModuleMeta.defaultName}`}
+              retryLabel={t.tryAgain}
+              returnLabel={t.returnToDashboard}
+              unexpectedFailureMessage={t.unexpectedFailure}
+              dataPreservedMessage={t.dataPreserved}
               onReset={() => setActiveModule("dashboard")}
             >
-              {renderActiveModule()}
+              {activeModuleView}
             </ErrorBoundary>
           </div>
         </main>

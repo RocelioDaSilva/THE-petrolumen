@@ -26,6 +26,8 @@ export interface Translations {
   moduleFailure: string;
   tryAgain: string;
   returnToDashboard: string;
+  unexpectedFailure: string;
+  dataPreserved: string;
   benchmarks32Passed: string;
   categories: {
     overview: string;
@@ -87,6 +89,8 @@ const DICTIONARY: Record<Locale, Translations> = {
     moduleFailure: "Falha na Execução do Módulo",
     tryAgain: "Tentar Novamente",
     returnToDashboard: "Voltar ao Dashboard Geral",
+    unexpectedFailure: "Ocorreu uma falha inesperada durante a renderiza��o deste componente.",
+    dataPreserved: "Seus dados e par�metros foram preservados.",
     benchmarks32Passed: "11 de 11 suítes de benchmarks físicos aprovadas (100% - 92 testes)",
     categories: {
       overview: "Visão Geral",
@@ -146,6 +150,8 @@ const DICTIONARY: Record<Locale, Translations> = {
     moduleFailure: "Module Execution Error",
     tryAgain: "Try Again",
     returnToDashboard: "Return to Main Dashboard",
+    unexpectedFailure: "An unexpected failure occurred while rendering this component.",
+    dataPreserved: "Your data and parameters have been preserved.",
     benchmarks32Passed: "11 of 11 physical benchmark suites passed (100% - 92 tests)",
     categories: {
       overview: "Overview",
