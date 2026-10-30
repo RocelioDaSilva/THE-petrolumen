@@ -82,3 +82,11 @@ export function runCarterPhase7GoldenTests(): CarterPhase7GoldenTestResult[] {
 
   return results;
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("carterPhase7GoldenTests")) {
+  const res = runCarterPhase7GoldenTests();
+  const passed = res.filter((r) => r.passed).length;
+  console.log(`\n[Carter Phase 7 Formation Pressure & LOT] ${passed}/${res.length} passed`);
+  res.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.description} -> ${r.actual}`));
+  if (passed !== res.length) process.exit(1);
+}

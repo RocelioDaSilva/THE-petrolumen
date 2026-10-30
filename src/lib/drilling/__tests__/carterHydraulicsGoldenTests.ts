@@ -105,3 +105,11 @@ export function runCarterHydraulicsGoldenTests(): CarterHydraulicsGoldenTestResu
 
   return results;
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("carterHydraulicsGoldenTests")) {
+  const res = runCarterHydraulicsGoldenTests();
+  const passed = res.filter((r) => r.passed).length;
+  console.log(`\n[Carter Ch. 6 Drilling Hydraulics] ${passed}/${res.length} passed`);
+  res.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.description} -> ${r.actual}`));
+  if (passed !== res.length) process.exit(1);
+}

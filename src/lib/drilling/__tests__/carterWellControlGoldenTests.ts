@@ -216,3 +216,11 @@ export function runCarterWellControlGoldenTests(): CarterGoldenTestResult[] {
 
   return results;
 }
+
+if (typeof process !== "undefined" && process.argv && process.argv[1]?.includes("carterWellControlGoldenTests")) {
+  const res = runCarterWellControlGoldenTests();
+  const passed = res.filter((r) => r.passed).length;
+  console.log(`\n[Carter Ch. 3 Well Control] ${passed}/${res.length} passed`);
+  res.forEach((r) => console.log(`  ${r.passed ? "✓" : "✗"} ${r.id}: ${r.description} -> ${r.actual}`));
+  if (passed !== res.length) process.exit(1);
+}

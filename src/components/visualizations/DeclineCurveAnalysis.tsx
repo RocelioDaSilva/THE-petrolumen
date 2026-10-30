@@ -20,15 +20,41 @@ import { TrendingDown, Download, Sparkles, FileText, BarChart3 } from "lucide-re
 import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { useSessionRegistry } from "@/lib/sessionRegistry";
+import { useUnit } from "@/lib/unitContext";
 
 export default function DeclineCurveAnalysis() {
+  const { activeScenario, updateActiveParameters } = useSessionRegistry();
+  const { isMetric, formatRate, formatVolume } = useUnit();
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
   const [model, setModel] = useState<DCAParams["model"]>("hyperbolic");
-  const [qi, setQi] = useState<number>(1200);
-  const [di, setDi] = useState<number>(0.08);
-  const [b, setB] = useState<number>(0.65);
+  const [qi, setQi] = useState<number>(activeScenario?.parameters?.initialRateStbd ?? 1200);
+  const [di, setDi] = useState<number>(activeScenario?.parameters?.nominalDeclineRate ?? 0.08);
+  const [b, setB] = useState<number>(activeScenario?.parameters?.arpsBFactor ?? 0.65);
   const [duongA, setDuongA] = useState<number>(1.25);
   const [duongM, setDuongM] = useState<number>(1.12);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  // Sync state with active scenario
+  React.useEffect(() => {
+    if (activeScenario?.parameters) {
+      const p = activeScenario.parameters;
+      if (p.initialRateStbd) setQi(p.initialRateStbd);
+      if (p.nominalDeclineRate) setDi(p.nominalDeclineRate);
+      if (p.arpsBFactor !== undefined) setB(p.arpsBFactor);
+    }
+  }, [activeScenario?.id]);
+
+  const handleSaveToScenario = () => {
+    updateActiveParameters({
+      initialRateStbd: qi,
+      nominalDeclineRate: di,
+      arpsBFactor: b,
+    });
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+  };
 
   const curveData = useMemo(() => {
     return generateDCACurve(
@@ -83,6 +109,22 @@ export default function DeclineCurveAnalysis() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Modelagem empírica e analítica (Arps Exponencial/Hiperbólico/Harmônico e Duong não-convencional).
           </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs bg-muted/60 border-primary/30 text-primary">
+              Cenário: {activeScenario.name}
+            </Badge>
+            <Badge variant="outline" className="text-xs bg-muted/60">
+              Sistema: {isMetric ? "Métrico (m³/d)" : "Campo (STB/d)"}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs h-6 px-2.5 ${saveSuccess ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600" : ""}`}
+              onClick={handleSaveToScenario}
+            >
+              {saveSuccess ? "✓ Salvo no Cenário!" : "Salvar no Cenário Ativo"}
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportPDF} disabled={isExporting}>
@@ -96,13 +138,21 @@ export default function DeclineCurveAnalysis() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-4 bg-primary/5 border-primary/20">
           <p className="text-xs font-medium text-muted-foreground">Vazão Inicial (qi)</p>
-          <p className="text-2xl font-bold text-primary mt-1">{qi.toLocaleString()} STB/d</p>
-          <p className="text-xs text-muted-foreground mt-1">Taxa de produção inicial calculada</p>
+          <p className="text-2xl font-bold text-primary mt-1">
+            {formatRate(qi).display}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {isMetric ? `Equivalente: ${qi.toLocaleString()} STB/d` : "Taxa de produção inicial"}
+          </p>
         </Card>
         <Card className="p-4 bg-emerald-500/5 border-emerald-500/20">
           <p className="text-xs font-medium text-muted-foreground">EUR Projetado (36 Meses)</p>
-          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{eurMMbbl} MMbbl</p>
-          <p className="text-xs text-muted-foreground mt-1">Recuperação acumulada estimada</p>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+            {isMetric ? `${(parseFloat(eurMMbbl) * 0.158987).toFixed(2)} MMm³` : `${eurMMbbl} MMbbl`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {isMetric ? `Equivalente: ${eurMMbbl} MMbbl` : "Recuperação acumulada estimada"}
+          </p>
         </Card>
         <Card className="p-4 bg-blue-500/5 border-blue-500/20">
           <p className="text-xs font-medium text-muted-foreground">Taxa Nominal de Declínio (Di)</p>
