@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { calculateEconomics, EconomicsInput } from "@/lib/reservoirMath";
+import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import { DollarSign, TrendingUp, Calculator, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
 
 export default function EconomicsView() {
@@ -61,10 +62,13 @@ export default function EconomicsView() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <DollarSign className="w-6 h-6 text-primary" />
-            Avaliação Econômica e Análise de Reservas
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <DollarSign className="w-6 h-6 text-primary" />
+              Avaliação Econômica e Análise de Reservas
+            </h2>
+            <ProvenanceBadge kind="calculated" source="DCF / Discounted Cash Flow" />
+          </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             Fluxo de caixa descontado, VPL (NPV), Taxa Interna de Retorno (TIR/IRR), Payback e sensibilidade ao preço do barril.
           </p>
@@ -101,9 +105,13 @@ export default function EconomicsView() {
         <Card className="p-4 bg-emerald-500/5 border-emerald-500/20">
           <p className="text-xs font-medium text-muted-foreground">Taxa Interna de Retorno (TIR / IRR)</p>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
-            {results.irr}%
+            {results.irr !== undefined ? `${results.irr}%` : "Inviável (N/D)"}
           </p>
-          <p className="text-[11px] text-muted-foreground mt-1">Spread sobre hurdle: +{(results.irr - discountRate).toFixed(1)}%</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {results.irr !== undefined
+              ? `Spread sobre hurdle: ${results.irr >= discountRate ? "+" : ""}${(results.irr - discountRate).toFixed(1)}%`
+              : "Receita não supera o investimento"}
+          </p>
         </Card>
 
         <Card className="p-4 bg-blue-500/5 border-blue-500/20">

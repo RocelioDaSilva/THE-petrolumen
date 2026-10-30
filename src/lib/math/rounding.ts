@@ -16,14 +16,17 @@ export type RoundingMode = 'half-up' | 'round-up' | 'round-down';
 export function round(value: number, places: number = 0, mode: RoundingMode = 'half-up'): number {
   if (!Number.isFinite(value)) return 0;
   const factor = Math.pow(10, places);
+  const sign = value < 0 ? -1 : 1;
+  const absVal = Math.abs(value);
+  const shifted = Number(absVal + 'e' + places);
   if (mode === 'round-up') {
-    return Math.ceil(value * factor) / factor;
+    return sign * (Math.ceil(shifted) / factor);
   }
   if (mode === 'round-down') {
-    return Math.floor(value * factor) / factor;
+    return sign * (Math.floor(shifted) / factor);
   }
-  // Standard half-up
-  return Math.round(value * factor) / factor;
+  // Decimal-safe half-up: round(1.005, 2) === 1.01
+  return sign * (Math.round(shifted) / factor);
 }
 
 /**
@@ -32,7 +35,7 @@ export function round(value: number, places: number = 0, mode: RoundingMode = 'h
  */
 export function roundKillMW(ppg: number): number {
   if (!Number.isFinite(ppg)) return 0;
-  return Math.ceil(ppg * 10) / 10;
+  return round(ppg, 1, 'round-up');
 }
 
 /**
@@ -42,7 +45,7 @@ export function roundKillMW(ppg: number): number {
  */
 export function roundMaxMW(ppg: number): number {
   if (!Number.isFinite(ppg)) return 0;
-  return Math.floor(ppg * 10) / 10;
+  return round(ppg, 1, 'round-down');
 }
 
 export const CompanyRounding = {

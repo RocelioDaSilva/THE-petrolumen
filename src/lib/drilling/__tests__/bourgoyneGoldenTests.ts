@@ -157,20 +157,20 @@ export function runBourgoyneGoldenTests(): BourgoyneTestSuiteSummary {
   // 8. Ch. 8 — Directional Survey via Minimum Curvature (Example 8.1)
   // Survey Station 1: 10,000 ft MD, 15.0 deg Inc, 45.0 deg Azi
   // Survey Station 2: 10,100 ft MD, 18.0 deg Inc, 50.0 deg Azi
-  // dMD = 100 ft -> DLS ≈ 3.28 deg / 100 ft
+  // dMD = 100 ft -> DLS = 3.32 deg / 100 ft (Bourgoyne Ex. 8.1 exact value)
   const stations: SurveyStation[] = [
     { measuredDepthFt: 10000, inclinationDeg: 15.0, azimuthDeg: 45.0 },
     { measuredDepthFt: 10100, inclinationDeg: 18.0, azimuthDeg: 50.0 },
   ];
   const surveyRes = calculateMinimumCurvature(stations);
   const dls = surveyRes[1]?.doglegSeverityDeg100ft || 0;
-  const surveyPassed = Math.abs(dls - 3.28) <= 0.05;
+  const surveyPassed = Math.abs(dls - 3.32) <= 0.02;
   results.push({
     id: 'bourgoyne-ch8-min-curvature',
     chapter: 'Capítulo 8: Poços Direcionais',
     name: 'Levantamento Trajetográfico por Curvatura Mínima & Dogleg Severity (DLS)',
     reference: 'Bourgoyne (1986) Exemplo 8.1, Eq. 8.1 - 8.5',
-    expected: 'DLS ≈ 3.28°/100 ft | Fator de Razão F ≈ 1.0001',
+    expected: 'DLS = 3.32°/100 ft | Fator de Razão F ≈ 1.0001 (Tolerância estrita ±0.02)',
     actual: `DLS = ${dls}°/100 ft | ΔTVD = ${(surveyRes[1]?.tvd - surveyRes[0]?.tvd).toFixed(1)} ft | Fechamento: ${surveyRes[1]?.closureDistanceFt} ft @ ${surveyRes[1]?.closureAzimuthDeg}°`,
     passed: surveyPassed,
     notes: 'Algoritmo padrão SPE/API para interpolação de trajetórias tridimensionais de poço.',

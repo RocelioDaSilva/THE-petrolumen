@@ -232,7 +232,8 @@ export function buildTripSheetRow(
   isWetTrip: boolean,
   actualTankChangeBbl: number,
   prevCumCalc: number,
-  prevCumActual: number
+  prevCumActual: number,
+  toleranceBbl: number = 1.5
 ): TripSheetEntry {
   const dispPerFt = isWetTrip ? closedEndDispBblFt : pipeDispBblFt;
   const standDisp = RoundRules.volume(dispPerFt * standLengthFt);
@@ -241,8 +242,8 @@ export function buildTripSheetRow(
   const diff = RoundRules.volume(cumActual - cumCalc);
 
   let status: "OK" | "WARNING_GAIN" | "WARNING_LOSS" = "OK";
-  if (diff > 1.5) status = "WARNING_GAIN"; // hole taking less mud than expected -> swabbing / kick!
-  else if (diff < -1.5) status = "WARNING_LOSS"; // hole taking more mud -> loss of circulation!
+  if (diff > toleranceBbl) status = "WARNING_GAIN"; // hole taking less mud than expected -> swabbing / kick!
+  else if (diff < -toleranceBbl) status = "WARNING_LOSS"; // hole taking more mud -> loss of circulation!
 
   return {
     standNumber,
@@ -546,8 +547,9 @@ export function calculateHydraulics(inputs: HydraulicsInputs) {
   const bitVelocity = (0.32086 * safeQ) / safeTfa;
 
   const dhMinusDp = Math.max(0.5, safeHole - safePipe);
+  // Annular Bingham Plastic friction gradient: constant 200 for annulus (vs 225 for pipe) per API RP 13D & Bourgoyne Eq. 4.22
   const frictionGradient =
-    (safePv * safeQ) / (60000 * Math.pow(dhMinusDp, 3)) + safeYp / (225 * dhMinusDp);
+    (safePv * safeQ) / (60000 * Math.pow(dhMinusDp, 3)) + safeYp / (200 * dhMinusDp);
   const annularPressureLoss = Math.max(10, frictionGradient * safeTvd);
   const ecd = safeMw + annularPressureLoss / (DRILLING_CONSTANTS.PRESSURE_FACTOR * safeTvd);
 
@@ -575,7 +577,7 @@ export function generateLOTCurve(shoeTvd: number, mudWeight: number, leakOffPres
   const safeLop = Math.max(100, leakOffPressure);
 
   const lotEmw = Number((safeMw + safeLop / (DRILLING_CONSTANTS.PRESSURE_FACTOR * safeShoeTvd)).toFixed(2));
-  const maasp = RoundRules.pressure(safeLop);
+  const lotPressure = RoundRules.pressure(safeLop);
 
   const points: { pumpedBbl: number; pressure: number }[] = [];
   const nPoints = 12;
@@ -587,11 +589,12 @@ export function generateLOTCurve(shoeTvd: number, mudWeight: number, leakOffPres
     if (i <= breakPointIdx) {
       p = (i / breakPointIdx) * safeLop;
     } else {
-      const postIdx = i - breakPointIdx;
-      p = safeLop + Math.sin((postIdx / (nPoints - breakPointIdx)) * (Math.PI / 2)) * (safeLop * 0.12);
+      // Physical leak-off behavior: departure from linearity into microfracture propagation plateau (no artificial sine overshoot)
+      const postRatio = (i - breakPointIdx) / (nPoints - breakPointIdx);
+      p = safeLop + postRatio * 15;
     }
     points.push({ pumpedBbl: vol, pressure: RoundRules.pressure(p) });
   }
 
-  return { points, lotEmw, maasp };
+  return { points, lotEmw, lotPressure, maasp: lotPressure };
 }

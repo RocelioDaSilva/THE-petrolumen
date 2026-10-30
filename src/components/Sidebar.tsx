@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   LayoutDashboard,
   Layers,
@@ -20,186 +20,266 @@ import {
   Compass,
   Activity,
   Wrench,
+  Search,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { useSessionRegistry } from "@/lib/sessionRegistry";
 
 export interface NavModule {
   id: string;
-  name: string;
+  nameKey: string;
+  defaultName: string;
   icon: React.ComponentType<{ className?: string }>;
-  description: string;
-  category: string;
+  descriptionKey: string;
+  defaultDescription: string;
+  categoryKey: string;
+  defaultCategory: string;
 }
 
 export const APP_MODULES: NavModule[] = [
   {
     id: "dashboard",
-    name: "Dashboard Geral",
+    nameKey: "Dashboard Geral",
+    defaultName: "Dashboard Geral",
     icon: LayoutDashboard,
-    description: "Visão integrada e status dos módulos",
-    category: "Visão Geral",
+    descriptionKey: "Visão integrada e status dos módulos",
+    defaultDescription: "Visão integrada e status dos módulos",
+    categoryKey: "overview",
+    defaultCategory: "Visão Geral",
   },
   {
     id: "well-control",
-    name: "Controle de Poço & Kick Sheet",
+    nameKey: "Controle de Poço & Kick Sheet",
+    defaultName: "Controle de Poço & Kick Sheet",
     icon: ShieldAlert,
-    description: "KMW, ICP/FCP, MAASP & W&W Method",
-    category: "Perfuração & Poço",
+    descriptionKey: "KMW, ICP/FCP, MAASP & W&W Method",
+    defaultDescription: "KMW, ICP/FCP, MAASP & W&W Method",
+    categoryKey: "drillingWell",
+    defaultCategory: "Perfuração & Poço",
   },
   {
     id: "drilling-hydraulics",
-    name: "Hidráulica & Operações",
+    nameKey: "Hidráulica & Operações",
+    defaultName: "Hidráulica & Operações",
     icon: Zap,
-    description: "ECD, Jatos na Broca, HHP & Teste LOT",
-    category: "Perfuração & Poço",
+    descriptionKey: "ECD, Jatos na Broca, HHP & Teste LOT",
+    defaultDescription: "ECD, Jatos na Broca, HHP & Teste LOT",
+    categoryKey: "drillingWell",
+    defaultCategory: "Perfuração & Poço",
   },
   {
     id: "drilling-fluids",
-    name: "Fluidos de Perfuração (Ch. 2)",
+    nameKey: "Fluidos de Perfuração (Ch. 2)",
+    defaultName: "Fluidos de Perfuração (Ch. 2)",
     icon: FlaskConical,
-    description: "Reologia Fann, Adensamento & Retorta",
-    category: "Perfuração & Poço",
+    descriptionKey: "Reologia Fann, Adensamento & Retorta",
+    defaultDescription: "Reologia Fann, Adensamento & Retorta",
+    categoryKey: "drillingWell",
+    defaultCategory: "Perfuração & Poço",
   },
   {
     id: "cementing",
-    name: "Cimentação & Pastas API (Ch. 3)",
+    nameKey: "Cimentação & Pastas API (Ch. 3)",
+    defaultName: "Cimentação & Pastas API (Ch. 3)",
     icon: Package,
-    description: "Formulação API, Bogue & Tempos",
-    category: "Perfuração & Poço",
+    descriptionKey: "Formulação API, Bogue & Tempos",
+    defaultDescription: "Formulação API, Bogue & Tempos",
+    categoryKey: "drillingWell",
+    defaultCategory: "Perfuração & Poço",
   },
   {
     id: "casing-directional",
-    name: "Revestimento & Direcional (Ch. 7-8)",
+    nameKey: "Revestimento & Direcional (Ch. 7-8)",
+    defaultName: "Revestimento & Direcional (Ch. 7-8)",
     icon: Compass,
-    description: "Barlow, Colapso Biaxial & Curvatura 3D",
-    category: "Perfuração & Poço",
+    descriptionKey: "Barlow, Colapso Biaxial & Curvatura 3D",
+    defaultDescription: "Barlow, Colapso Biaxial & Curvatura 3D",
+    categoryKey: "drillingWell",
+    defaultCategory: "Perfuração & Poço",
   },
   {
     id: "field-basic",
-    name: "Field Formulas",
+    nameKey: "Fórmulas de Campo (Ch. 1)",
+    defaultName: "Fórmulas de Campo (Ch. 1)",
     icon: Wrench,
-    description: "Carter Ch. 1 Hydrostatics & Pump Output",
-    category: "Field Operations",
+    descriptionKey: "Hidrostática, Gradientes & Capacidades",
+    defaultDescription: "Hidrostática, Gradientes & Capacidades",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "rig-operations",
-    name: "Rig Operations",
+    nameKey: "Operações de Sonda (Ch. 2)",
+    defaultName: "Operações de Sonda (Ch. 2)",
     icon: Gauge,
-    description: "Accumulator, Heavy Slug & Spotting Pills",
-    category: "Field Operations",
+    descriptionKey: "Acumulador BOP, Tampão Pesado & Pílulas",
+    defaultDescription: "Acumulador BOP, Tampão Pesado & Pílulas",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "stuck-pipe",
-    name: "Stuck Pipe & Fishing",
+    nameKey: "Prisão de Coluna & Pescaria (Ch. 4)",
+    defaultName: "Prisão de Coluna & Pescaria (Ch. 4)",
     icon: ShieldAlert,
-    description: "Fishing Economics, Free Point & Force",
-    category: "Field Operations",
+    descriptionKey: "Ponto Livre, Força de Tração & Economia",
+    defaultDescription: "Ponto Livre, Força de Tração & Economia",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "rig-loads",
-    name: "Rig Loads",
+    nameKey: "Cargas no Mastro (Ch. 5)",
+    defaultName: "Cargas no Mastro (Ch. 5)",
     icon: Boxes,
-    description: "Derrick, Fast Line & Safety Factors",
-    category: "Field Operations",
+    descriptionKey: "Tensão Linha Rápida & Fatores de Segurança",
+    defaultDescription: "Tensão Linha Rápida & Fatores de Segurança",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "ton-miles",
-    name: "Ton-Mile Service",
+    nameKey: "Serviço de Cabo Ton-Mile (Ch. 7)",
+    defaultName: "Serviço de Cabo Ton-Mile (Ch. 7)",
     icon: Activity,
-    description: "Round Trip, Drilling & Line Cutoff",
-    category: "Field Operations",
+    descriptionKey: "Manobra Completa & Programa de Corte",
+    defaultDescription: "Manobra Completa & Programa de Corte",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "tank-capacity",
-    name: "Tank Capacity",
+    nameKey: "Capacidade de Tanques (Ch. 8)",
+    defaultName: "Capacidade de Tanques (Ch. 8)",
     icon: Package,
-    description: "Rectangular, Cylindrical & Tapered Tanks",
-    category: "Field Operations",
+    descriptionKey: "Tanques Cilíndricos, Cônicos & Retangulares",
+    defaultDescription: "Tanques Cilíndricos, Cônicos & Retangulares",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "air-gas",
-    name: "Air & Gas Drilling",
+    nameKey: "Perfuração com Ar & Gás (Ch. 11)",
+    defaultName: "Perfuração com Ar & Gás (Ch. 11)",
     icon: FlaskConical,
-    description: "Static Column & Compressible Circulation",
-    category: "Field Operations",
+    descriptionKey: "Injeção Compressível & Pressões Anulares",
+    defaultDescription: "Injeção Compressível & Pressões Anulares",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "completions",
-    name: "Completions",
+    nameKey: "Completação & Testemunho (Ch. 12)",
+    defaultName: "Completação & Testemunho (Ch. 12)",
     icon: Layers,
-    description: "Dean Stark Core & Tubing Stretch",
-    category: "Field Operations",
+    descriptionKey: "Dean-Stark, Alongamento da Coluna & Core",
+    defaultDescription: "Dean-Stark, Alongamento da Coluna & Core",
+    categoryKey: "fieldOps",
+    defaultCategory: "Operações de Campo",
   },
   {
     id: "surface-facilities",
-    name: "Instalações de Superfície",
+    nameKey: "Instalações de Superfície",
+    defaultName: "Instalações de Superfície",
     icon: Boxes,
-    description: "Separadores 2/3 Fases & Coluna TEG",
-    category: "Engenharia de Superfície",
+    descriptionKey: "Separadores 2/3 Fases & Coluna TEG",
+    defaultDescription: "Separadores 2/3 Fases & Coluna TEG",
+    categoryKey: "surfaceFacilities",
+    defaultCategory: "Engenharia de Superfície",
   },
   {
     id: "reservoir-simulation",
-    name: "Simulação de Reservatórios",
+    nameKey: "Simulação de Reservatórios",
+    defaultName: "Simulação de Reservatórios",
     icon: Layers,
-    description: "Modelo 1D IMPES & Malha 3D",
-    category: "Engenharia de Reservatório",
+    descriptionKey: "Modelo 1D IMPES & Malha 3D",
+    defaultDescription: "Modelo 1D IMPES & Malha 3D",
+    categoryKey: "reservoirEng",
+    defaultCategory: "Engenharia de Reservatório",
   },
   {
     id: "production-dca",
-    name: "Curvas de Declínio (DCA)",
+    nameKey: "Curvas de Declínio (DCA)",
+    defaultName: "Curvas de Declínio (DCA)",
     icon: TrendingDown,
-    description: "Modelos Arps, Duong & EUR",
-    category: "Engenharia de Produção",
+    descriptionKey: "Modelos Arps, Duong & EUR",
+    defaultDescription: "Modelos Arps, Duong & EUR",
+    categoryKey: "productionEng",
+    defaultCategory: "Engenharia de Produção",
   },
   {
     id: "pvt",
-    name: "Cálculos PVT & Fases",
+    nameKey: "Cálculos PVT & Fases",
+    defaultName: "Cálculos PVT & Fases",
     icon: Beaker,
-    description: "Fator Z, Bo, Bg, Rs e Envelope P-T",
-    category: "Engenharia de Reservatório",
+    descriptionKey: "Fator Z, Bo, Bg, Rs e Envelope P-T",
+    defaultDescription: "Fator Z, Bo, Bg, Rs e Envelope P-T",
+    categoryKey: "reservoirEng",
+    defaultCategory: "Engenharia de Reservatório",
   },
   {
     id: "nodal",
-    name: "Análise Nodal",
+    nameKey: "Análise Nodal",
+    defaultName: "Análise Nodal",
     icon: Gauge,
-    description: "Curvas IPR vs VLP e Ponto Ótimo",
-    category: "Engenharia de Produção",
+    descriptionKey: "Curvas IPR vs VLP e Ponto Ótimo",
+    defaultDescription: "Curvas IPR vs VLP e Ponto Ótimo",
+    categoryKey: "productionEng",
+    defaultCategory: "Engenharia de Produção",
   },
   {
     id: "rta",
-    name: "RTA & Balanço Materiais",
+    nameKey: "RTA & Balanço Materiais",
+    defaultName: "RTA & Balanço Materiais",
     icon: Target,
-    description: "Flowing Material Balance (FMB)",
-    category: "Engenharia de Reservatório",
+    descriptionKey: "Flowing Material Balance (FMB)",
+    defaultDescription: "Flowing Material Balance (FMB)",
+    categoryKey: "reservoirEng",
+    defaultCategory: "Engenharia de Reservatório",
   },
   {
     id: "economics",
-    name: "Avaliação Econômica",
+    nameKey: "Avaliação Econômica",
+    defaultName: "Avaliação Econômica",
     icon: DollarSign,
-    description: "VPL, TIR, Payback e Fluxo de Caixa",
-    category: "Economia e Decisão",
+    descriptionKey: "VPL, TIR, Payback e Fluxo de Caixa",
+    defaultDescription: "VPL, TIR, Payback e Fluxo de Caixa",
+    categoryKey: "economicsDecision",
+    defaultCategory: "Economia e Decisão",
   },
   {
     id: "ai-analytics",
-    name: "IA & Machine Learning",
+    nameKey: "IA & Machine Learning",
+    defaultName: "IA & Machine Learning",
     icon: Brain,
-    description: "Previsão com XGBoost, SVR e LSTM",
-    category: "Inteligência Artificial",
+    descriptionKey: "Previsão com XGBoost, SVR e LSTM",
+    defaultDescription: "Previsão com XGBoost, SVR e LSTM",
+    categoryKey: "artificialIntelligence",
+    defaultCategory: "Inteligência Artificial",
   },
   {
     id: "well-logs",
-    name: "Perfis de Poço (LAS)",
+    nameKey: "Perfis de Poço (LAS)",
+    defaultName: "Perfis de Poço (LAS)",
     icon: Database,
-    description: "Visualizador de Raio Gama e RT",
-    category: "Dados e Geologia",
+    descriptionKey: "Visualizador de Raio Gama e RT",
+    defaultDescription: "Visualizador de Raio Gama e RT",
+    categoryKey: "dataGeology",
+    defaultCategory: "Dados e Geologia",
   },
   {
     id: "connectors",
-    name: "Conectores & Eclipse",
+    nameKey: "Conectores & Eclipse",
+    defaultName: "Conectores & Eclipse",
     icon: Workflow,
-    description: "Integração Eclipse, CMG e OSDU",
-    category: "Infraestrutura",
+    descriptionKey: "Integração Eclipse, CMG e OSDU",
+    defaultDescription: "Integração Eclipse, CMG e OSDU",
+    categoryKey: "infrastructure",
+    defaultCategory: "Infraestrutura",
   },
 ];
 
@@ -208,6 +288,7 @@ interface SidebarProps {
   onSelectModule: (id: string) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onOpenDocs?: () => void;
 }
 
 export default function Sidebar({
@@ -215,7 +296,35 @@ export default function Sidebar({
   onSelectModule,
   collapsed,
   onToggleCollapse,
+  onOpenDocs,
 }: SidebarProps) {
+  const { t, isPt } = useI18n();
+  const { activeScenario } = useSessionRegistry();
+  const [filterQuery, setFilterQuery] = useState("");
+
+  const filteredModules = useMemo(() => {
+    if (!filterQuery.trim()) return APP_MODULES;
+    const q = filterQuery.toLowerCase();
+    return APP_MODULES.filter(
+      (m) =>
+        m.defaultName.toLowerCase().includes(q) ||
+        m.defaultDescription.toLowerCase().includes(q)
+    );
+  }, [filterQuery]);
+
+  // Group modules by category
+  const categories = useMemo(() => {
+    const map = new Map<string, typeof APP_MODULES>();
+    filteredModules.forEach((mod) => {
+      const cat = (t.categories as Record<string, string>)[mod.categoryKey] || mod.defaultCategory;
+      if (!map.has(cat)) {
+        map.set(cat, []);
+      }
+      map.get(cat)!.push(mod);
+    });
+    return Array.from(map.entries());
+  }, [filteredModules, t.categories]);
+
   return (
     <aside
       className={cn(
@@ -223,11 +332,11 @@ export default function Sidebar({
         collapsed ? "w-16" : "w-72"
       )}
     >
-      {/* Collapse Toggle Button */}
+      {/* Sidebar Header & Collapse Toggle */}
       <div className="flex items-center justify-between p-3 border-b border-border">
         {!collapsed && (
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-2">
-            Módulos PetroLúmen
+            {t.modulesTitle}
           </span>
         )}
         <Button
@@ -241,54 +350,82 @@ export default function Sidebar({
         </Button>
       </div>
 
-      {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-        {APP_MODULES.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeModule === item.id;
+      {/* Search / Filter Input */}
+      {!collapsed && (
+        <div className="p-2 border-b border-border/60">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder={t.searchModules}
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="h-8 pl-8 text-xs bg-muted/40 border-border"
+            />
+          </div>
+        </div>
+      )}
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => onSelectModule(item.id)}
-              className={cn(
-                "w-full flex items-center rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-all group relative",
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-              title={collapsed ? `${item.name} - ${item.description}` : undefined}
-            >
-              <Icon
-                className={cn(
-                  "w-5 h-5 flex-shrink-0 transition-colors",
-                  isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary",
-                  !collapsed && "mr-3"
-                )}
-              />
-              {!collapsed && (
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-xs truncate leading-tight">{item.name}</div>
-                  <div
-                    className={cn(
-                      "text-[10px] truncate leading-tight mt-0.5",
-                      isActive ? "text-primary-foreground/80" : "text-muted-foreground/70"
-                    )}
-                  >
-                    {item.description}
-                  </div>
-                </div>
-              )}
-            </button>
-          );
-        })}
+      {/* Navigation List */}
+      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+        {categories.map(([catName, mods]) => (
+          <div key={catName} className="space-y-1">
+            {!collapsed && (
+              <h3 className="px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1">
+                {catName}
+              </h3>
+            )}
+            {mods.map((mod) => {
+              const Icon = mod.icon;
+              const isActive = activeModule === mod.id;
+              return (
+                <button
+                  key={mod.id}
+                  onClick={() => onSelectModule(mod.id)}
+                  title={collapsed ? `${mod.defaultName} — ${mod.defaultDescription}` : undefined}
+                  className={cn(
+                    "w-full flex items-center space-x-3 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors text-left",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                  {!collapsed && (
+                    <div className="flex-1 overflow-hidden leading-tight">
+                      <div className="truncate font-medium">{mod.defaultName}</div>
+                      <div className={cn("text-[10px] truncate mt-0.5", isActive ? "text-primary-foreground/80" : "text-muted-foreground/70")}>
+                        {mod.defaultDescription}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
-      {/* Footer Info */}
+      {/* Sidebar Footer with Active Scenario Indicator */}
       {!collapsed && (
-        <div className="p-3 border-t border-border text-[11px] text-muted-foreground bg-muted/20">
-          <p className="font-medium text-foreground">Ambiente de Simulação</p>
-          <p className="text-[10px] text-muted-foreground">Petróleo & Gás Natural • 2026</p>
+        <div className="p-3 border-t border-border bg-muted/20 text-xs space-y-2">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="font-semibold uppercase tracking-wider text-[10px]">{t.activeScenario}</span>
+            <span className="text-[10px] text-indigo-500 font-medium truncate max-w-[120px]">
+              {activeScenario.name}
+            </span>
+          </div>
+          {onOpenDocs && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenDocs}
+              className="w-full text-xs h-7.5 gap-1.5 border-border bg-card hover:bg-muted font-medium"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-primary" />
+              {t.docsButton} (32/32)
+            </Button>
+          )}
         </div>
       )}
     </aside>

@@ -65,7 +65,17 @@ export function calculateZFactor(pressure: number, tempF: number, gammaG: number
   }
 
   const z = (A * Ppr) / Math.max(1e-6, Y);
-  return Number.isFinite(z) && z > 0.2 && z < 2.5 ? Math.round(z * 10000) / 10000 : 0.88;
+  if (Number.isFinite(z) && z > 0.2 && z < 2.5) {
+    return Math.round(z * 10000) / 10000;
+  }
+
+  // Fallback to Papay (1968) explicit correlation for gas compressibility if Newton-Raphson diverges
+  const zPapay = 1 - (3.52 * Ppr) / Math.pow(10, 0.9813 * Tpr) + (0.274 * Math.pow(Ppr, 2)) / Math.pow(10, 0.8157 * Tpr);
+  if (Number.isFinite(zPapay) && zPapay > 0.2 && zPapay < 2.5) {
+    return Math.round(zPapay * 10000) / 10000;
+  }
+
+  throw new Error(`Cálculo do fator Z (Hall-Yarborough / Papay) não convergiu para P=${pressure} psia, T=${tempF}°F.`);
 }
 
 /**
@@ -73,11 +83,17 @@ export function calculateZFactor(pressure: number, tempF: number, gammaG: number
  */
 export function calculatePVT(input: PVTInput): PVTResults {
   const { pressure, temperature, gammaG, api = 35, gor = 600 } = input;
-  const safePressure = Math.max(1, pressure || 14.7);
-  const safeTemp = Math.max(-40, temperature || 60);
+  if (!Number.isFinite(pressure) || pressure <= 0) {
+    throw new Error('A pressão deve ser um número finito estritamente positivo (> 0 psia).');
+  }
+  if (!Number.isFinite(temperature) || temperature < -459.67) {
+    throw new Error('A temperatura não pode ser inferior ao zero absoluto (-459.67°F).');
+  }
+  const safePressure = pressure;
+  const safeTemp = temperature;
   const safeGammaG = Math.max(0.4, Math.min(2.0, gammaG || 0.7));
-  const safeApi = Math.max(5, Math.min(70, api || 35));
-  const safeGor = Math.max(0, gor || 0);
+  const safeApi = Math.max(5, Math.min(70, api));
+  const safeGor = Math.max(0, gor);
 
   const z = calculateZFactor(safePressure, safeTemp, safeGammaG);
   const tempR = safeTemp + 459.67;
@@ -169,7 +185,8 @@ export function generateDCACurve(params: DCAParams, steps: number = 24): DCAPoin
     if (model === 'exponential') {
       q = qi * Math.exp(-di * (t - 1));
     } else if (model === 'hyperbolic') {
-      const bFactor = Math.max(0.01, Math.min(0.99, b));
+      // Support b > 1 for unconventional/fractured shale reservoirs (ENG-28)
+      const bFactor = b > 0 ? b : 0.5;
       q = qi / Math.pow(1 + bFactor * di * (t - 1), 1 / bFactor);
     } else if (model === 'harmonic') {
       q = qi / (1 + di * (t - 1));
@@ -186,16 +203,11 @@ export function generateDCACurve(params: DCAParams, steps: number = 24): DCAPoin
     }
 
     q = Math.max(1, Math.round(q * 10) / 10);
-    // Add reasonable random variance for synthetic actuals
-    const actualNoise = Math.sin(t * 1.5) * 0.05 * q + (Math.sin(t * 3) * 0.03 * q);
-    const actual = Math.max(1, Math.round((q + actualNoise) * 10) / 10);
-
     cum += q * 30.4375; // Monthly cumulative in barrels
     points.push({
       time: t,
       rate: q,
       cum: Math.round(cum),
-      actual: t <= 12 ? actual : undefined,
     });
   }
 
@@ -333,7 +345,7 @@ export interface EconomicsInput {
 
 export interface EconomicsResult {
   npv: number;
-  irr: number;
+  irr?: number;
   paybackYears: number;
   cashFlows: number[];
   cumCashFlows: number[];
@@ -347,7 +359,8 @@ export function calculateEconomics(input: EconomicsInput): EconomicsResult {
   const safeCapex = Math.max(1, capex || 1);
   const safePrice = Math.max(0, oilPrice || 0);
   const safeOpex = Math.max(0, opex || 0);
-  const safeDiscount = Math.max(-0.5, discountRate || 0.1);
+  // ENG-20: Use ?? 0.1 and ensure non-negative so 0% discount rate is preserved
+  const safeDiscount = Math.max(0, discountRate ?? 0.1);
   const profile = productionProfile && productionProfile.length ? productionProfile : [10000];
 
   const cashFlows: number[] = [-safeCapex];
@@ -383,33 +396,37 @@ export function calculateEconomics(input: EconomicsInput): EconomicsResult {
     npv += cashFlows[t] / Math.pow(1 + safeDiscount, t);
   }
 
-  // IRR calculation (bisection method)
-  let irr = 0;
-  let low = -0.5;
-  let high = 2.0;
-  for (let iter = 0; iter < 40; iter++) {
-    const mid = (low + high) / 2;
-    let npvMid = -safeCapex;
-    for (let t = 1; t < cashFlows.length; t++) {
-      npvMid += cashFlows[t] / Math.pow(1 + mid, t);
-    }
-    if (Math.abs(npvMid) < 10) {
+  // ENG-21: IRR calculation (bisection method) - return undefined if project is not profitable
+  let irr: number | undefined = undefined;
+  const totalFutureCash = cashFlows.slice(1).reduce((acc, val) => acc + val, 0);
+
+  if (totalFutureCash > safeCapex) {
+    let low = -0.5;
+    let high = 5.0;
+    for (let iter = 0; iter < 50; iter++) {
+      const mid = (low + high) / 2;
+      let npvMid = -safeCapex;
+      for (let t = 1; t < cashFlows.length; t++) {
+        npvMid += cashFlows[t] / Math.pow(1 + mid, t);
+      }
+      if (Math.abs(npvMid) < 1.0) {
+        irr = mid;
+        break;
+      }
+      if (npvMid > 0) {
+        low = mid;
+      } else {
+        high = mid;
+      }
       irr = mid;
-      break;
     }
-    if (npvMid > 0) {
-      low = mid;
-    } else {
-      high = mid;
-    }
-    irr = mid;
   }
 
   const roi = (grossRevenue - totalOpex - safeCapex) / safeCapex;
 
   return {
     npv: Number.isFinite(npv) ? Math.round(npv) : 0,
-    irr: Number.isFinite(irr) ? Math.round(irr * 10000) / 100 : 0,
+    irr: irr !== undefined ? Math.round(irr * 10000) / 100 : undefined,
     paybackYears: Number((Number.isFinite(paybackYears) ? paybackYears : 0).toFixed(2)),
     cashFlows,
     cumCashFlows,

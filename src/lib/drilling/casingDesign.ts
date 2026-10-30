@@ -6,6 +6,19 @@
 
 import { API_CASING_GRADES, SteelGrade } from '../math/tables';
 
+export interface CasingCollapseRegimeInfo {
+  regime: 'yield' | 'plastic' | 'transition' | 'elastic';
+  dtRatio: number;
+  dtYield: number;
+  dtPlastic: number;
+  dtTransition: number;
+  A: number;
+  B: number;
+  C: number;
+  F: number;
+  G: number;
+}
+
 export interface CasingPropertiesResult {
   odInches: number;
   idInches: number;
@@ -15,12 +28,68 @@ export interface CasingPropertiesResult {
   pipeBodyYieldLbf: number;
   barlowBurstPressurePsi: number;
   apiCollapsePressurePsi: number;
+  collapseRegime: 'yield' | 'plastic' | 'transition' | 'elastic';
+  collapseDetails: CasingCollapseRegimeInfo;
   jointStrengthLbf: number;
 }
 
 /**
+ * Standard API 5C3 / ISO 10400 empirical collapse constants by grade
+ * Reference: API Bulletin 5C3 Section 3, Table 1 & Bourgoyne Ch. 7, Table 7.3
+ */
+export const API_5C3_GRADE_COLLAPSE_FACTORS: Record<string, {
+  A: number;
+  B: number;
+  C: number;
+  F: number;
+  G: number;
+  dtYield: number;
+  dtPlastic: number;
+  dtTransition: number;
+}> = {
+  'H-40': { A: 2.950, B: 0.0465, C: 754, F: 2.063, G: 0.0325, dtYield: 16.44, dtPlastic: 27.01, dtTransition: 42.64 },
+  'J-55': { A: 2.991, B: 0.0541, C: 1206, F: 1.989, G: 0.0360, dtYield: 14.81, dtPlastic: 25.01, dtTransition: 37.21 },
+  'K-55': { A: 2.991, B: 0.0541, C: 1206, F: 1.989, G: 0.0360, dtYield: 14.81, dtPlastic: 25.01, dtTransition: 37.21 },
+  'C-75': { A: 3.054, B: 0.0642, C: 1806, F: 1.990, G: 0.0417, dtYield: 13.60, dtPlastic: 22.91, dtTransition: 32.05 },
+  'L-80': { A: 3.071, B: 0.0667, C: 1955, F: 1.998, G: 0.0434, dtYield: 13.38, dtPlastic: 22.47, dtTransition: 31.02 },
+  'N-80': { A: 3.071, B: 0.0667, C: 1955, F: 1.998, G: 0.0434, dtYield: 13.38, dtPlastic: 22.47, dtTransition: 31.02 },
+  'C-90': { A: 3.106, B: 0.0718, C: 2254, F: 2.017, G: 0.0466, dtYield: 13.01, dtPlastic: 21.69, dtTransition: 29.18 },
+  'T-95': { A: 3.124, B: 0.0743, C: 2404, F: 2.029, G: 0.0482, dtYield: 12.85, dtPlastic: 21.33, dtTransition: 28.36 },
+  'C-95': { A: 3.124, B: 0.0743, C: 2404, F: 2.029, G: 0.0482, dtYield: 12.85, dtPlastic: 21.33, dtTransition: 28.36 },
+  'P-110': { A: 3.181, B: 0.0819, C: 2852, F: 2.066, G: 0.0532, dtYield: 12.44, dtPlastic: 20.41, dtTransition: 26.22 },
+  'Q-125': { A: 3.239, B: 0.0895, C: 3301, F: 2.106, G: 0.0582, dtYield: 12.11, dtPlastic: 19.63, dtTransition: 24.46 },
+};
+
+/**
+ * Calculates API 5C3 collapse factors and D/t regime boundaries for any arbitrary or derated yield strength.
+ * Sourced: API Bulletin 5C3 Section 3 & ISO 10400 formulas.
+ */
+export function calculateAPI5C3Coefficients(ypPsi: number) {
+  const Yp = Math.max(10000, ypPsi);
+  // Empirical coefficients A, B, C (API Bul. 5C3 §3.2.1, Eq. 3.2.1-1 to 3.2.1-3)
+  // Notice linear coefficient is 0.10679e-5 (API 5C3), NOT 0.10679e-4
+  const A = 2.8762 + 0.10679e-5 * Yp + 0.21301e-10 * Math.pow(Yp, 2);
+  const B = 0.026233 + 0.50609e-6 * Yp;
+  const C = -465.36 + 0.030867 * Yp - 0.10483e-7 * Math.pow(Yp, 2);
+
+  // Transition parameters F and G (Eq. 3.2.3-1 to 3.2.3-3)
+  const m = B / A;
+  const dtTransition = (2 + m) / (3 * m);
+  const X = (3 * m) / (2 + m);
+  const F = (46.95e6 * Math.pow(X, 3)) / (Yp * (X - m) * Math.pow(1 - X, 2));
+  const G = F * m;
+
+  // D/t Boundaries (API Bul. 5C3 Table 1 formulas)
+  const dtPlastic = (Yp * (A - F)) / (C + Yp * (B - G));
+  const bPlusCOverYp = B + C / Yp;
+  const dtYield = (Math.sqrt(Math.pow(A - 2, 2) + 8 * bPlusCOverYp) + (A - 2)) / (2 * bPlusCOverYp);
+
+  return { A, B, C, F, G, dtYield, dtPlastic, dtTransition };
+}
+
+/**
  * 7.1 API Casing Performance Properties
- * Sourced: Bourgoyne Ch. 7, Section 7.2, Eq. 7.1 - 7.6
+ * Sourced: API Bulletin 5C3 (6th Ed.) / ISO 10400 and Bourgoyne Ch. 7, Section 7.2
  */
 export function calculateCasingProperties(
   odInches: number,
@@ -46,31 +115,31 @@ export function calculateCasingProperties(
   const burst = (0.875 * 2 * Yp * t) / D;
 
   // API 4-Region Collapse Formulation (Yield, Plastic, Transition, Elastic)
-  // Sourced: Bourgoyne Ch. 7, Table 7.3 & Eq. 7.3 - 7.6
+  // Sourced: API Bulletin 5C3 Section 3 & Bourgoyne Ch. 7, Table 7.3 & Eq. 7.3 - 7.6
+  const stdFactors = API_5C3_GRADE_COLLAPSE_FACTORS[gradeKey] || API_5C3_GRADE_COLLAPSE_FACTORS['N-80'];
+  const factors = stdFactors || calculateAPI5C3Coefficients(Yp);
+
+  const { A, B, C, F, G, dtYield, dtPlastic, dtTransition } = factors;
+
   let collapse = 0;
-  // Plastic collapse constants A, B, C based on Yp (API Bul. 5C3)
-  const YpPsi = Yp;
-  const A = 2.876 + 0.10679e-4 * YpPsi + 0.21301e-10 * Math.pow(YpPsi, 2);
-  const B = 0.026233 + 0.50609e-6 * YpPsi;
-  const C = -465.36 + 0.030867 * YpPsi - 0.10483e-7 * Math.pow(YpPsi, 2);
+  let regime: 'yield' | 'plastic' | 'transition' | 'elastic';
 
-  // Region boundaries:
-  const dtYield = (Math.sqrt(Math.pow(A - 2, 2) + 8 * (B + C / YpPsi)) + (A - 2)) / (2 * B);
-  const dtPlastic = (YpPsi * (A - F_factor(YpPsi))) / (C + YpPsi * B);
-  const dtTransition = (B - G_factor(YpPsi)) / (2 * (A - 2));
-
-  if (dtRatio <= 14) {
-    // 1. Yield Strength Collapse
+  if (dtRatio <= dtYield) {
+    // 1. Yield Strength Collapse (Lamé thick-wall plastic limit)
+    regime = 'yield';
     collapse = 2 * Yp * ((dtRatio - 1) / Math.pow(dtRatio, 2));
-  } else if (dtRatio <= 25) {
-    // 2. Plastic Collapse
+  } else if (dtRatio <= dtPlastic) {
+    // 2. Plastic Collapse (API empirical regression)
+    regime = 'plastic';
     collapse = Yp * (A / dtRatio - B) - C;
-  } else if (dtRatio <= 37) {
-    // 3. Transition Collapse
-    collapse = Yp * (2.063 / dtRatio - 0.0546);
+  } else if (dtRatio <= dtTransition) {
+    // 3. Transition Collapse (Inter-regime tangency bridge)
+    regime = 'transition';
+    collapse = Yp * (F / dtRatio - G);
   } else {
-    // 4. Elastic Collapse (Euler)
-    collapse = (46.95e6) / (dtRatio * Math.pow(dtRatio - 1, 2));
+    // 4. Elastic Collapse (Euler instability independent of yield)
+    regime = 'elastic';
+    collapse = 46.95e6 / (dtRatio * Math.pow(dtRatio - 1, 2));
   }
 
   // Joint Strength Estimation
@@ -78,6 +147,19 @@ export function calculateCasingProperties(
   if (jointType === 'LTC') jointEff = 0.95;
   if (jointType === 'Buttress') jointEff = 1.0;
   const jointStrength = pipeBodyYield * jointEff;
+
+  const collapseInfo: CasingCollapseRegimeInfo = {
+    regime,
+    dtRatio: Math.round(dtRatio * 100) / 100,
+    dtYield: Math.round(dtYield * 100) / 100,
+    dtPlastic: Math.round(dtPlastic * 100) / 100,
+    dtTransition: Math.round(dtTransition * 100) / 100,
+    A: Math.round(A * 1000) / 1000,
+    B: Math.round(B * 10000) / 10000,
+    C: Math.round(C),
+    F: Math.round(F * 1000) / 1000,
+    G: Math.round(G * 10000) / 10000,
+  };
 
   return {
     odInches: D,
@@ -88,15 +170,10 @@ export function calculateCasingProperties(
     pipeBodyYieldLbf: Math.round(pipeBodyYield),
     barlowBurstPressurePsi: Math.round(burst),
     apiCollapsePressurePsi: Math.round(Math.max(100, collapse)),
+    collapseRegime: regime,
+    collapseDetails: collapseInfo,
     jointStrengthLbf: Math.round(jointStrength),
   };
-}
-
-function F_factor(yp: number): number {
-  return 3.14 * Math.sqrt(yp / 10000);
-}
-function G_factor(yp: number): number {
-  return 0.01 * (yp / 10000);
 }
 
 /**
