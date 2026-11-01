@@ -3,16 +3,20 @@ Simple event detection using rolling z-score and IsolationForest
 Usage: python event_detection.py --data data.csv
 """
 
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path so app modules are resolvable
+backend_dir = Path(__file__).resolve().parents[2] / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
 import argparse
 
-
-def detect_zscore(df, col, window=50, thresh=4.0):
-    roll = df[col].rolling(window, min_periods=1, center=True).median()
-    z = (df[col] - roll) / (df[col].rolling(window, min_periods=1).std().replace(0, np.nan))
-    return df.index[np.abs(z) > thresh]
+from app.engines.analytics.event_detection import detect_zscore
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -25,7 +29,9 @@ if __name__ == '__main__':
     print(anomalies)
 
     clf = IsolationForest(contamination=0.01, random_state=42)
-    clf.fit(df.fillna(method='ffill'))
-    preds = clf.predict(df.fillna(method='ffill'))
+    # Compatible with pandas >= 2.0 (ffill())
+    df_filled = df.ffill()
+    clf.fit(df_filled)
+    preds = clf.predict(df_filled)
     df['anomaly_if'] = preds == -1
     print(df[df['anomaly_if']].head())

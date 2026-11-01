@@ -3,22 +3,23 @@ Decline Curve Analysis - Streamlit app skeleton
 Run: streamlit run app.py
 """
 
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path so app modules are resolvable
+backend_dir = Path(__file__).resolve().parents[3] / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 from scipy.optimize import curve_fit
 
+from app.engines.reservoir.decline_curve import exponential, hyperbolic, harmonic
+
 st.set_page_config(page_title="Decline Curve App")
-
-def exponential(t, qi, di):
-    return qi * np.exp(-di * t)
-
-def hyperbolic(t, qi, di, b):
-    return qi / ((1 + b * di * t) ** (1 / b))
-
-def harmonic(t, qi, di):
-    return qi / (1 + di * t)
 
 st.title("Decline Curve Analysis")
 uploaded = st.file_uploader("Upload production CSV", type=["csv"]) 
