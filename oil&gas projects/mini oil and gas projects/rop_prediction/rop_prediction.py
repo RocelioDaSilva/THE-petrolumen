@@ -1,29 +1,34 @@
 """
-ROP prediction skeleton using XGBoost
+ROP prediction skeleton using XGBoost / RandomForest
 Usage: python rop_prediction.py --data data.csv
 """
 
-import pandas as pd
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path so app modules are resolvable
+backend_dir = Path(__file__).resolve().parents[3] / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import argparse
-from xgboost import XGBRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+import pandas as pd
+from app.engines.drilling.rop import train_rop_model
 
 
-def main(path):
+def main(path: str) -> None:
     df = pd.read_csv(path)
-    # basic features example
-    features = ['WOB','RPM','torque','mud_weight']
-    df = df.fillna(method='ffill')
-    X = df[features]
-    y = df['ROP']
+    features = ['WOB', 'RPM', 'torque', 'mud_weight']
+    model, metrics, _ = train_rop_model(df, features=features, target_col='ROP')
+    print('Metrics:', metrics)
+    if hasattr(model, 'save_model'):
+        model.save_model('rop_xgb.json')
+        print("Saved XGBoost model to rop_xgb.json")
+    else:
+        import joblib
+        joblib.dump(model, 'rop_rf.pkl')
+        print("Saved model to rop_rf.pkl")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = XGBRegressor(n_estimators=200, random_state=42)
-    model.fit(X_train, y_train)
-    preds = model.predict(X_test)
-    print('RMSE:', mean_squared_error(y_test, preds, squared=False))
-    model.save_model('rop_xgb.json')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
