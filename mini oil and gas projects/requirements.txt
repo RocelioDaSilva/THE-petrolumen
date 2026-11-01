@@ -1,0 +1,14 @@
+# Common dependencies for the mini-projects
+pandas
+numpy
+matplotlib
+seaborn
+plotly
+scikit-learn
+xgboost
+scipy
+streamlit
+lasio
+joblib
+tensorflow
+statsmodels
