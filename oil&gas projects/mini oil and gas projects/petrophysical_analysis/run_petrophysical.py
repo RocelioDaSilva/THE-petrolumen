@@ -2,6 +2,15 @@
 Wrapper to read LAS or CSV for petrophysical analysis
 Usage: python run_petrophysical.py --file data/example_logs.csv
 """
+
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path so app modules are resolvable
+backend_dir = Path(__file__).resolve().parents[3] / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import argparse
 import os
 
@@ -11,15 +20,14 @@ except Exception:
     lasio = None
 
 import pandas as pd
+from app.engines.petrophysics.porosity import calculate_density_porosity
 
 
 def process_csv(path):
     df = pd.read_csv(path)
     print(df.head())
     if 'DEN' in df.columns:
-        rho = df['DEN']
-        phi = (2.65 - rho) / (2.65 - 1.0)
-        df['porosity'] = phi
+        df['porosity'] = calculate_density_porosity(df['DEN'])
         print(df[['DEN','porosity']].head())
     out = 'las_export.csv'
     df.to_csv(out, index=False)
@@ -33,9 +41,7 @@ def process_las(path):
     df = las.df()
     print(df.head())
     if 'DEN' in df.columns:
-        rho = df['DEN']
-        phi = (2.65 - rho) / (2.65 - 1.0)
-        df['porosity'] = phi
+        df['porosity'] = calculate_density_porosity(df['DEN'])
         print(df[['DEN','porosity']].head())
     out = 'las_export.csv'
     df.to_csv(out)

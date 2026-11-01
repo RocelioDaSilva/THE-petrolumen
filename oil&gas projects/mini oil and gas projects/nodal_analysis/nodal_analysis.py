@@ -1,23 +1,23 @@
 """
-Nodal analysis skeleton
+Nodal analysis script
 Usage: python nodal_analysis.py
 """
 
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path so app modules are resolvable
+backend_dir = Path(__file__).resolve().parents[3] / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.optimize import brentq
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
-# Exemplo simplificado de IPR (Vogel) para poços com vazão de óleo mecanicamente limitado
-def ipr_vogel(q, qi, pr, pwf):
-    # esta é uma aproximação demonstrativa
-    # Vogel (para reservatórios saturados de óleo): q/q_max = 1 - 0.2*(pwf/pr) - 0.8*(pwf/pr)**2
-    # inverter para q = f(pwf) é normalmente necessário; aqui usamos forma simplificada
-    return qi * (1 - 0.2 * (pwf / pr) - 0.8 * (pwf / pr) ** 2)
-
-# TPR (tubing performance) como função de q: perda de carga > função quadrática
-def tpr(q, a=0.002, b=10):
-    # P_surf + perda = P_wf ; usamos uma forma simples P_drop = a*q^2 + b*q
-    return a * q ** 2 + b * q
+from app.engines.reservoir.nodal import ipr_vogel, tpr, find_operating_point
 
 if __name__ == '__main__':
     # parâmetros de exemplo
@@ -25,25 +25,21 @@ if __name__ == '__main__':
     pr = 3000
     p_surf = 1000
 
-    # encontrar q tal que ipr_vogel(q) - (pr - tpr(q)) = 0 (ponto de equilíbrio)
-    def residual(q):
-        pwf = pr - tpr(q)
-        return ipr_vogel(q, qi, pr, pwf) - q
-
     try:
-        q_op = brentq(residual, 1, qi)
+        q_op = find_operating_point(qi=qi, pr=pr, p_surf=p_surf)
         print('Ponto de operação (q):', q_op)
 
-        qs = np.linspace(0, qi, 200)
-        ipr_vals = [ipr_vogel(q, qi, pr, pr - tpr(q)) for q in qs]
-        tpr_vals = [q for q in qs]
+        if plt is not None:
+            qs = np.linspace(0, qi, 200)
+            ipr_vals = [ipr_vogel(q, qi, pr, pr - tpr(q)) for q in qs]
+            tpr_vals = [q for q in qs]
 
-        plt.plot(qs, ipr_vals, label='IPR (f(pwf))')
-        plt.plot(qs, tpr_vals, label='Vazão (q)')
-        plt.axvline(q_op, color='k', linestyle='--', label=f'q_op={q_op:.1f}')
-        plt.legend()
-        plt.xlabel('q (bbl/day)')
-        plt.ylabel('Taxa / função')
-        plt.show()
+            plt.plot(qs, ipr_vals, label='IPR (f(pwf))')
+            plt.plot(qs, tpr_vals, label='Vazão (q)')
+            plt.axvline(q_op, color='k', linestyle='--', label=f'q_op={q_op:.1f}')
+            plt.legend()
+            plt.xlabel('q (bbl/day)')
+            plt.ylabel('Taxa / função')
+            plt.show()
     except Exception as e:
         print('Falha ao encontrar ponto de operação:', e)

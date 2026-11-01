@@ -1,23 +1,30 @@
 """
-Driller method simulation skeleton
+Driller method simulation script
 Usage: python driller_sim.py
 """
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
+import sys
+from pathlib import Path
 
-def simulate(duration_hours=24, dt_min=1, initial_rop=10):
-    steps = int(duration_hours * 60 / dt_min)
-    times = np.arange(steps) * dt_min / 60.0
-    rop = initial_rop * np.exp(-times/24.0)  # decay example
-    md = np.cumsum(rop * dt_min/60.0)
-    df = pd.DataFrame({'time_h': times, 'rop': rop, 'md': md})
-    return df
+# Add backend directory to sys.path so app modules are resolvable
+backend_dir = Path(__file__).resolve().parents[3] / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
+
+from app.engines.drilling.driller_sim import simulate_driller_method
+
+# Expose simulate for backwards compatibility
+simulate = simulate_driller_method
 
 if __name__ == '__main__':
-    df = simulate(48, dt_min=10, initial_rop=12)
+    df = simulate_driller_method(duration_hours=48, dt_min=10, initial_rop=12)
     print(df.tail())
-    df.plot(x='time_h', y='md', title='MD vs time')
-    df.plot(x='time_h', y='rop', title='ROP vs time')
-    plt.show()
+    if plt is not None:
+        df.plot(x='time_h', y='md', title='MD vs time')
+        df.plot(x='time_h', y='rop', title='ROP vs time')
+        plt.show()
