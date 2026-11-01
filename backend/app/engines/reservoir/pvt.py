@@ -68,6 +68,7 @@ def calculate_z_factor_hall_yarborough(
 
     # Newton-Raphson to solve for reduced density Y
     y = 0.001
+    converged = False
     for _ in range(100):
         y2 = y * y
         y3 = y2 * y
@@ -83,10 +84,18 @@ def calculate_z_factor_hall_yarborough(
         y_next = y - f / df
         if abs(y_next - y) < 1e-6:
             y = y_next
+            converged = True
             break
         y = max(1e-6, min(0.99, y_next))
 
+    if not converged and abs(f) > 1e-4:
+        raise RuntimeError(
+            f"Hall-Yarborough Z-factor iteration failed to converge for P={pressure_psia} psia, T={temperature_f} °F, gamma_g={gamma_g}"
+        )
+
     z = (a * pr) / max(y, 1e-6)
+    if z <= 0.0 or not math.isfinite(z):
+        raise RuntimeError(f"Unphysical Z-factor calculated: {z}")
     return round(float(z), 4)
 
 
@@ -147,8 +156,14 @@ def calculate_oil_fvf_standing(
     Returns:
         Oil formation volume factor Bo (bbl/STB).
     """
-    if rs_scf_stb < 0 or gamma_g <= 0 or gamma_o <= 0:
-        raise ValueError("Invalid negative or zero fluid properties.")
+    if rs_scf_stb < 0:
+        raise ValueError(f"Solution GOR must be non-negative, got {rs_scf_stb}")
+    if gamma_g <= 0:
+        raise ValueError(f"Gas gravity must be positive, got {gamma_g}")
+    if gamma_o <= 0:
+        raise ValueError(f"Oil gravity must be positive, got {gamma_o}")
+    if temperature_f <= -459.67:
+        raise ValueError(f"Temperature must be above absolute zero, got {temperature_f}")
 
     inside = rs_scf_stb * ((gamma_g / gamma_o) ** 0.5) + 1.25 * temperature_f
     bo = 0.9759 + 0.000120 * (max(0.0, inside) ** 1.2)

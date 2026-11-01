@@ -22,6 +22,10 @@ def calculate_density_porosity(
     Returns:
         Porosity as fraction (0.0 to 1.0)
     """
+    if rho_matrix <= 0 or rho_fluid <= 0:
+        raise ValueError("Matrix and fluid densities must be strictly positive.")
     if rho_matrix == rho_fluid:
         raise ValueError("rho_matrix and rho_fluid cannot be identical.")
+    if isinstance(rho_bulk, (int, float)) and rho_bulk <= 0:
+        raise ValueError(f"Bulk density must be positive, got {rho_bulk}")
     return (rho_matrix - rho_bulk) / (rho_matrix - rho_fluid)

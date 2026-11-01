@@ -10,7 +10,8 @@ Directly sourced from:
 from __future__ import annotations
 
 import math
-from typing import Literal
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 # Constants matching src/lib/math/constants.ts
@@ -342,11 +343,15 @@ def masp_method2(
 
 def trip_margin(yp: float, dh_inches: float, dp_inches: float) -> float:
     """Trip margin (Carter Ch. 3, Eq. 3.15)."""
+    if dh_inches <= dp_inches:
+        raise ValueError(f"Hole diameter ({dh_inches}) must be greater than pipe diameter ({dp_inches}).")
     return yp / (11.7 * (dh_inches - dp_inches))
 
 
 def diverter_line_diameter(dh_inches: float, dp_inches: float) -> float:
     """Carter Ch. 3, Eq. 3.16."""
+    if dh_inches < dp_inches:
+        raise ValueError(f"Hole diameter ({dh_inches}) cannot be smaller than pipe diameter ({dp_inches}).")
     return math.sqrt(dh_inches**2 - dp_inches**2)
 
 
@@ -478,7 +483,10 @@ def kt_maximum_formation_pressure(kti_ppg: float, mw_ppg: float, tvd_td_ft: floa
 
 def kt_influx_length(masicp_psi: float, g_mud_psi_ft: float, g_influx_psi_ft: float) -> float:
     """Carter Ch. 3, Eq. 3.33."""
-    return masicp_psi / (g_mud_psi_ft - g_influx_psi_ft)
+    diff = g_mud_psi_ft - g_influx_psi_ft
+    if diff == 0:
+        raise ValueError("Mud and influx pressure gradients cannot be identical (division by zero).")
+    return masicp_psi / diff
 
 
 def kt_volume(
@@ -512,6 +520,10 @@ def sicp_from_fp(
 
 def influx_length(v_kick_bbl: float, ca_bbl_ft: float) -> float:
     """Carter Ch. 3, Eq. 3.38."""
+    if ca_bbl_ft <= 0:
+        raise ValueError(f"Annular capacity must be strictly positive, got {ca_bbl_ft}")
+    if v_kick_bbl < 0:
+        raise ValueError(f"Kick volume must be non-negative, got {v_kick_bbl}")
     return v_kick_bbl / ca_bbl_ft
 
 
@@ -519,6 +531,10 @@ def influx_length_multi_section(
     v_kick_bbl: float, c_dc_oh_bbl_ft: float, l_dc_ft: float, c_dp_oh_bbl_ft: float
 ) -> float:
     """Carter Ch. 3, Eq. 3.39."""
+    if c_dc_oh_bbl_ft <= 0 or c_dp_oh_bbl_ft <= 0:
+        raise ValueError("Annular capacities must be strictly positive.")
+    if v_kick_bbl < 0 or l_dc_ft < 0:
+        raise ValueError("Kick volume and drill collar length must be non-negative.")
     v_dc = c_dc_oh_bbl_ft * l_dc_ft
     if v_kick_bbl <= v_dc:
         return v_kick_bbl / c_dc_oh_bbl_ft
@@ -595,7 +611,10 @@ def barite_plug_base_liquid(
     v_plug_bbl: float, w_mud_sg: float, mw_liquid_ppg: float, mw_plug_ppg: float
 ) -> float:
     """Carter Ch. 3, Eq. 3.64."""
-    return v_plug_bbl * ((mw_plug_ppg - w_mud_sg * 8.34) / (mw_plug_ppg - mw_liquid_ppg))
+    denom = mw_plug_ppg - mw_liquid_ppg
+    if denom == 0:
+        raise ValueError("Plug mud weight and base liquid mud weight cannot be identical.")
+    return v_plug_bbl * ((mw_plug_ppg - w_mud_sg * 8.34) / denom)
 
 
 def barite_plug_sacks(v_plug_bbl: float, sacks_per_bbl: float = 14.7) -> int:
@@ -645,8 +664,8 @@ def generate_wait_and_weight_schedule(
         points.append(
             SchedulePoint(
                 stroke=surface_to_bit_strokes,
-                drillpipePressurePsi=int(round(fcp_psi)),
-                casingPressurePsi=int(round(sicp_psi + 50.0)),
+                drillpipePressurePsi=round(fcp_psi),
+                casingPressurePsi=round(sicp_psi + 50.0),
                 stageDescription="Lama de Amortecimento Atinge a Broca (FCP)",
             )
         )
@@ -662,7 +681,7 @@ def generate_wait_and_weight_schedule(
         points.append(
             SchedulePoint(
                 stroke=s,
-                drillpipePressurePsi=int(round(fcp_psi)),
+                drillpipePressurePsi=round(fcp_psi),
                 casingPressurePsi=round(cas_pressure),
                 stageDescription="Poço Amortecido com Sucesso"
                 if ann_fraction >= 0.99
@@ -697,7 +716,7 @@ def generate_drillers_method_schedule(
         first_circ.append(
             SchedulePoint(
                 stroke=s,
-                drillpipePressurePsi=int(round(icp_psi)),
+                drillpipePressurePsi=round(icp_psi),
                 casingPressurePsi=round(cas_pressure),
                 stageDescription="1ª Circ.: Expulsão do Influxo a ICP"
                 if s == 0
@@ -727,7 +746,7 @@ def generate_drillers_method_schedule(
         second_circ.append(
             SchedulePoint(
                 stroke=s,
-                drillpipePressurePsi=int(round(fcp_psi)),
+                drillpipePressurePsi=round(fcp_psi),
                 casingPressurePsi=round(max(0.0, 100.0 * (1.0 - frac))),
                 stageDescription="2ª Circ.: Poço Amortecido"
                 if frac >= 0.9

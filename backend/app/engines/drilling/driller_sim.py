@@ -25,6 +25,10 @@ def simulate_driller_method(
     """
     if duration_hours <= 0 or dt_min <= 0:
         raise ValueError("Duration and time step must be strictly positive.")
+    if initial_rop < 0:
+        raise ValueError("Initial ROP must be non-negative.")
+    if decay_constant_hours <= 0:
+        raise ValueError("Decay constant must be strictly positive.")
 
     steps = int(duration_hours * 60.0 / dt_min)
     times = np.arange(steps, dtype=float) * (dt_min / 60.0)

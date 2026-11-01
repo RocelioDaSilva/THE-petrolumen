@@ -3,34 +3,33 @@
 import numpy as np
 import pandas as pd
 import pytest
-
-from app.utils.math_utils import deg2rad, min_curvature
-from app.engines.drilling.ecd import pressure_from_density, hydrostatic_pressure_bar
+from app.engines.analytics.event_detection import detect_zscore
+from app.engines.analytics.sequences import create_sequences, normalize_timeseries
 from app.engines.drilling.driller_sim import simulate_driller_method
-from app.engines.drilling.trajectory import compute_trajectory_minimum_curvature
+from app.engines.drilling.ecd import hydrostatic_pressure_bar, pressure_from_density
 from app.engines.drilling.rop import (
-    train_rop_model,
-    predict_rop,
-    rop_mud_effects,
     cuttings_concentration,
     d_exponent,
+    predict_rop,
+    rop_mud_effects,
+    train_rop_model,
 )
-from app.engines.reservoir.nodal import ipr_vogel, tpr, find_operating_point
-from app.engines.reservoir.decline_curve import exponential, hyperbolic, harmonic
-from app.engines.reservoir.pvt import (
-    pseudocritical_properties,
-    calculate_z_factor_hall_yarborough,
-    calculate_bubble_point_standing,
-    calculate_oil_fvf_standing,
-)
+from app.engines.drilling.trajectory import compute_trajectory_minimum_curvature
+from app.engines.petrophysics.facies import predict_facies, train_facies_classifier
+from app.engines.petrophysics.porosity import calculate_density_porosity
+from app.engines.reservoir.decline_curve import exponential, harmonic, hyperbolic
 from app.engines.reservoir.material_balance import (
     calculate_fmb_gas,
     estimate_ogip_from_production,
 )
-from app.engines.petrophysics.porosity import calculate_density_porosity
-from app.engines.petrophysics.facies import train_facies_classifier, predict_facies
-from app.engines.analytics.event_detection import detect_zscore
-from app.engines.analytics.sequences import create_sequences, normalize_timeseries
+from app.engines.reservoir.nodal import find_operating_point, ipr_vogel
+from app.engines.reservoir.pvt import (
+    calculate_bubble_point_standing,
+    calculate_oil_fvf_standing,
+    calculate_z_factor_hall_yarborough,
+    pseudocritical_properties,
+)
+from app.utils.math_utils import deg2rad, min_curvature
 
 
 def test_math_utils():
@@ -223,7 +222,7 @@ def test_rop_physics_and_modeling():
         "mud_weight": [1200.0, 1200.0, 1200.0, 1200.0, 1200.0, 1200.0],
         "ROP": [5.0, 5.5, 5.1, 5.7, 6.2, 4.8],
     })
-    model, metrics, preds = train_rop_model(df_rop, n_estimators=50)
+    model, metrics, _preds = train_rop_model(df_rop, n_estimators=50)
     assert model is not None
     assert "rmse" in metrics and "mae" in metrics
     assert metrics["rmse"] >= 0.0
@@ -242,7 +241,7 @@ def test_rop_physics_and_modeling():
 def test_time_series_sequences_and_normalization():
     """Verify time series sliding sequence generator and normalization."""
     raw = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0]
-    norm, mean, std = normalize_timeseries(raw)
+    norm, mean, _std = normalize_timeseries(raw)
     assert pytest.approx(mean, abs=1e-5) == 45.0
     assert pytest.approx(np.mean(norm), abs=1e-5) == 0.0
     assert pytest.approx(np.std(norm), abs=1e-5) == 1.0
@@ -301,7 +300,7 @@ def test_gas_material_balance():
     # Linear regression estimation of OGIP from synthetic decline
     gp_data = [pt["gp"] for pt in fmb["points"]]
     pz_data = [pt["pz"] for pt in fmb["points"]]
-    ogip_est, slope_est, pzi_est = estimate_ogip_from_production(gp_data, pz_data)
+    ogip_est, slope_est, _pzi_est = estimate_ogip_from_production(gp_data, pz_data)
 
     assert pytest.approx(ogip_est, rel=1e-2) == 1200.0
     assert slope_est < 0.0
@@ -311,3 +310,89 @@ def test_gas_material_balance():
         calculate_fmb_gas(pi=-100.0)
     with pytest.raises(ValueError):
         estimate_ogip_from_production([10.0], [3000.0])  # Only 1 point
+
+
+def test_edge_cases_and_error_handling():
+    """Verify edge-case boundaries, zero division guards, and exception handling."""
+    from app.engines.drilling.well_control import (
+        barite_plug_base_liquid,
+        diverter_line_diameter,
+        influx_length,
+        influx_length_multi_section,
+        kt_influx_length,
+        trip_margin,
+    )
+
+    # 1. Decline curves edge cases
+    with pytest.raises(ValueError):
+        exponential(t=-1.0, qi=100.0, di=0.1)
+    with pytest.raises(ValueError):
+        hyperbolic(t=1.0, qi=-10.0, di=0.1, b=0.5)
+    with pytest.raises(ValueError):
+        hyperbolic(t=1.0, qi=100.0, di=0.1, b=-0.5)
+    with pytest.raises(ValueError):
+        harmonic(t=1.0, qi=100.0, di=-0.2)
+    # b = 0 should reduce to exponential
+    assert hyperbolic(5.0, 1000.0, 0.05, b=0) == exponential(5.0, 1000.0, 0.05)
+
+    # 2. Nodal operating point edge cases
+    with pytest.raises(ValueError):
+        # Surface backpressure >= reservoir pressure
+        find_operating_point(qi=1000.0, pr=2000.0, p_surf=2500.0)
+    with pytest.raises(ValueError):
+        # Negative max rate
+        find_operating_point(qi=-1000.0, pr=2000.0, p_surf=500.0)
+    with pytest.raises(ValueError):
+        # Negative bottomhole pressure in Vogel
+        ipr_vogel(0, 1000.0, 3000.0, pwf=-100.0)
+
+    # 3. PVT edge cases
+    with pytest.raises(ValueError):
+        # Temperature below absolute zero
+        calculate_z_factor_hall_yarborough(1000.0, -500.0, 0.65)
+    with pytest.raises(ValueError):
+        # Non-physical negative GOR
+        calculate_bubble_point_standing(rs_scf_stb=-10.0, gamma_g=0.65, api=30.0, temperature_f=150.0)
+    with pytest.raises(ValueError):
+        # Negative oil gravity
+        calculate_oil_fvf_standing(rs_scf_stb=200.0, gamma_g=0.65, gamma_o=-0.8, temperature_f=150.0)
+
+    # 4. Petrophysics porosity boundaries
+    with pytest.raises(ValueError):
+        calculate_density_porosity(rho_bulk=-1.5)
+    with pytest.raises(ValueError):
+        calculate_density_porosity(rho_bulk=2.5, rho_matrix=0.0)
+
+    # 5. Math utils & trajectory
+    with pytest.raises(ValueError):
+        min_curvature([], [], [])
+    with pytest.raises(ValueError):
+        min_curvature([0, 100], [0], [0])
+
+    # 6. Well control edge cases
+    with pytest.raises(ValueError):
+        trip_margin(yp=15.0, dh_inches=8.5, dp_inches=8.5)  # dh == dp
+    with pytest.raises(ValueError):
+        diverter_line_diameter(dh_inches=5.0, dp_inches=6.0)  # dh < dp
+    with pytest.raises(ValueError):
+        kt_influx_length(masicp_psi=500.0, g_mud_psi_ft=0.5, g_influx_psi_ft=0.5)  # identical gradients
+    with pytest.raises(ValueError):
+        influx_length(v_kick_bbl=20.0, ca_bbl_ft=0.0)  # zero capacity
+    with pytest.raises(ValueError):
+        influx_length_multi_section(v_kick_bbl=20.0, c_dc_oh_bbl_ft=0.0, l_dc_ft=100.0, c_dp_oh_bbl_ft=0.05)
+    with pytest.raises(ValueError):
+        barite_plug_base_liquid(v_plug_bbl=50.0, w_mud_sg=1.2, mw_liquid_ppg=12.0, mw_plug_ppg=12.0)
+
+    # 7. Driller sim edge cases
+    with pytest.raises(ValueError):
+        simulate_driller_method(initial_rop=-5.0)
+    with pytest.raises(ValueError):
+        simulate_driller_method(decay_constant_hours=-10.0)
+
+    # 8. Analytics event detection edge cases
+    with pytest.raises(ValueError):
+        detect_zscore(pd.DataFrame(), "col")
+    with pytest.raises(ValueError):
+        detect_zscore(pd.DataFrame({"col": [1, 2, 3]}), "missing")
+    with pytest.raises(ValueError):
+        detect_zscore(pd.DataFrame({"col": [1, 2, 3]}), "col", window=0)
