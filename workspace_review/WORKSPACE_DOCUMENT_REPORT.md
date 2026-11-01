@@ -8,7 +8,7 @@
 
 The workspace has useful engineering, onboarding, audit, competition, and project-planning material, but it does not yet have one reliable documentation source of truth. Current root-project guidance is mixed with documentation for older architectures, copied repositories, generated files, public web assets, competition records, and a large external reference library.
 
-At inventory time, the scan identified **2,664 files (about 718 MB)** outside excluded Git metadata, dependency, cache, and build-output directories. It found **326 document-format files**: 179 Markdown, 51 plain text, 58 PDF, 23 HTML, 8 TeX, 3 PowerPoint, 2 Word, and 2 reStructuredText files. The 58 PDFs accounted for about 464 MB.
+At inventory time, the scan identified **2,664 files (about 718 MB)** outside excluded Git metadata, dependency, cache, and build-output directories. It found **327 document-format files**: 179 Markdown, 51 plain text, 58 PDF, 23 HTML, 8 TeX, 3 PowerPoint, 2 Word, 2 reStructuredText, and 1 EPUB file. The 58 PDFs accounted for about 464 MB.
 
 Most important findings:
 
@@ -116,7 +116,7 @@ The workspace root also contains GEOENERGY/business-plan attachments, a course-l
 
 ## Limitations and confidence
 
-The 326-row register below covers every document-like file found by the inventory rules, including archived copies and generated snapshots. Text documents were inspected for title/structure and common maintenance markers; PDF and Office entries include extracted metadata/structure. Large reference PDFs were not fully read, five scanned PDFs were not OCR'd, and binary contents such as images/video were not visually reviewed. The inventory excludes dependency, Git metadata, and common build/cache directories as described above.
+The 327-row register below covers every document-like file found by the inventory rules, including archived copies and generated snapshots, plus the EPUB discovered during the follow-up cleanup. Text documents were inspected for title/structure and common maintenance markers; PDF and Office entries include extracted metadata/structure. Large reference PDFs were not fully read, five scanned PDFs were not OCR'd, and binary contents such as images/video were not visually reviewed. The inventory excludes dependency, Git metadata, and common build/cache directories as described above.
 
 ## Full document-by-document register
 
@@ -451,3 +451,4 @@ Each linked path is relative to the workspace root. “Review note” identifies
 | 324 | [thepetrolumen/thepetrolumen_new/REPO_ANALYSIS.md](<../thepetrolumen/thepetrolumen_new/REPO_ANALYSIS.md>) | **Repository Analysis — PetroLúmen** - # Repository Analysis — PetroLúmen | Documentation in an additional project copy/nested checkout; mark the tree as active, archive, or experiment before treating as authoritative. Maintenance markers: TODO, PLACEHOLDER. |
 | 325 | [thepetrolumen/thepetrolumen_new/SECURITY.md](<../thepetrolumen/thepetrolumen_new/SECURITY.md>) | **Security Policy** - # Security Policy; ## Reporting a Vulnerability | Documentation in an additional project copy/nested checkout; mark the tree as active, archive, or experiment before treating as authoritative. Exact content duplicate of: `SECURITY.md`. Maintenance markers: PLACEHOLDER. |
 | 326 | [thepetrolumen/thepetrolumen_new/updates.md](<../thepetrolumen/thepetrolumen_new/updates.md>) | **Project Analysis & Updates** - # Project Analysis & Updates; ## Overview | Documentation in an additional project copy/nested checkout; mark the tree as active, archive, or experiment before treating as authoritative. Exact content duplicate of: `docs/plans/updates.md`, `documents for competition and very good documentation/audits/updates.md` (+1 more). Maintenance markers: TODO, PLACEHOLDER. |
+| 327 | [Ali Abdaal - Feel-Good Productivity (EPUB; moved to the local reference library)](<../../_local-reference-library/books for inspiration in sources/Ali Abdaal - Feel-Good Productivity_ How to Do More of What Matters to You (2023, Celadon Books) - libgen.li.epub>) | **Feel-Good Productivity: How to Do More of What Matters to You** — Ali Abdaal, 2023. Reference-library item; provenance/redistribution rights not verified, so it remains outside the repository. |
