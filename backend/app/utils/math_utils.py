@@ -24,7 +24,17 @@ def min_curvature(
 
     Returns:
         (x, y, z) lists representing East (dx), North (dy), and TVD (dz)
+
+    Raises:
+        ValueError: If input lists have different lengths or are empty.
     """
+    if len(md) == 0:
+        raise ValueError("Measured depth array cannot be empty.")
+    if len(md) != len(inc) or len(md) != len(azi):
+        raise ValueError(
+            f"Arrays must have matching lengths: len(md)={len(md)}, len(inc)={len(inc)}, len(azi)={len(azi)}"
+        )
+
     x = [0.0]
     y = [0.0]
     z = [0.0]

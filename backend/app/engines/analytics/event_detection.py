@@ -23,6 +23,13 @@ def detect_zscore(
     Returns:
         Index of detected anomalies
     """
+    if df.empty:
+        raise ValueError("Input DataFrame is empty.")
+    if col not in df.columns:
+        raise ValueError(f"Column '{col}' not found in DataFrame.")
+    if window <= 0:
+        raise ValueError(f"Window must be strictly positive, got {window}")
+
     roll = df[col].rolling(window, min_periods=1, center=True).median()
     roll_std = df[col].rolling(window, min_periods=1).std().replace(0, np.nan)
     z = (df[col] - roll) / roll_std

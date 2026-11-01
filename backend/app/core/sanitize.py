@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 import re
 from typing import Any, Literal
+
 from pydantic import BaseModel, ConfigDict
 
 PVTUnitSystem = Literal["field", "metric"]
@@ -79,28 +80,30 @@ def sanitize_pvt(raw: Any) -> SanitizedPVTResult:
 
     # 2. Pressure check (fail loudly on <= 0, no silent clamp)
     raw_pressure = raw.get("pressure")
-    if not is_strict_finite_number(raw_pressure):
+    pressure_val: float | None = None
+    if not is_strict_finite_number(raw_pressure) or raw_pressure is None:
         errors.append("Pressão deve ser um valor numérico válido.")
     else:
-        p = float(raw_pressure)
-        if p <= 0:
+        pressure_val = float(raw_pressure)
+        if pressure_val <= 0:
             unit_label = "kPa" if unit_system == "metric" else "psia"
-            errors.append(f"Pressão deve ser estritamente positiva (> 0). Valor fornecido: {p} {unit_label}.")
-        elif unit_system == "field" and (p < 14.7 or p > 25000):
-            errors.append(f"Pressão de reservatório fora da faixa operacional física (14.7 - 25,000 psia). Valor: {p}")
+            errors.append(f"Pressão deve ser estritamente positiva (> 0). Valor fornecido: {pressure_val} {unit_label}.")
+        elif unit_system == "field" and (pressure_val < 14.7 or pressure_val > 25000):
+            errors.append(f"Pressão de reservatório fora da faixa operacional física (14.7 - 25,000 psia). Valor: {pressure_val}")
 
     # 3. Temperature check (below absolute zero check)
     raw_temp = raw.get("temperature")
-    if not is_strict_finite_number(raw_temp):
+    temp_val: float | None = None
+    if not is_strict_finite_number(raw_temp) or raw_temp is None:
         errors.append("Temperatura deve ser um valor numérico válido.")
     else:
-        t = float(raw_temp)
-        if unit_system == "field" and t <= -459.67:
-            errors.append(f"Temperatura ({t}°F) está abaixo do zero absoluto (-459.67°F).")
-        elif unit_system == "metric" and t <= -273.15:
-            errors.append(f"Temperatura ({t}°C) está abaixo do zero absoluto (-273.15°C).")
-        elif unit_system == "field" and (t < 32 or t > 500):
-            errors.append(f"Temperatura de reservatório fora da faixa operacional plausível (32 - 500°F). Valor: {t}")
+        temp_val = float(raw_temp)
+        if unit_system == "field" and temp_val <= -459.67:
+            errors.append(f"Temperatura ({temp_val}°F) está abaixo do zero absoluto (-459.67°F).")
+        elif unit_system == "metric" and temp_val <= -273.15:
+            errors.append(f"Temperatura ({temp_val}°C) está abaixo do zero absoluto (-273.15°C).")
+        elif unit_system == "field" and (temp_val < 32 or temp_val > 500):
+            errors.append(f"Temperatura de reservatório fora da faixa operacional plausível (32 - 500°F). Valor: {temp_val}")
 
     # 4. Gas Specific Gravity (air = 1.0)
     raw_gg = raw.get("gasGravity")
@@ -129,7 +132,7 @@ def sanitize_pvt(raw: Any) -> SanitizedPVTResult:
         if gor < 0:
             errors.append(f"GOR não pode ser negativo. Valor: {gor}")
 
-    if errors:
+    if errors or pressure_val is None or temp_val is None:
         return SanitizedPVTErr(errors=errors)
 
     raw_vol = raw.get("volume")
@@ -137,8 +140,8 @@ def sanitize_pvt(raw: Any) -> SanitizedPVTResult:
 
     return SanitizedPVTOk(
         value=ValidatedPVTInput(
-            pressure=float(raw_pressure),
-            temperature=float(raw_temp),
+            pressure=pressure_val,
+            temperature=temp_val,
             volume=volume_val,
             gor=float(raw_gor) if raw_gor is not None else 600.0,
             apiGravity=float(raw_api) if raw_api is not None else 35.0,

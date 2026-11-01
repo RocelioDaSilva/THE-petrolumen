@@ -7,7 +7,9 @@ sourced from Carter, Lyons & Lapeyrouse (5th Ed., 2023), Chapter 7.
 from __future__ import annotations
 
 import math
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
@@ -32,6 +34,8 @@ def rop_mud_effects(rop1_ft_hr: float, mw1_ppg: float, mw2_ppg: float) -> float:
     Raises:
         ValueError: If mud weights are non-positive.
     """
+    if rop1_ft_hr < 0:
+        raise ValueError(f"Baseline ROP must be non-negative, got {rop1_ft_hr}")
     if mw1_ppg <= 0 or mw2_ppg <= 0:
         raise ValueError("Mud weights must be strictly positive.")
     return round(rop1_ft_hr * ((mw1_ppg / mw2_ppg) ** 2), 2)
@@ -107,8 +111,14 @@ def d_exponent(
     if mw_actual_ppg <= 0:
         raise ValueError("Actual mud weight must be positive.")
 
+    ratio_wob = (12.0 * wob_klbs) / (1000.0 * bit_diameter_in)
+    if ratio_wob <= 0:
+        raise ValueError("Invalid non-positive WOB/diameter ratio.")
+    if abs(ratio_wob - 1.0) < 1e-12:
+        raise ValueError("Denominator in d-exponent evaluated to zero (log10(1) = 0).")
+
     num = math.log10(rop_ft_hr / (60.0 * rpm))
-    denom = math.log10((12.0 * wob_klbs) / (1000.0 * bit_diameter_in))
+    denom = math.log10(ratio_wob)
 
     if denom == 0:
         raise ValueError("Denominator in d-exponent evaluated to zero.")

@@ -6,8 +6,8 @@ estimation based on P/Z straight-line methods.
 
 from __future__ import annotations
 
-import math
 from typing import TypedDict
+
 from app.engines.reservoir.pvt import calculate_z_factor_hall_yarborough
 
 
@@ -67,7 +67,7 @@ def calculate_fmb_gas(
 
     zi = calculate_z_factor_hall_yarborough(pi, tf, gamma_g)
     if zi <= 0:
-        zi = 1.0
+        raise ValueError(f"Unphysical Z-factor calculated: {zi}")
 
     pzi = pi / zi
     slope = -pzi / ogip_expected
@@ -116,6 +116,9 @@ def estimate_ogip_from_production(
         raise ValueError("gp and pz must have identical length.")
     if len(gp) < 2:
         raise ValueError("At least 2 points required for linear regression.")
+
+    if any(x < 0 for x in gp) or any(y <= 0 for y in pz):
+        raise ValueError("Cumulative production Gp must be non-negative and P/Z must be strictly positive.")
 
     n = len(gp)
     sum_x = sum(gp)
