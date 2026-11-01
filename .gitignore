@@ -70,3 +70,52 @@ backend/docs_sphinx/_build/
 # Release Packages
 petrolumen-release.zip
 *.zip
+
+# Rust build output
+target/
+target2/
+target_tmp/
+**/target/
+**/target2/
+**/target_tmp/
+*.rlib
+*.rmeta
+.rustc_info.json
+
+# Additional frontend build output
+out/
+dist/
+build/
+**/node_modules/
+**/.next/
+
+# Tauri generated bundles and code
+**/src-tauri/bundle/
+**/src-tauri/gen/
+
+# TeX build output
+*.aux
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Test and interpreter caches
+.pytest_cache/
+**/.pytest_cache/
+__pycache__/
+**/__pycache__/
+
+# Local archives, reference material, records, and copied experiments
+/_local-reference-library/
+/_private-project-records/
+/petrolumen_tmp/
+/thepetrolumen/
+/THE-petrolumen-cafa105c2124580e244b9abca798a163d4588449 (2)/
+/c/Projectos/petrolumen app tryout/THE-petrolumen/
+/oil&gas projects/thepetrolumen/
+/public/assets/aistudio/
+
+# Generated API snapshot; regenerate from the running backend when needed
+/openapi.json

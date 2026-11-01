@@ -1,55 +1,48 @@
 # Contributing to PetroLúmen
 
-Thank you for your interest in contributing to PetroLúmen! This document outlines the setup process and guidelines for submitting contributions.
+Thank you for contributing. The active web application is the repository-root Vite/React application; the Python package in `backend/` is a separate, smaller set of calculation engines. Historical Tauri/Next.js copies elsewhere in this workspace are not the default development target.
 
----
+## Prerequisites
 
-## Development Setup
+- Node.js compatible with the root package dependencies
+- npm
+- Python 3.11 or newer for backend work
 
-### Backend Setup (Python)
+## Frontend setup and checks
 
-1. **Python Version**: Ensure Python 3.12+ is installed.
-2. **Virtual Environment**: Create and activate a virtual environment in the repository root or `backend/` directory:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-3. **Dependencies**: Install the required Python packages:
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
-4. **Running Quality Checks & Tests**:
-   ```bash
-   cd backend
-   ruff check .
-   black --check .
-   pytest -q
-   ```
+Run these commands from the repository root:
 
-### Frontend Setup (Next.js / Node.js)
+```bash
+npm install
+npm run dev
+npm run lint
+npm test
+npm run build
+```
 
-1. **Node & Package Manager**: Ensure Node 20+ and `pnpm` 9+ are installed.
-   - Use `pnpm` exclusively for managing frontend dependencies and scripts. Do NOT use `npm` or `yarn`.
-2. **Install Dependencies**:
-   ```bash
-   cd petrolumen
-   pnpm install
-   ```
-3. **Running Quality Checks & Tests**:
-   ```bash
-   cd petrolumen
-   pnpm lint
-   pnpm typecheck
-   pnpm test -- --run
-   pnpm build
-   pnpm audit --audit-level=high
-   ```
+`npm run lint` performs the TypeScript no-emit check. `npm test` runs the engineering benchmark runner and Vitest suite. `npm run build` type-checks and builds the Vite application.
 
----
+## Backend setup and checks
 
-## Pull Request Guidelines
+From the repository root:
 
-- **Branch Naming**: Use descriptive branch names (e.g., `feature/...`, `fix/...`, or `jules/...`).
-- **CI Requirement**: **All PRs must pass all CI workflow checks** (`backend`, `frontend`, and `audit` jobs) before being merged.
-- **Scope**: Keep changes targeted and do not modify application source code unless required by the task scope.
-- **Dependency Management**: Ensure lockfiles (`pnpm-lock.yaml`) are updated whenever package configurations are modified.
+```bash
+python -m venv .venv
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# macOS/Linux:
+# source .venv/bin/activate
+python -m pip install -e "backend[dev]"
+python -m pytest backend/tests
+```
+
+See [`backend/README.md`](./backend/README.md) and [`backend/pyproject.toml`](./backend/pyproject.toml) for the backend package details.
+
+## Contribution guidelines
+
+- Keep changes focused and include or update tests for behavior changes.
+- Preserve engineering units, documented assumptions, and golden benchmark fidelity.
+- Engineering calculations should reject unphysical inputs explicitly rather than silently returning plausible-looking values.
+- Update the relevant canonical documentation when behavior or setup changes.
+- Keep generated outputs, local records, reference libraries, and copied project trees out of commits.
+- Use a descriptive branch name and commit message. Open a pull request with a concise summary, validation results, and any relevant limitations.

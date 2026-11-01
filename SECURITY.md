@@ -4,9 +4,13 @@
 
 The PetroLúmen team and community take all security vulnerabilities seriously. Thank you for improving the security of PetroLúmen. We appreciate your efforts and responsible disclosure and will make every effort to acknowledge your contributions.
 
-If you believe you have found a security vulnerability in PetroLúmen, please report it to us by emailing `security@example.com` (replace with a real address if this project were public) or by opening a GitHub issue with the "security" label if email is not appropriate for your disclosure.
+If you believe you have found a security vulnerability in PetroLúmen, please use GitHub's private vulnerability reporting form:
 
-Please include the following details with your report:
+<https://github.com/RocelioDaSilva/THE-petrolumen/security/advisories/new>
+
+Please do not report undisclosed vulnerabilities in a public issue.
+
+Please include the following details with your private report:
 *   Description of the location and potential impact of the vulnerability.
 *   A detailed description of the steps required to reproduce the vulnerability (POC scripts, screenshots, and compressed screen captures are all helpful).
 *   Your name/handle and a link for recognition (e.g., Twitter or GitHub profile).
