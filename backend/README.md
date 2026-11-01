@@ -14,15 +14,20 @@ backend/
 │   │   ├── drilling/
 │   │   │   ├── driller_sim.py  # Driller's method simulation
 │   │   │   ├── ecd.py          # Hydrostatic & ECD calculations
+│   │   │   ├── rop.py          # Rate of penetration (ROP) prediction and Carter physics
 │   │   │   ├── trajectory.py   # 3D wellbore trajectory (minimum curvature)
 │   │   │   └── well_control.py # Well control calculations & schedules (Wait & Weight, Driller's Method)
 │   │   ├── reservoir/
-│   │   │   ├── decline_curve.py# Arps decline curve analysis models (exponential, hyperbolic, harmonic)
-│   │   │   └── nodal.py        # Nodal analysis (Vogel IPR and TPR)
+│   │   │   ├── decline_curve.py   # Arps decline curve analysis models (exponential, hyperbolic, harmonic)
+│   │   │   ├── material_balance.py# Flowing material balance (FMB) P/Z & OGIP estimation
+│   │   │   ├── nodal.py           # Nodal analysis (Vogel IPR and TPR)
+│   │   │   └── pvt.py             # Thermodynamic PVT correlations (Z-factor, Standing Pb & Bo)
 │   │   ├── petrophysics/
+│   │   │   ├── facies.py       # Random Forest facies classification & log prediction
 │   │   │   └── porosity.py     # Log porosity and petrophysical evaluations
 │   │   └── analytics/
-│   │       └── event_detection.py # Time-series rolling anomaly & kick detection
+│   │       ├── event_detection.py # Time-series rolling anomaly & kick detection
+│   │       └── sequences.py       # Time-series sliding window & sequence normalization
 │   └── utils/
 │       └── math_utils.py       # Geometric and mathematical utilities (deg2rad, min_curvature)
 ├── tests/
@@ -53,7 +58,7 @@ pip install -e ".[dev]"
 Alternatively, install the core requirements directly:
 
 ```bash
-pip install fastapi pydantic pytest numpy scipy pandas
+pip install fastapi pydantic pytest numpy scipy pandas scikit-learn
 ```
 
 ## Running Tests

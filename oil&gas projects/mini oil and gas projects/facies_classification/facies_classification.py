@@ -3,28 +3,31 @@ Facies classification - baseline with RandomForest
 Usage: python facies_classification.py --data path/to/logs.csv
 """
 
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import classification_report
-import joblib
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path so app modules are resolvable
+backend_dir = Path(__file__).resolve().parents[3] / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import argparse
+import joblib
+import pandas as pd
+from app.engines.petrophysics.facies import train_facies_classifier
 
-def main(path):
+
+def main(path: str) -> None:
     df = pd.read_csv(path)
-    # expected columns: depth, gamma, resistivity, density, porosity, facies
-    features = ['gamma','resistivity','density','porosity']
-    X = df[features].fillna(df[features].median())
-    y = df['facies']
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    clf = RandomForestClassifier(n_estimators=200, random_state=42)
-    clf.fit(X_train, y_train)
-
-    preds = clf.predict(X_test)
-    print(classification_report(y_test, preds))
+    features = ['gamma', 'resistivity', 'density', 'porosity']
+    clf, report, _ = train_facies_classifier(df, features=features, target_col='facies')
+    print("Classification Report:")
+    for label, metrics in report.items():
+        if isinstance(metrics, dict):
+            print(f"  Class {label}: precision={metrics.get('precision', 0):.2f}, recall={metrics.get('recall', 0):.2f}")
     joblib.dump(clf, 'facies_rf.pkl')
+    print("Saved model to facies_rf.pkl")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
