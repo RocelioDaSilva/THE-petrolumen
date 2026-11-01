@@ -106,11 +106,11 @@ The workspace root also contains GEOENERGY/business-plan attachments, a course-l
 ## Recommended cleanup sequence
 
 1. **Finish history cleanup before publishing.** The current local branch contains earlier commits with large reference PDFs and copied project/build trees. Remove those paths from Git history before any push; a tip-only deletion does not prevent the earlier blobs from being uploaded.
-2. **Label the remaining local copies.** The root Vite/React app and `backend/` are now designated active; copied trees are ignored and staged for untracking but intentionally remain on disk until individually reviewed.
+2. **Label the remaining local copies.** The root Vite/React app and `backend/` are now designated active; copied trees are ignored and untracked from Git, but intentionally remain on disk until individually reviewed.
 3. **Maintain the documentation index.** The index now distinguishes current, proposed, historical, and archived material. Add owners and last-verified dates as reports are revalidated.
 4. **Reconcile audit evidence.** Re-run only the checks needed for present claims, record commit/date/commands/results, resolve test-count conflicts, and link the current report from the root README and `docs/README.md`.
 5. **Review privacy and provenance.** Competition/application records and transcript files were moved to a sibling private folder; reference PDFs were moved to a sibling local library. Confirm backups and rights before sharing those folders.
-6. **Deduplicate safely.** Exact duplicate public audits were moved to an archive and copies are staged for untracking. Compare remaining nested repositories before deleting any local copies.
+6. **Deduplicate safely.** Exact duplicate public audits were moved to an archive and project copies are untracked but retained locally. Compare remaining nested repositories before deleting any local copies.
 7. **Clean generated artifacts.** Ignore rules and `.gitattributes` now cover TeX outputs, caches, Rust/Node build output, and duplicate trees. The generated OpenAPI snapshot is ignored and untracked.
 8. **Improve ongoing maintenance.** Add link checking and a documentation freshness checklist to CI or release review; make dates and tested commands mandatory for audits and environment snapshots.
 
