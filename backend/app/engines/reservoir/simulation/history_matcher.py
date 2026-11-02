@@ -17,6 +17,10 @@ class HistoryMatcher:
     def add_parameter(self, name: str, min_value: float, 
                      max_value: float, initial: float):
         """Add parameter to be matched"""
+        if not np.all(np.isfinite([min_value, max_value, initial])):
+            raise ValueError("Parameter bounds and initial value must be finite.")
+        if min_value > max_value or not min_value <= initial <= max_value:
+            raise ValueError("Initial parameter value must be within valid bounds.")
         self.parameters[name] = {
             "min": min_value,
             "max": max_value,
@@ -49,6 +53,7 @@ class HistoryMatcher:
             return self._ensemble_based_matching(max_iterations)
         elif algorithm == "proxy":
             return self._proxy_based_matching(max_iterations)
+        raise ValueError(f"Unknown history-matching algorithm: {algorithm}")
             
     def calculate_misfit(self, parameters: Dict) -> float:
         """Calculate objective function"""
@@ -66,11 +71,22 @@ class HistoryMatcher:
         
     def _gradient_based_matching(self, max_iterations: int):
         """Gradient-based optimization"""
-        initial_guess = [p["initial"] for p in self.parameters.values()]
-        bounds = [(p["min"], p["max"]) for p in self.parameters.values()]
+        if not self.parameters:
+            raise ValueError("At least one matching parameter must be defined.")
+
+        parameter_names = list(self.parameters)
+        initial_guess = [self.parameters[name]["initial"] for name in parameter_names]
+        bounds = [
+            (self.parameters[name]["min"], self.parameters[name]["max"])
+            for name in parameter_names
+        ]
+
+        def objective(parameter_values):
+            parameter_map = dict(zip(parameter_names, parameter_values))
+            return self.calculate_misfit(parameter_map)
         
         result = minimize(
-            self.calculate_misfit,
+            objective,
             initial_guess,
             bounds=bounds,
             method="L-BFGS-B",
@@ -78,6 +94,45 @@ class HistoryMatcher:
         )
         
         return self._process_optimization_result(result)
+
+    def analyze_uncertainty(
+        self, n_samples: int = 100, random_state: Optional[int] = None
+    ) -> Dict:
+        """Estimate output uncertainty by sampling parameter bounds."""
+        if n_samples < 1:
+            raise ValueError("n_samples must be positive.")
+        if not self.parameters:
+            raise ValueError("At least one parameter must be defined.")
+
+        rng = np.random.default_rng(random_state)
+        samples = {
+            name: rng.uniform(parameter["min"], parameter["max"], n_samples)
+            for name, parameter in self.parameters.items()
+        }
+        outcomes = {name: [] for name in self.observed_data}
+        for sample_index in range(n_samples):
+            parameters = {
+                name: values[sample_index] for name, values in samples.items()
+            }
+            results = self.simulator.run_simulation(parameters)
+            for variable in outcomes:
+                values = np.asarray(results[variable])
+                if not np.all(np.isfinite(values)):
+                    raise ValueError(
+                        f"Simulation returned non-finite values for '{variable}'."
+                    )
+                outcomes[variable].append(values)
+
+        return {
+            variable: {
+                "mean": np.mean(values, axis=0),
+                "std": np.std(values, axis=0),
+                "p10": np.percentile(values, 10, axis=0),
+                "p50": np.percentile(values, 50, axis=0),
+                "p90": np.percentile(values, 90, axis=0),
+            }
+            for variable, values in outcomes.items()
+        }
         
     def _ensemble_based_matching(self, max_iterations: int):
         """Ensemble-based optimization"""
@@ -109,9 +164,12 @@ class HistoryMatcher:
         
     def _process_optimization_result(self, result) -> Dict:
         """Process optimization results"""
+        parameters = dict(zip(self.parameters.keys(), result.x))
+        for name, value in parameters.items():
+            self.parameters[name]["current"] = value
         return {
             "success": result.success,
-            "parameters": dict(zip(self.parameters.keys(), result.x)),
+            "parameters": parameters,
             "misfit": result.fun,
             "iterations": result.nit
         }
