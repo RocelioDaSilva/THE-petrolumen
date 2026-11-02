@@ -1,0 +1,24 @@
+"""
+Simple LAS reader and basic petrophysical computations
+Usage: python las_reader.py --file data/example.las
+"""
+
+import lasio
+import numpy as np
+import pandas as pd
+import argparse
+
+from app.engines.petrophysics.porosity import calculate_density_porosity
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', required=True)
+    args = parser.parse_args()
+    las = lasio.read(args.file)
+    df = las.df()
+    print(df.head())
+    # Compute porosity from density log (rho_matrix=2.65, rho_fluid=1.0)
+    if 'DEN' in df.columns:
+        df['porosity'] = calculate_density_porosity(df['DEN'])
+        print(df[['DEN','porosity']].head())
+    df.to_csv('las_export.csv')
