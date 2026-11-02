@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from app.engines.reservoir.pvt import calculate_z_factor_hall_yarborough
+from .pvt import calculate_z_factor_hall_yarborough
 
 
 class RTAPoint(TypedDict):
