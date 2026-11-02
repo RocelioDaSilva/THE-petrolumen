@@ -1,0 +1,42 @@
+
+productName = "PetroLúmen"
+version = "0.1.0"
+identifier = "com.petrolumen.dev"
+
+[build]
+beforeDevCommand = "npm --prefix P:\\petrolumen run dev"
+beforeBuildCommand = ""
+frontendDist = "../src-tauri/bundle/resources/ui_static"
+devUrl = "http://localhost:3000"
+
+[app]
+
+
+[bundle]
+active = true
+category = "DeveloperTool"
+copyright = ""
+externalBin = []
+longDescription = "PetroLúmen - Aplicativo de análise de dados petrofísicos"
+resources = ["bundle/resources/backend.exe", "bundle/resources/next"]
+icon = ["icons/icon.ico"]
+shortDescription = "PetroLúmen Desktop"
+targets = "all"
+	[bundle.macOS]
+	entitlements = ""
+	exceptionDomain = ""
+	frameworks = []
+	providerShortName = ""
+	[bundle.windows]
+	# certificateThumbprint omitted to skip automatic signing during CI/local builds
+	digestAlgorithm = "sha256"
+
+
+	[app.security]
+	csp = ""
+
+
+
+
+
+

@@ -1,0 +1,5 @@
+# MERGE NOTE: build-windows.ps1
+
+The existing `build-windows.ps1` and `build-windows.ps1.from-petrolumen` appear to be identical. No content changes were merged.
+
+(If you want me to replace the original with the `from-petrolumen` version, tell me and I will overwrite the file.)

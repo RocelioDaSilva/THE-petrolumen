@@ -1,0 +1,22 @@
+{
+  "name": "thepetrolumen",
+  "private": true,
+  "workspaces": [
+    "petrolumen",
+    "petrolumen/config",
+    "petrolumen/web-prototype/**"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "bootstrap": "npm install",
+    "build": "npm --workspace=petrolumen run build",
+    "build:all": "npm run build --workspaces",
+    "lint": "npm --workspace=petrolumen run lint"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.6.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.6.2"
+  }
+}

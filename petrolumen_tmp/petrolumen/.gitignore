@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.env
+*.log
+.vscode/
+.next/
+.DS_Store
+
+# Local python virtualenv
+.venv/
+venv/
+
+# Local env examples
+.env.example

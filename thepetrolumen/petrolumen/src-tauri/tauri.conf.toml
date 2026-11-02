@@ -1,0 +1,18 @@
+
+
+
+
+
+[build]
+beforeDevCommand = "npm --prefix .. run dev"
+beforeBuildCommand = "npm --prefix .. run build"
+distDir = "../app/.next"
+devPath = "http://localhost:3000"
+
+[tauri]
+	[tauri.bundle]
+	resources = ["bundle/resources/backend.exe"]
+
+
+
+

@@ -1,0 +1,5 @@
+# MERGE NOTE: create-shortcut.ps1
+
+The existing `create-shortcut.ps1` and `create-shortcut.ps1.from-petrolumen` appear to be identical. No content changes were merged.
+
+(If you want me to replace the original with the `from-petrolumen` version, tell me and I will overwrite the file.)

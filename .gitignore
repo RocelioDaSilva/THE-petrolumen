@@ -59,6 +59,7 @@ src-tauri/target
 # Logs
 logs
 *.log
+*.tmp_*.html
 backend/pytest_analysis_fail.txt
 
 # Backend virtual environment
@@ -102,6 +103,7 @@ build/
 *.synctex.gz
 
 # Test and interpreter caches
+*.tsbuildinfo
 .pytest_cache/
 **/.pytest_cache/
 __pycache__/
@@ -110,9 +112,6 @@ __pycache__/
 # Local archives, reference material, records, and copied experiments
 /_local-reference-library/
 /_private-project-records/
-/petrolumen_tmp/
-/thepetrolumen/
-/THE-petrolumen-cafa105c2124580e244b9abca798a163d4588449 (2)/
 /THE-petrolumen-cafa*.zip
 /c/Projectos/petrolumen app tryout/THE-petrolumen/
 /oil&gas projects/thepetrolumen/
@@ -121,4 +120,3 @@ __pycache__/
 /20250417-1620-04.9906497.mp4
 
 # Generated API snapshot; regenerate from the running backend when needed
-/openapi.json

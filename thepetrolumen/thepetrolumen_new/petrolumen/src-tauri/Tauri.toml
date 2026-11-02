@@ -1,0 +1,26 @@
+productName = "Petrolumen"
+version = "0.1.0"
+identifier = "io.github.placeholderusername.petrolumen" # User-provided format, username is a placeholder
+
+[build]
+beforeDevCommand = "npm run dev"
+beforeBuildCommand = "npm run build"
+frontendDist = "../out" # Usually 'out' or 'dist' for Next.js static export
+devUrl = "http://localhost:3000"
+
+[app]
+
+  [[app.windows]]
+  label = "main"
+  title = "Petrolumen"
+  width = 800
+  height = 600
+
+  [app.security]
+  # Added http://localhost:8000 to connect-src for backend API calls.
+  # 'unsafe-inline' for styles is kept from original, but consider stricter policies if possible.
+  csp = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://localhost:8000;"
+
+[bundle]
+active = true
+targets = ["msi"]
