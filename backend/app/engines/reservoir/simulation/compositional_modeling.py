@@ -173,44 +173,109 @@ class PengRobinsonEOS(EquationOfState):
             z_liquid = np.min(real_roots)
             return z_vapor, z_liquid
     
-    def calculate_fugacity_coefficients(self, p: float, t: float, z: float, composition: np.ndarray) -> np.ndarray:
+    def calculate_fugacity_coefficients(
+        self, p: float, t: float, z: float, composition: np.ndarray
+    ) -> np.ndarray:
         """Calculate fugacity coefficients."""
+        R = 8.3145  # J/(mol K)
+        composition = np.asarray(composition, dtype=float)
+        if (
+            not np.isfinite(p)
+            or p <= 0
+            or not np.isfinite(t)
+            or t <= 0
+            or not np.isfinite(z)
+            or z <= 0
+            or composition.shape != (self.n_components,)
+            or not np.all(np.isfinite(composition))
+            or np.any(composition < 0)
+            or np.sum(composition) <= 0
+        ):
+            raise ValueError(
+                "Invalid pressure, temperature, compressibility, or composition."
+            )
+        composition = composition / np.sum(composition)
+
         # Calculate mixture parameters
         a_mix, b_mix = self._calculate_mixture_parameters(p, t, composition)
-        
+        if (
+            not np.isfinite(a_mix)
+            or a_mix <= 0
+            or not np.isfinite(b_mix)
+            or b_mix <= 0
+        ):
+            raise ValueError(
+                "Peng-Robinson mixture parameters must be finite and positive."
+            )
+
+        # Component critical pressures are stored in bar; the EOS uses SI units.
+        p_pa = p * 1e5
+        A = a_mix * p_pa / (R * t) ** 2
+        B = b_mix * p_pa / (R * t)
+        if z <= B:
+            raise ValueError(
+                "Compressibility factor must exceed the Peng-Robinson B parameter."
+            )
+
         # Calculate individual a and b parameters
         a_i = np.zeros(self.n_components)
         b_i = np.zeros(self.n_components)
-        
+
         for i, comp in enumerate(self.components):
-            # Calculate a_i and b_i
             Tr = t / comp.tc
-            alpha = (1 + (0.37464 + 1.54226*comp.omega - 0.26992*comp.omega**2) * (1 - np.sqrt(Tr)))**2
-            a_i[i] = self.omega_a * (R * comp.tc)**2 / comp.pc * alpha
-            b_i[i] = self.omega_b * R * comp.tc / comp.pc
-        
+            alpha = (
+                1
+                + (0.37464 + 1.54226 * comp.omega - 0.26992 * comp.omega**2)
+                * (1 - np.sqrt(Tr))
+            ) ** 2
+            pc_pa = comp.pc * 1e5
+            a_i[i] = self.omega_a * (R * comp.tc) ** 2 / pc_pa * alpha
+            b_i[i] = self.omega_b * R * comp.tc / pc_pa
+
         # Calculate a_ij matrix
         a_ij = np.zeros((self.n_components, self.n_components))
         for i in range(self.n_components):
             for j in range(self.n_components):
                 a_ij[i, j] = np.sqrt(a_i[i] * a_i[j]) * (1 - self.kij[i, j])
-        
-        # Calculate fugacity coefficients
+
         ln_phi = np.zeros(self.n_components)
-        
+        log_denominator = z + (1 - np.sqrt(2)) * B
+        log_numerator = z + (1 + np.sqrt(2)) * B
+        if log_denominator <= 0 or log_numerator <= 0:
+            raise ValueError("Invalid Peng-Robinson logarithm arguments.")
+        log_ratio_increment = (log_numerator - log_denominator) / log_denominator
+        if log_ratio_increment <= -1:
+            raise ValueError("Invalid Peng-Robinson fugacity logarithm ratio.")
+
         for i in range(self.n_components):
             # Calculate sum terms
             sum_a = 0
             for j in range(self.n_components):
                 sum_a += composition[j] * a_ij[i, j]
-            
-            # Calculate fugacity coefficient
-            ln_phi[i] = b_i[i] / b_mix * (z - 1) - np.log(z - B)
-            ln_phi[i] += A / (2 * np.sqrt(2) * B) * (b_i[i] / b_mix - 2 * sum_a / a_mix) * np.log((z + (1 + np.sqrt(2)) * B) / (z + (1 - np.sqrt(2)) * B))
-        
-        return np.exp(ln_phi)
-    
-    def _calculate_mixture_parameters(self, p: float, t: float, composition: np.ndarray) -> Tuple[float, float]:
+
+            coefficient = b_i[i] / b_mix - 2 * sum_a / a_mix
+            if abs(B) < 1e-9:
+                # First-order limit of the logarithmic PR term as B approaches zero.
+                term3 = A / z * coefficient
+            else:
+                term3 = (
+                    A
+                    / (2 * np.sqrt(2) * B)
+                    * coefficient
+                    * np.log1p(log_ratio_increment)
+                )
+            ln_phi[i] = b_i[i] / b_mix * (z - 1) - np.log(z - B) + term3
+
+        fugacity_coefficients = np.exp(ln_phi)
+        if not np.all(np.isfinite(fugacity_coefficients)):
+            raise FloatingPointError(
+                "Peng-Robinson fugacity coefficients are non-finite."
+            )
+        return fugacity_coefficients
+
+    def _calculate_mixture_parameters(
+        self, p: float, t: float, composition: np.ndarray
+    ) -> Tuple[float, float]:
         """Calculate mixture parameters a_mix and b_mix."""
         # Gas constant (J/mol/K)
         R = 8.3145
@@ -226,9 +291,14 @@ class PengRobinsonEOS(EquationOfState):
         for i, comp in enumerate(self.components):
             # Calculate a_i and b_i
             Tr = t / comp.tc
-            alpha = (1 + (0.37464 + 1.54226*comp.omega - 0.26992*comp.omega**2) * (1 - np.sqrt(Tr)))**2
-            a_i[i] = self.omega_a * (R * comp.tc)**2 / comp.pc * alpha
-            b_i[i] = self.omega_b * R * comp.tc / comp.pc
+            alpha = (
+                1
+                + (0.37464 + 1.54226 * comp.omega - 0.26992 * comp.omega**2)
+                * (1 - np.sqrt(Tr))
+            ) ** 2
+            pc_pa = comp.pc * 1e5
+            a_i[i] = self.omega_a * (R * comp.tc) ** 2 / pc_pa * alpha
+            b_i[i] = self.omega_b * R * comp.tc / pc_pa
             
             # Add to b_mix
             b_mix += composition[i] * b_i[i]

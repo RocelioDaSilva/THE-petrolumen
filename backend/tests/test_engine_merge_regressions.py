@@ -8,6 +8,10 @@ import numpy as np
 import pytest
 
 from app.engines.reservoir.simulation.history_matcher import HistoryMatcher
+from app.engines.reservoir.simulation.compositional_modeling import (
+    Component,
+    PengRobinsonEOS,
+)
 
 
 class QuadraticSimulator:
@@ -89,3 +93,35 @@ def test_grid3d_supports_variable_positive_cell_widths():
 
     with pytest.raises(ValueError):
         grid_type(2, 1, 1, [1.0], 1.0, 1.0)
+
+
+def test_peng_robinson_uses_consistent_pressure_units_and_fugacity_formula():
+    methane = Component("methane", 16.043, 190.56, 45.99, 0.011)
+    eos = PengRobinsonEOS([methane])
+
+    z_vapor, z_liquid = eos.calculate_z_factor(45.99, 190.56, np.array([1.0]))
+    coefficients = eos.calculate_fugacity_coefficients(
+        45.99, 190.56, z_vapor, np.array([1.0])
+    )
+
+    assert z_vapor == pytest.approx(0.3074, abs=0.02)
+    assert z_liquid == pytest.approx(z_vapor, abs=1e-8)
+    assert coefficients.shape == (1,)
+    assert np.all(np.isfinite(coefficients))
+    assert np.all(coefficients > 0)
+
+
+def test_peng_robinson_small_b_limit_and_invalid_state_guard():
+    methane = Component("methane", 16.043, 190.56, 45.99, 0.011)
+    eos = PengRobinsonEOS([methane])
+
+    z_vapor, _ = eos.calculate_z_factor(1e-8, 350.0, np.array([1.0]))
+    coefficients = eos.calculate_fugacity_coefficients(
+        1e-8, 350.0, z_vapor, np.array([1.0])
+    )
+
+    np.testing.assert_allclose(coefficients, [1.0], rtol=1e-7, atol=1e-7)
+    with pytest.raises(ValueError):
+        eos.calculate_fugacity_coefficients(
+            50.0, 350.0, z_vapor, np.array([np.nan])
+        )
