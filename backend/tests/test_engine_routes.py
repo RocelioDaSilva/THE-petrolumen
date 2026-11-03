@@ -86,6 +86,12 @@ def test_nodal_endpoint_finds_operating_rate_and_rejects_nonflowing_case():
     assert invalid.status_code == 422
 
 
+def test_health_endpoint_returns_ok():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "version": "0.1.0"}
+
+
 def test_black_oil_defaults_return_200():
     response = client.post(
         "/api/simulate/black-oil",
@@ -112,3 +118,35 @@ def test_black_oil_defaults_return_200():
     assert "pressure" in payload
     assert "saturations" in payload
     assert "wells" in payload
+
+
+def test_compositional_route_is_marked_unimplemented():
+    response = client.post(
+        "/api/simulate/compositional",
+        json={
+            "grid": {"nx": 1, "ny": 1, "nz": 1, "dx": 50, "dy": 50, "dz": 10},
+            "components": [{"name": "methane", "mw": 16.043, "tc": 190.56, "pc": 4599000, "omega": 0.011}],
+            "rock_properties": {"porosity": 0.2},
+            "wells": [],
+            "initial_composition": {"methane": 1.0},
+            "timesteps": [1],
+        },
+    )
+    assert response.status_code == 501
+
+
+def test_thermal_route_is_marked_unimplemented():
+    response = client.post(
+        "/api/simulate/thermal",
+        json={
+            "grid": {"nx": 1, "ny": 1, "nz": 1, "dx": 50, "dy": 50, "dz": 10},
+            "components": [{"name": "methane", "mw": 16.043, "tc": 190.56, "pc": 4599000, "omega": 0.011}],
+            "rock_properties": {"porosity": 0.2},
+            "wells": [],
+            "initial_composition": {"methane": 1.0},
+            "timesteps": [1],
+            "thermal_properties": {"rock_heat_capacity": 900, "thermal_conductivity": 2, "fluid_heat_capacity": 4200},
+            "initial_temperature": 350,
+        },
+    )
+    assert response.status_code == 501

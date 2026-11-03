@@ -20,6 +20,24 @@ from ..engines.reservoir.nodal import find_operating_point
 router = APIRouter()
 
 
+class EosResponse(BaseModel):
+    z_factor: float
+
+
+class TrajectoryResponse(BaseModel):
+    survey: list[dict[str, float]]
+
+
+class GridResponse(BaseModel):
+    shape: list[int]
+    total_cells: int
+    bulk_volume: float
+
+
+class NodalResponse(BaseModel):
+    operating_rate: float
+
+
 class EosComponentInput(BaseModel):
     name: str
     critical_pressure: PositiveFloat = Field(
@@ -143,8 +161,8 @@ class NodalRequest(BaseModel):
         return self
 
 
-@router.post("/engine/pvt/eos", tags=["PVT"])
-def calculate_eos(payload: EosRequest) -> dict[str, float]:
+@router.post("/engine/pvt/eos", tags=["PVT"], response_model=EosResponse)
+def calculate_eos(payload: EosRequest) -> EosResponse:
     """Calculate mixture compressibility with the Peng-Robinson equation."""
     solver = EosSolver(eos_type=payload.eos_type)
     for component in payload.components:
@@ -174,11 +192,11 @@ def calculate_eos(payload: EosRequest) -> dict[str, float]:
             status_code=500,
             detail="The equation-of-state solver produced a non-physical Z-factor.",
         )
-    return {"z_factor": float(z_factor)}
+    return EosResponse(z_factor=float(z_factor))
 
 
-@router.post("/engine/drilling/trajectory", tags=["Drilling"])
-def calculate_trajectory(payload: SurveyInput) -> dict[str, list[dict[str, float]]]:
+@router.post("/engine/drilling/trajectory", tags=["Drilling"], response_model=TrajectoryResponse)
+def calculate_trajectory(payload: SurveyInput) -> TrajectoryResponse:
     """Compute survey coordinates using minimum curvature."""
     dataframe = pd.DataFrame(payload.survey)
     try:
@@ -190,11 +208,11 @@ def calculate_trajectory(payload: SurveyInput) -> dict[str, list[dict[str, float
         )
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"survey": result.to_dict(orient="records")}
+    return TrajectoryResponse(survey=result.to_dict(orient="records"))
 
 
-@router.post("/engine/geology/grid", tags=["Geology"])
-def calculate_grid(payload: GridRequest) -> dict[str, object]:
+@router.post("/engine/geology/grid", tags=["Geology"], response_model=GridResponse)
+def calculate_grid(payload: GridRequest) -> GridResponse:
     """Create a Cartesian 3D grid and report its dimensions and bulk volume."""
     grid = Grid3D(
         payload.nx,
@@ -204,15 +222,15 @@ def calculate_grid(payload: GridRequest) -> dict[str, object]:
         payload.dy,
         payload.dz,
     )
-    return {
-        "shape": list(grid.shape),
-        "total_cells": grid.total_cells,
-        "bulk_volume": float(np.sum(grid.volumes)),
-    }
+    return GridResponse(
+        shape=list(grid.shape),
+        total_cells=grid.total_cells,
+        bulk_volume=float(np.sum(grid.volumes)),
+    )
 
 
-@router.post("/engine/reservoir/nodal", tags=["Reservoir"])
-def calculate_nodal(payload: NodalRequest) -> dict[str, float]:
+@router.post("/engine/reservoir/nodal", tags=["Reservoir"], response_model=NodalResponse)
+def calculate_nodal(payload: NodalRequest) -> NodalResponse:
     """Calculate the operating flow rate at the IPR/TPR intersection."""
     try:
         operating_rate = find_operating_point(
@@ -224,4 +242,4 @@ def calculate_nodal(payload: NodalRequest) -> dict[str, float]:
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"operating_rate": float(operating_rate)}
+    return NodalResponse(operating_rate=float(operating_rate))

@@ -15,6 +15,12 @@ router = APIRouter()
 MAX_BLACK_OIL_CELLS = 512
 
 
+class BlackOilResponse(BaseModel):
+    pressure: list[float]
+    saturations: dict[str, list[float]]
+    wells: list[dict[str, object]]
+
+
 class GridInput(BaseModel):
     nx: int = Field(gt=0)
     ny: int = Field(gt=0)
@@ -136,8 +142,8 @@ def _not_implemented(detail: str) -> NoReturn:
     raise HTTPException(status_code=501, detail=detail)
 
 
-@router.post("/simulate/black-oil", tags=["Simulation"])
-def simulate_black_oil(payload: BlackOilInput) -> dict[str, object]:
+@router.post("/simulate/black-oil", tags=["Simulation"], response_model=BlackOilResponse)
+def simulate_black_oil(payload: BlackOilInput) -> BlackOilResponse:
     simulator = BlackOilSimulator()
     simulator.setup_grid(
         payload.grid.nx,
@@ -195,13 +201,13 @@ def simulate_black_oil(payload: BlackOilInput) -> dict[str, object]:
         )
 
     results = simulator.get_results()
-    return {
-        "pressure": results["pressure"].tolist(),
-        "saturations": {
+    return BlackOilResponse(
+        pressure=results["pressure"].tolist(),
+        saturations={
             phase: values.tolist() for phase, values in results["saturations"].items()
         },
-        "wells": results["wells"],
-    }
+        wells=results["wells"],
+    )
 
 
 @router.post("/simulate/compositional", tags=["Simulation"])
