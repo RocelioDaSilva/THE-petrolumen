@@ -279,16 +279,20 @@ function formatError(body) {
 
 async function runTool() {
   const status = document.querySelector("#run-status");
+  const timing = document.querySelector("#response-time");
+  timing.textContent = "Response time: —";
   status.textContent = "";
   try {
     if (!apiPort) throw new Error("The local API port is not available yet.");
     const body = getFormData();
     const endpoint = currentResultMode === "chart" && selectedTool.chartMode ? `${selectedTool.endpoint}/chart` : selectedTool.endpoint;
+    const started = performance.now();
     const response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
+    const elapsedMs = Math.round(performance.now() - started);
     const text = await response.text();
     let payload;
     try {
@@ -297,9 +301,11 @@ async function runTool() {
       payload = { detail: text };
     }
     setResultDisplay(payload);
+    timing.textContent = `Response time: ${elapsedMs}ms`;
     status.textContent = response.ok ? `HTTP ${response.status}` : `HTTP ${response.status} · ${formatError(payload)}`;
     status.classList.toggle("error", !response.ok);
   } catch (error) {
+    timing.textContent = "Response time: —";
     status.textContent = error.message;
     status.classList.add("error");
     document.querySelector("#result-output").textContent = "Request was not completed.";
