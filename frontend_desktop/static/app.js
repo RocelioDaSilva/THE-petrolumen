@@ -69,17 +69,18 @@ const tools = [
     group: "SIMULATION",
     title: "Simulate Black-Oil",
     endpoint: "/api/simulate/black-oil",
+    chartMode: null,
     fields: [
-      { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 20, ny: 20, nz: 5, dx: 100, dy: 100, dz: 20 } },
-      { name: "porosity", type: "json", label: "Porosity · number[]", value: new Array(2000).fill(0.22) },
-      { name: "permeability", type: "json", label: "Permeability · number[]", value: new Array(2000).fill(250) },
-      { name: "rock_compressibility", type: "number", label: "Rock compressibility", value: 0, step: "any" },
-      { name: "fluid_properties", type: "json", label: "Fluid properties · object<string, positive number>", value: { water_viscosity: 1.5, oil_viscosity: 3.2, gas_viscosity: 0.02 } },
-      { name: "initial_pressure", type: "number", label: "Initial pressure · positive", value: 4800, step: "any" },
-      { name: "initial_water_saturation", type: "json", label: "Initial water saturation · number[]", value: new Array(2000).fill(0.28) },
-      { name: "initial_gas_saturation", type: "json", label: "Initial gas saturation · number[]", value: new Array(2000).fill(0.05) },
-      { name: "wells", type: "json", label: "Wells · WellInput[]", value: [] },
-      { name: "timesteps", type: "json", label: "Timesteps · positive number[]", value: Array.from({ length: 30 }, (_, index) => index + 1) }
+      { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 2, ny: 2, nz: 1, dx: 50, dy: 50, dz: 10 } },
+      { name: "porosity", type: "json", label: "Porosity · number[] (length nx*ny*nz)", value: [0.2, 0.2, 0.2, 0.2] },
+      { name: "permeability", type: "json", label: "Permeability · number[] (length nx*ny*nz)", value: [100, 100, 100, 100] },
+      { name: "rock_compressibility", type: "number", label: "Rock compressibility (>= 0)", value: 0, step: "any" },
+      { name: "fluid_properties", type: "json", label: "Fluid properties · object<string, positive number>", value: { water_viscosity: 1, oil_viscosity: 2, gas_viscosity: 0.02 } },
+      { name: "initial_pressure", type: "number", label: "Initial pressure (Pa) · positive", value: 3000, step: "any" },
+      { name: "initial_water_saturation", type: "json", label: "Initial water saturation · number[] (0-1)", value: [0.2, 0.2, 0.2, 0.2] },
+      { name: "initial_gas_saturation", type: "json", label: "Initial gas saturation · number[] (0-1)", value: [0, 0, 0, 0] },
+      { name: "wells", type: "json", label: "Wells · WellInput[] (optional)", value: [] },
+      { name: "timesteps", type: "json", label: "Timesteps · positive number[]", value: [1] }
     ]
   },
   {
@@ -88,7 +89,7 @@ const tools = [
     title: "Simulate Compositional",
     endpoint: "/api/simulate/compositional",
     disabled: true,
-    disabledNote: "Solver not yet implemented (backend returns 501).",
+    disabledNote: "Solver not implemented on backend (endpoint /api/simulate/compositional returns 501 Not Implemented).",
     fields: [
       { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 1, ny: 1, nz: 1, dx: 50, dy: 50, dz: 10 } },
       { name: "components", type: "json", label: "Components · ComponentInput[]", value: [{ name: "methane", mw: 16.043, tc: 190.56, pc: 4599000, omega: 0.011 }] },
@@ -104,7 +105,7 @@ const tools = [
     title: "Simulate Thermal",
     endpoint: "/api/simulate/thermal",
     disabled: true,
-    disabledNote: "Solver not yet implemented (backend returns 501).",
+    disabledNote: "Solver not implemented on backend (endpoint /api/simulate/thermal returns 501 Not Implemented).",
     fields: [
       { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 1, ny: 1, nz: 1, dx: 50, dy: 50, dz: 10 } },
       { name: "components", type: "json", label: "Components · ComponentInput[]", value: [{ name: "methane", mw: 16.043, tc: 190.56, pc: 4599000, omega: 0.011 }] },
@@ -135,7 +136,13 @@ let apiPort = window.API_PORT || null;
 let currentResultMode = "chart";
 
 function updateResultModeButtons() {
+  const hasChartMode = selectedTool && !selectedTool.disabled && Boolean(selectedTool.chartMode);
   resultModeButtons.forEach((button) => {
+    if (button.dataset.mode === "chart") {
+      button.disabled = !hasChartMode;
+      button.classList.toggle("mode-disabled", !hasChartMode);
+      button.title = hasChartMode ? "View graphical chart" : "Chart view not available for this tool";
+    }
     const active = button.dataset.mode === currentResultMode;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
@@ -162,7 +169,7 @@ function setResultDisplay(payload) {
 
 function showTool(tool) {
   selectedTool = tool;
-  currentResultMode = tool.chartMode || "chart";
+  currentResultMode = tool.chartMode ? tool.chartMode : "json";
   document.querySelector("#tool-group").textContent = tool.group;
   document.querySelector("#tool-title").textContent = tool.title;
   document.querySelector("#result-caption").textContent = `POST ${tool.endpoint}`;
@@ -172,20 +179,28 @@ function showTool(tool) {
     button.classList.toggle("active", button.dataset.tool === tool.id);
   });
   form.replaceChildren();
-  runButton.disabled = false;
-  runButton.textContent = "Run";
-  updateResultModeButtons();
 
+  const formActions = document.querySelector(".form-actions");
   if (tool.disabled) {
     const notice = document.createElement("div");
     notice.className = "tool-disabled-notice";
-    notice.textContent = tool.disabledNote;
+    notice.innerHTML = `<strong>Tool Unavailable</strong><p>${tool.disabledNote}</p>`;
     form.append(notice);
+    if (formActions && formActions.style) formActions.style.display = "none";
     runButton.disabled = true;
     runButton.textContent = "Unavailable";
-    document.querySelector("#result-output").textContent = tool.disabledNote;
+    updateResultModeButtons();
+    const resultOutput = document.querySelector("#result-output");
+    resultOutput.classList.remove("chart-output");
+    resultOutput.classList.add("json-output");
+    resultOutput.textContent = `[DISABLED] ${tool.title}\n\nReason: ${tool.disabledNote}\nEndpoint: POST ${tool.endpoint}\nStatus: 501 Not Implemented`;
     return;
   }
+
+  if (formActions && formActions.style) formActions.style.display = "flex";
+  runButton.disabled = false;
+  runButton.textContent = "Run calculation";
+  updateResultModeButtons();
 
   for (const field of tool.fields) {
     const wrapper = document.createElement("label");
@@ -251,20 +266,89 @@ function getFormData() {
   const data = {};
   for (const field of selectedTool.fields) {
     const input = form.elements.namedItem(field.name);
+    if (!input) continue;
     if (field.optional && input.value.trim() === "") continue;
     if (input.dataset.valueType === "json") {
       try {
         data[field.name] = JSON.parse(input.value);
-      } catch {
-        throw new Error(`${field.name}: enter valid JSON.`);
+      } catch (err) {
+        throw new Error(`${field.name}: enter valid JSON (${err.message}).`);
       }
     } else if (field.type === "number") {
-      data[field.name] = Number(input.value);
+      const num = Number(input.value);
+      if (!Number.isFinite(num)) {
+        throw new Error(`${field.name}: must be a finite number.`);
+      }
+      data[field.name] = num;
     } else {
       data[field.name] = input.value;
     }
   }
+
+  // Pre-flight validation based on tool domain
+  validateToolData(selectedTool.id, data);
+
   return data;
+}
+
+function validateToolData(toolId, data) {
+  if (toolId === "black-oil") {
+    if (!data.grid || typeof data.grid !== "object") {
+      throw new Error("Grid configuration object is required.");
+    }
+    const { nx, ny, nz } = data.grid;
+    if (!Number.isInteger(nx) || nx <= 0 || !Number.isInteger(ny) || ny <= 0 || !Number.isInteger(nz) || nz <= 0) {
+      throw new Error("Grid nx, ny, nz must be positive integers.");
+    }
+    const cellCount = nx * ny * nz;
+    if (cellCount > 512) {
+      throw new Error(`Grid exceeds solver limit of 512 cells (nx*ny*nz = ${cellCount}). Reduce grid dimensions.`);
+    }
+    for (const arrName of ["porosity", "permeability", "initial_water_saturation", "initial_gas_saturation"]) {
+      if (!Array.isArray(data[arrName])) {
+        throw new Error(`${arrName} must be a JSON array.`);
+      }
+      if (data[arrName].length !== cellCount) {
+        throw new Error(`${arrName} length (${data[arrName].length}) must match cell count (${cellCount}).`);
+      }
+    }
+    for (let i = 0; i < cellCount; i++) {
+      const sw = data.initial_water_saturation[i];
+      const sg = data.initial_gas_saturation[i];
+      if (sw < 0 || sw > 1 || sg < 0 || sg > 1) {
+        throw new Error(`Saturations at cell ${i} must be between 0 and 1.`);
+      }
+      if (sw + sg > 1) {
+        throw new Error(`Water and gas saturation at cell ${i} sum to > 1 (${sw + sg}).`);
+      }
+    }
+  } else if (toolId === "pvt") {
+    if (data.pressure <= 0 || data.temperature <= 0) {
+      throw new Error("Pressure and temperature must be positive numbers.");
+    }
+    if (!Array.isArray(data.components) || data.components.length === 0) {
+      throw new Error("Components array must not be empty.");
+    }
+    if (!data.composition || typeof data.composition !== "object") {
+      throw new Error("Composition mapping is required.");
+    }
+    const fractions = Object.values(data.composition);
+    const sumFractions = fractions.reduce((acc, val) => acc + val, 0);
+    if (Math.abs(sumFractions - 1.0) > 1e-4) {
+      throw new Error(`Mole fractions must sum to 1.0 (currently sums to ${sumFractions.toFixed(4)}).`);
+    }
+  } else if (toolId === "grid") {
+    if (data.nx <= 0 || data.ny <= 0 || data.nz <= 0) {
+      throw new Error("nx, ny, nz must be positive integers.");
+    }
+  } else if (toolId === "nodal") {
+    if (data.qi <= 0 || data.pr <= 0) {
+      throw new Error("qi and pr must be positive numbers.");
+    }
+    if (data.p_surf < 0 || data.a < 0 || data.b < 0) {
+      throw new Error("p_surf, a, and b must be non-negative.");
+    }
+  }
 }
 
 function formatError(body) {
@@ -312,20 +396,43 @@ async function runTool() {
   }
 }
 
-for (const tool of tools) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `nav-item${tool.disabled ? " disabled" : ""}`;
-  button.dataset.tool = tool.id;
-  button.textContent = tool.title;
-  if (tool.disabled) {
-    button.setAttribute("aria-disabled", "true");
-  }
-  button.addEventListener("click", () => {
-    if (!tool.disabled) showTool(tool);
+function renderSidebarNav() {
+  nav.replaceChildren();
+
+  const activeTools = tools.filter((tool) => !tool.disabled);
+  const disabledTools = tools.filter((tool) => tool.disabled);
+
+  activeTools.forEach((tool) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "nav-item";
+    button.dataset.tool = tool.id;
+    button.textContent = tool.title;
+    button.addEventListener("click", () => showTool(tool));
+    nav.append(button);
   });
-  nav.append(button);
+
+  if (disabledTools.length > 0) {
+    const divider = document.createElement("div");
+    divider.className = "nav-section-title";
+    divider.textContent = "UPCOMING SOLVERS";
+    nav.append(divider);
+
+    disabledTools.forEach((tool) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "nav-item disabled";
+      button.dataset.tool = tool.id;
+      button.textContent = `${tool.title} (501)`;
+      button.setAttribute("aria-disabled", "true");
+      button.title = tool.disabledNote;
+      button.addEventListener("click", () => showTool(tool));
+      nav.append(button);
+    });
+  }
 }
+
+renderSidebarNav();
 
 resultModeButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -342,12 +449,52 @@ resultModeButtons.forEach((button) => {
 runButton.addEventListener("click", runTool);
 showTool(selectedTool);
 
+async function checkApiHealth() {
+  const dot = document.querySelector("#footer-status-dot");
+  const statusText = document.querySelector("#connection-status");
+  const port = apiPort || 8000;
+  const url = `http://127.0.0.1:${port}/health`;
+
+  try {
+    const response = await fetch(url, { method: "GET" });
+    if (response.ok) {
+      const data = await response.json();
+      if (dot) {
+        dot.className = "status-dot online";
+      }
+      if (statusText) {
+        statusText.textContent = `Online · 127.0.0.1:${port} (v${data.version || "0.1.0"})`;
+      }
+    } else {
+      throw new Error(`HTTP ${response.status}`);
+    }
+  } catch (error) {
+    if (dot) {
+      dot.className = "status-dot offline";
+    }
+    if (statusText) {
+      statusText.textContent = `API Offline (${error.message || "Failed to fetch"})`;
+    }
+  }
+}
+
 window.addEventListener("pywebviewready", async () => {
   try {
     apiPort = await window.pywebview.api.get_port();
     window.API_PORT = apiPort;
-    document.querySelector("#connection-status").textContent = `Local API · 127.0.0.1:${apiPort}`;
+    checkApiHealth();
   } catch (error) {
+    const dot = document.querySelector("#footer-status-dot");
+    if (dot) dot.className = "status-dot offline";
     document.querySelector("#connection-status").textContent = `API bridge unavailable: ${error.message}`;
   }
 });
+
+// Run initial health check on page load as well
+window.addEventListener("DOMContentLoaded", () => {
+  checkApiHealth();
+});
+// If DOM is already loaded
+if (document.readyState === "complete" || document.readyState === "interactive") {
+  checkApiHealth();
+}
