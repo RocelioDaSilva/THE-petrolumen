@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial import Delaunay
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 
 _VTK_HEXAHEDRON = 12
 _VTK_TETRA = 10
