@@ -4,12 +4,12 @@ import numpy as np
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, PositiveFloat, model_validator
 
-from backend.app.engines.reservoir.simulation import (
+from ..engines.reservoir.simulation import (
     BlackOilSimulator,
     CompositionalSimulator,
     ThermalSimulator,
 )
-from backend.app.engines.reservoir.simulation.grid import Grid3D
+from ..engines.reservoir.simulation.grid import Grid3D
 
 router = APIRouter()
 MAX_BLACK_OIL_CELLS = 512
@@ -136,7 +136,7 @@ def _not_implemented(detail: str) -> NoReturn:
     raise HTTPException(status_code=501, detail=detail)
 
 
-@router.post("/simulate/black-oil")
+@router.post("/simulate/black-oil", tags=["Simulation"])
 def simulate_black_oil(payload: BlackOilInput) -> dict[str, object]:
     simulator = BlackOilSimulator()
     simulator.setup_grid(
@@ -204,7 +204,7 @@ def simulate_black_oil(payload: BlackOilInput) -> dict[str, object]:
     }
 
 
-@router.post("/simulate/compositional")
+@router.post("/simulate/compositional", tags=["Simulation"])
 def simulate_compositional(payload: CompositionalInput) -> None:
     simulator = CompositionalSimulator()
     simulator.setup_components(
@@ -224,7 +224,7 @@ def simulate_compositional(payload: CompositionalInput) -> None:
     )
 
 
-@router.post("/simulate/thermal")
+@router.post("/simulate/thermal", tags=["Simulation"])
 def simulate_thermal(payload: ThermalInput) -> None:
     simulator = ThermalSimulator()
     simulator.setup_components(
