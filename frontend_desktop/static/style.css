@@ -40,10 +40,17 @@ button, input, textarea, select { font: inherit; }
 .nav-item { width: 100%; padding: 11px 12px; border: 1px solid transparent; border-radius: 9px; color: #9eabc0; text-align: left; background: transparent; cursor: pointer; transition: .15s ease; }
 .nav-item:hover { color: #e7edf7; background: #151f2e; }
 .nav-item.active { color: #9af0ca; border-color: #244b43; background: #14251f; }
-.nav-item.disabled { opacity: .55; cursor: not-allowed; }
-.tool-disabled-notice { padding: 12px 14px; border: 1px solid #4d3d1d; border-radius: 8px; color: #f5ce85; background: rgba(127, 91, 21, .12); }
+.nav-item.disabled { opacity: .6; color: #788599; font-style: italic; }
+.nav-item.disabled:hover { color: #fce2a6; background: #1f1d17; }
+.nav-section-title { margin-top: 18px; padding: 6px 10px 4px; color: #58687e; font-size: 9px; font-weight: 750; letter-spacing: .16em; border-top: 1px solid #1a2332; }
+.result-mode.mode-disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+.tool-disabled-notice { padding: 14px 16px; border: 1px solid #7c5e20; border-radius: 9px; color: #fce2a6; background: rgba(180, 120, 20, 0.16); }
+.tool-disabled-notice strong { display: block; font-size: 13px; margin-bottom: 6px; color: #ffe494; }
+.tool-disabled-notice p { margin: 0; font-size: 12px; line-height: 1.5; color: #e2cca0; }
 .sidebar-footer { display: flex; align-items: center; gap: 9px; margin-top: auto; padding: 16px 8px 2px; color: #8492a8; font-size: 11px; }
-.status-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #51d6a5; box-shadow: 0 0 10px #51d6a566; }
+.status-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #94a3b8; box-shadow: 0 0 8px #94a3b844; transition: background .2s ease, box-shadow .2s ease; }
+.status-dot.online { background: #51d6a5; box-shadow: 0 0 10px #51d6a566; }
+.status-dot.offline { background: #ef4444; box-shadow: 0 0 10px #ef444466; }
 
 .workspace { width: min(1400px, 100%); margin: 0 auto; padding: 34px 42px 44px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
