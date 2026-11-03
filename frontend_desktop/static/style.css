@@ -65,6 +65,7 @@ h1 { margin: 7px 0 0; font-size: 27px; font-weight: 650; letter-spacing: -.03em;
 .form-actions { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
 .run-button { padding: 11px 14px; border: 0; border-radius: 8px; color: #08150f; font-size: 12px; font-weight: 750; background: linear-gradient(110deg, #70e3b6, #56c9d4); cursor: pointer; }
 .run-button:hover { filter: brightness(1.08); }
+.reset-button { margin-top: 8px; border: 0; background: none; color: #7ad9bb; cursor: pointer; font-size: 11px; text-decoration: underline; }
 #run-status { margin-top: 12px; color: #83dcb8; font-size: 11px; white-space: pre-wrap; }
 #run-status.error { color: #ff9a9a; }
 #result-output { min-height: 240px; max-height: 68vh; overflow: auto; margin: 0; padding: 16px; border: 1px solid #202b3b; border-radius: 9px; color: #b7d9c8; background: #0a1018; font: 12px/1.65 ui-monospace, "Cascadia Code", monospace; white-space: pre-wrap; overflow-wrap: anywhere; }

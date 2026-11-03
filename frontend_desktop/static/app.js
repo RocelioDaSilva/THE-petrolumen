@@ -6,15 +6,18 @@ const tools = [
     endpoint: "/api/engine/pvt/eos",
     chartMode: "chart",
     fields: [
-      { name: "pressure", type: "number", label: "Pressure (Pa)", value: 5000000, step: "any" },
-      { name: "temperature", type: "number", label: "Temperature (K)", value: 250, step: "any" },
+      { name: "pressure", type: "number", label: "Pressure (Pa)", value: 58_600_000, step: "any" },
+      { name: "temperature", type: "number", label: "Temperature (K)", value: 433, step: "any" },
       {
         name: "components",
         type: "json",
         label: "Components · EosComponentInput[]",
-        value: [{ name: "methane", critical_pressure: 4599000, critical_temperature: 190.56, acentric_factor: 0.011, molecular_weight: 16.043 }]
+        value: [
+          { name: "C1", critical_pressure: 4_599_000, critical_temperature: 190.56, acentric_factor: 0.011, molecular_weight: 16.043 },
+          { name: "C3", critical_pressure: 4_248_000, critical_temperature: 369.83, acentric_factor: 0.152, molecular_weight: 44.1 }
+        ]
       },
-      { name: "composition", type: "json", label: "Composition · object<string, number>", value: { methane: 1 } },
+      { name: "composition", type: "json", label: "Composition · object<string, number>", value: { C1: 0.85, C3: 0.15 } },
       { name: "eos_type", type: "select", label: "EOS type · Literal['PR']", value: "PR", options: ["PR"] },
       { name: "binary_interactions", type: "json", label: "Binary interactions · number[][] (optional)", value: null, optional: true }
     ]
@@ -26,7 +29,7 @@ const tools = [
     endpoint: "/api/engine/drilling/trajectory",
     chartMode: "chart",
     fields: [
-      { name: "survey", type: "json", label: "Survey · object<string, number>[]", value: [{ md: 0, inc: 0, azi: 0 }, { md: 100, inc: 0, azi: 0 }] },
+      { name: "survey", type: "json", label: "Survey · object<string, number>[]", value: [{ md: 0, inc: 0, azi: 0 }, { md: 500, inc: 18, azi: 8 }, { md: 1000, inc: 32, azi: 18 }, { md: 1500, inc: 48, azi: 29 }, { md: 2000, inc: 65, azi: 45 }] },
       { name: "md_col", type: "text", label: "Measured-depth column", value: "md" },
       { name: "inc_col", type: "text", label: "Inclination column", value: "inc" },
       { name: "azi_col", type: "text", label: "Azimuth column", value: "azi" }
@@ -39,12 +42,12 @@ const tools = [
     endpoint: "/api/engine/geology/grid",
     chartMode: "chart",
     fields: [
-      { name: "nx", type: "number", label: "Nx · integer > 0", value: 2, step: 1 },
-      { name: "ny", type: "number", label: "Ny · integer > 0", value: 2, step: 1 },
-      { name: "nz", type: "number", label: "Nz · integer > 0", value: 1, step: 1 },
-      { name: "dx", type: "json", label: "Dx · positive number or number[]", value: 50 },
-      { name: "dy", type: "json", label: "Dy · positive number or number[]", value: 50 },
-      { name: "dz", type: "json", label: "Dz · positive number or number[]", value: 10 }
+      { name: "nx", type: "number", label: "Nx · integer > 0", value: 50, step: 1 },
+      { name: "ny", type: "number", label: "Ny · integer > 0", value: 50, step: 1 },
+      { name: "nz", type: "number", label: "Nz · integer > 0", value: 20, step: 1 },
+      { name: "dx", type: "json", label: "Dx · positive number or number[]", value: 25 },
+      { name: "dy", type: "json", label: "Dy · positive number or number[]", value: 25 },
+      { name: "dz", type: "json", label: "Dz · positive number or number[]", value: 5 }
     ]
   },
   {
@@ -54,11 +57,11 @@ const tools = [
     endpoint: "/api/engine/reservoir/nodal",
     chartMode: "chart",
     fields: [
-      { name: "qi", type: "number", label: "Qi · positive", value: 5000, step: "any" },
-      { name: "pr", type: "number", label: "Pr · positive", value: 3000, step: "any" },
-      { name: "p_surf", type: "number", label: "Surface pressure", value: 1000, step: "any" },
-      { name: "a", type: "number", label: "IPR coefficient a", value: 0.002, step: "any" },
-      { name: "b", type: "number", label: "IPR coefficient b", value: 10, step: "any" }
+      { name: "qi", type: "number", label: "Qi · positive", value: 12000, step: "any" },
+      { name: "pr", type: "number", label: "Pr · positive", value: 4200, step: "any" },
+      { name: "p_surf", type: "number", label: "Surface pressure", value: 800, step: "any" },
+      { name: "a", type: "number", label: "IPR coefficient a", value: 0.0015, step: "any" },
+      { name: "b", type: "number", label: "IPR coefficient b", value: 8, step: "any" }
     ]
   },
   {
@@ -67,16 +70,16 @@ const tools = [
     title: "Simulate Black-Oil",
     endpoint: "/api/simulate/black-oil",
     fields: [
-      { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 2, ny: 2, nz: 1, dx: 50, dy: 50, dz: 10 } },
-      { name: "porosity", type: "json", label: "Porosity · number[]", value: [0.2, 0.2, 0.2, 0.2] },
-      { name: "permeability", type: "json", label: "Permeability · number[]", value: [100, 100, 100, 100] },
+      { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 20, ny: 20, nz: 5, dx: 100, dy: 100, dz: 20 } },
+      { name: "porosity", type: "json", label: "Porosity · number[]", value: new Array(2000).fill(0.22) },
+      { name: "permeability", type: "json", label: "Permeability · number[]", value: new Array(2000).fill(250) },
       { name: "rock_compressibility", type: "number", label: "Rock compressibility", value: 0, step: "any" },
-      { name: "fluid_properties", type: "json", label: "Fluid properties · object<string, positive number>", value: { water_viscosity: 1, oil_viscosity: 2, gas_viscosity: 0.02 } },
-      { name: "initial_pressure", type: "number", label: "Initial pressure · positive", value: 3000, step: "any" },
-      { name: "initial_water_saturation", type: "json", label: "Initial water saturation · number[]", value: [0.2, 0.2, 0.2, 0.2] },
-      { name: "initial_gas_saturation", type: "json", label: "Initial gas saturation · number[]", value: [0, 0, 0, 0] },
+      { name: "fluid_properties", type: "json", label: "Fluid properties · object<string, positive number>", value: { water_viscosity: 1.5, oil_viscosity: 3.2, gas_viscosity: 0.02 } },
+      { name: "initial_pressure", type: "number", label: "Initial pressure · positive", value: 4800, step: "any" },
+      { name: "initial_water_saturation", type: "json", label: "Initial water saturation · number[]", value: new Array(2000).fill(0.28) },
+      { name: "initial_gas_saturation", type: "json", label: "Initial gas saturation · number[]", value: new Array(2000).fill(0.05) },
       { name: "wells", type: "json", label: "Wells · WellInput[]", value: [] },
-      { name: "timesteps", type: "json", label: "Timesteps · positive number[]", value: [1] }
+      { name: "timesteps", type: "json", label: "Timesteps · positive number[]", value: Array.from({ length: 30 }, (_, index) => index + 1) }
     ]
   },
   {
@@ -114,6 +117,13 @@ const tools = [
     ]
   }
 ];
+
+for (const tool of tools) {
+  tool.defaultValues = {};
+  for (const field of tool.fields) {
+    tool.defaultValues[field.name] = JSON.parse(JSON.stringify(field.value));
+  }
+}
 
 const nav = document.querySelector("#tool-nav");
 const form = document.querySelector("#tool-form");
@@ -212,6 +222,28 @@ function showTool(tool) {
     if (field.optional) input.placeholder = "Optional — leave blank to omit";
     wrapper.append(input);
     form.append(wrapper);
+  }
+
+  const resetButton = document.createElement("button");
+  resetButton.type = "button";
+  resetButton.className = "reset-button";
+  resetButton.textContent = "Reset to example";
+  resetButton.addEventListener("click", () => applyExampleValues(tool));
+  form.append(resetButton);
+}
+
+function applyExampleValues(tool) {
+  for (const field of tool.fields) {
+    const input = form.elements.namedItem(field.name);
+    if (!input) continue;
+    const value = tool.defaultValues[field.name];
+    if (field.type === "json") {
+      input.value = value === null ? "" : JSON.stringify(value, null, 2);
+    } else if (field.type === "select") {
+      input.value = value;
+    } else {
+      input.value = value;
+    }
   }
 }
 
