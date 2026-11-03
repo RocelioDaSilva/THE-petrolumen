@@ -3,9 +3,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from typing import Dict, List, Optional, Tuple
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
 
 class AdvancedVisualization:
     """Visualização avançada de dados (estilo Spotfire)"""
@@ -176,58 +173,9 @@ class AdvancedVisualization:
         
     def create_interactive_dashboard(self):
         """Cria dashboard interativo usando Dash"""
-        app = dash.Dash(__name__)
-        
-        app.layout = html.Div([
-            html.H1("Reservoir Analytics Dashboard"),
-            
-            html.Div([
-                html.Div([
-                    html.H3("Production Analysis"),
-                    dcc.Graph(id="production-graph")
-                ], className="six columns"),
-                
-                html.Div([
-                    html.H3("Well Analysis"),
-                    dcc.Graph(id="well-graph")
-                ], className="six columns")
-            ], className="row"),
-            
-            html.Div([
-                html.H3("Filters"),
-                dcc.Dropdown(
-                    id="well-selector",
-                    options=[
-                        {"label": f"Well {w}", "value": w}
-                        for w in self.data["production"]["well"].unique()
-                    ],
-                    value=self.data["production"]["well"].iloc[0],
-                    multi=True
-                )
-            ])
-        ])
-        
-        @app.callback(
-            Output("production-graph", "figure"),
-            Input("well-selector", "value")
-        )
-        def update_production_graph(selected_wells):
-            df = self.data["production"]
-            df_filtered = df[df["well"].isin(selected_wells)]
-            
-            fig = go.Figure()
-            
-            for well in selected_wells:
-                well_data = df_filtered[df_filtered["well"] == well]
-                fig.add_trace(
-                    go.Scatter(x=well_data["date"],
-                              y=well_data["oil_rate"],
-                              name=f"Well {well}")
-                )
-                
-            return fig
-        
-        self.dashboards["interactive"] = app
+        from ...ui.advanced_visualization_dashboard import create_interactive_dashboard
+
+        create_interactive_dashboard(self)
         
     def export_dashboard(self, dashboard_name: str, filename: str):
         """Exporta dashboard como HTML"""

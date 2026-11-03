@@ -1,7 +1,10 @@
 import numpy as np
 from scipy.spatial import Delaunay
-import pyvista as pv
 from typing import Dict, List, Tuple, Optional
+
+_VTK_HEXAHEDRON = 12
+_VTK_TETRA = 10
+
 
 class Mesh:
     def __init__(self):
@@ -59,7 +62,7 @@ class Mesh:
                     self.cells.append([v0, v1, v3, v2, v4, v5, v7, v6])
         
         self.cells = np.array(self.cells)
-        self.cell_types = np.full(len(self.cells), pv.CellType.HEXAHEDRON)
+        self.cell_types = np.full(len(self.cells), _VTK_HEXAHEDRON)
         
         # Calcular propriedades da malha
         self._calculate_mesh_properties()
@@ -78,7 +81,7 @@ class Mesh:
         # Criar células (tetraedros)
         self.vertices = points
         self.cells = tri.simplices
-        self.cell_types = np.full(len(self.cells), pv.CellType.TETRA)
+        self.cell_types = np.full(len(self.cells), _VTK_TETRA)
         
         # Calcular propriedades da malha
         self._calculate_mesh_properties()
@@ -217,11 +220,15 @@ class Mesh:
                         
     def to_pyvista(self):
         """Converte a malha para formato PyVista."""
+        import pyvista as pv
+
         grid = pv.UnstructuredGrid(self.vertices, self.cell_types, self.cells)
         return grid
         
     def plot(self, show_cells=True, show_vertices=False):
         """Plota a malha usando PyVista."""
+        import pyvista as pv
+
         grid = self.to_pyvista()
         plotter = pv.Plotter()
         

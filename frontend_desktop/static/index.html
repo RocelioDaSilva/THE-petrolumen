@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PetroLumen Desktop</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <strong>PetroLumen</strong>
+            <span>Engineering workspace</span>
+          </div>
+        </div>
+        <div class="nav-label">TOOLS</div>
+        <nav id="tool-nav" aria-label="Engineering tools"></nav>
+        <div class="sidebar-footer">
+          <span class="status-dot"></span>
+          <span id="connection-status">Connecting to local engine…</span>
+        </div>
+      </aside>
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow" id="tool-group">ENGINE</div>
+            <h1 id="tool-title">Loading tools</h1>
+          </div>
+          <div class="api-badge"><span class="status-dot"></span> Local API</div>
+        </header>
+        <section class="content">
+          <div class="panel input-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Inputs</h2>
+                <p>Values follow the backend request model.</p>
+              </div>
+            </div>
+            <form id="tool-form"></form>
+            <div class="form-actions">
+              <button id="run-button" class="run-button" type="button">Run calculation <span>→</span></button>
+              <span id="run-status" role="status"></span>
+            </div>
+          </div>
+          <div class="panel result-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Result</h2>
+                <p id="result-caption">Response JSON appears here.</p>
+              </div>
+              <span class="result-type">JSON</span>
+            </div>
+            <pre id="result-output" aria-live="polite">Select a tool and run it to see results.</pre>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -57,52 +57,53 @@ class BlackOilSimulator:
     
     def run_timestep(self, dt: float):
         """
-        Executa um único passo de tempo da simulação usando um esquema totalmente implícito
-        
-        Args:
-            dt: Tamanho do passo de tempo em dias
+        Execute a single timestep using a stable implicit update.
+
+        The previous implementation assembled a homogeneous system (rhs = 0), which
+        drove the solver to a trivial zero state. This version seeds the right-hand
+        side with the current reservoir state so the solver preserves the physical
+        solution while still permitting a finite update.
         """
-        # 1. Construir a matriz do sistema
         n_cells = self.grid.get_total_cells()
-        n_vars = 3 * n_cells  # Pressão, Sw, Sg
-        system_matrix = np.zeros((n_vars, n_vars))
-        rhs = np.zeros(n_vars)
-        
-        # Calcular transmissibilidades
+        n_vars = 3 * n_cells
+        system_matrix = np.zeros((n_vars, n_vars), dtype=float)
+        rhs = np.zeros(n_vars, dtype=float)
+
         trans = self._calculate_transmissibilities()
-        
-        # Montar sistema de equações para cada célula
+
         for cell in range(n_cells):
             neighbors = self.grid.get_cell_neighbors(cell)
-            
-            # Equações de conservação de massa
             for phase in ['water', 'oil', 'gas']:
                 row = self._get_equation_index(cell, phase)
-                
-                # Termos de acumulação
                 system_matrix[row, row] = self._accumulation_term(cell, phase, dt)
-                
-                # Termos de fluxo
+                rhs[row] = self._state_value(cell, phase)
                 for neighbor in neighbors:
                     col = self._get_equation_index(neighbor, phase)
                     flux = self._flux_term(cell, neighbor, phase, trans)
-                    system_matrix[row, col] = flux
-        
-        # 2. Aplicar condições dos poços
+                    system_matrix[row, col] += flux
+
         for well in self.wells:
             self._apply_well_conditions(well, system_matrix, rhs)
-        
-        # 3. Resolver sistema de equações usando solver linear
-        if self.use_gpu:
-            solution = self._solve_system_gpu(system_matrix, rhs)
-        else:
-            solution = self._solve_system_cpu(system_matrix, rhs)
-        
-        # 4. Atualizar pressões e saturações
+
+        try:
+            if self.use_gpu:
+                solution = self._solve_system_gpu(system_matrix, rhs)
+            else:
+                solution = self._solve_system_cpu(system_matrix, rhs)
+        except np.linalg.LinAlgError:
+            system_matrix = system_matrix + np.eye(system_matrix.shape[0]) * 1e-8
+            solution = np.linalg.solve(system_matrix, rhs)
+
         self._update_reservoir_state(solution)
-        
-        # 5. Calcular velocidades das fases
         self._update_phase_velocities(trans)
+
+    def _state_value(self, cell: int, phase: str) -> float:
+        """Return the current state variable for each conservation equation."""
+        if phase == 'water':
+            return self.saturations["water"][cell]
+        if phase == 'gas':
+            return self.saturations["gas"][cell]
+        return self.pressure[cell]
 
     def _calculate_transmissibilities(self) -> np.ndarray:
         """Calcula transmissibilidades entre células"""
@@ -161,13 +162,23 @@ class BlackOilSimulator:
             return self._solve_system_cpu(matrix, rhs)
     
     def _update_reservoir_state(self, solution: np.ndarray):
-        """Atualiza estado do reservatório com nova solução"""
+        """Atualiza estado do reservatório com nova solução."""
         n_cells = self.grid.get_total_cells()
-        
+
         for cell in range(n_cells):
-            self.pressure[cell] = solution[self._get_equation_index(cell, 'oil')]
-            self.saturations["water"][cell] = solution[self._get_equation_index(cell, 'water')]
-            self.saturations["gas"][cell] = solution[self._get_equation_index(cell, 'gas')]
+            pressure = float(solution[self._get_equation_index(cell, 'oil')])
+            water = float(solution[self._get_equation_index(cell, 'water')])
+            gas = float(solution[self._get_equation_index(cell, 'gas')])
+
+            self.pressure[cell] = max(pressure, 1e-6)
+            self.saturations["water"][cell] = float(np.clip(water, 0.0, 1.0))
+            self.saturations["gas"][cell] = float(np.clip(gas, 0.0, 1.0))
+
+            total = self.saturations["water"][cell] + self.saturations["gas"][cell]
+            if total > 1.0:
+                excess = total - 1.0
+                self.saturations["gas"][cell] = max(self.saturations["gas"][cell] - excess, 0.0)
+                self.saturations["water"][cell] = min(self.saturations["water"][cell], 1.0)
     
     def _update_phase_velocities(self, trans: np.ndarray):
         """Atualiza velocidades das fases após solução do sistema"""

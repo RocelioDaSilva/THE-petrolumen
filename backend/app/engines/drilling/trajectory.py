@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.utils.math_utils import min_curvature
+from ...utils.math_utils import min_curvature
 
 
 def compute_trajectory_minimum_curvature(
