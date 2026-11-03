@@ -40,6 +40,8 @@ button, input, textarea, select { font: inherit; }
 .nav-item { width: 100%; padding: 11px 12px; border: 1px solid transparent; border-radius: 9px; color: #9eabc0; text-align: left; background: transparent; cursor: pointer; transition: .15s ease; }
 .nav-item:hover { color: #e7edf7; background: #151f2e; }
 .nav-item.active { color: #9af0ca; border-color: #244b43; background: #14251f; }
+.nav-item.disabled { opacity: .55; cursor: not-allowed; }
+.tool-disabled-notice { padding: 12px 14px; border: 1px solid #4d3d1d; border-radius: 8px; color: #f5ce85; background: rgba(127, 91, 21, .12); }
 .sidebar-footer { display: flex; align-items: center; gap: 9px; margin-top: auto; padding: 16px 8px 2px; color: #8492a8; font-size: 11px; }
 .status-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #51d6a5; box-shadow: 0 0 10px #51d6a566; }
 

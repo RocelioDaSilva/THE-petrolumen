@@ -8,11 +8,12 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-from .api import engine_routes, simulation_routes
+from .api import chart_routes, engine_routes, simulation_routes
 
 app = FastAPI(title="PetroLumen API", version="0.1.0")
 app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(engine_routes.router, prefix="/api")
+app.include_router(chart_routes.router, prefix="/api")
 
 
 @app.get("/health")

@@ -86,6 +86,79 @@ def test_nodal_endpoint_finds_operating_rate_and_rejects_nonflowing_case():
     assert invalid.status_code == 422
 
 
+def test_grid_chart_returns_png():
+    response = client.post(
+        "/api/engine/geology/grid/chart",
+        json={
+            "nx": 2,
+            "ny": 1,
+            "nz": 1,
+            "dx": [1.0, 2.0],
+            "dy": 3.0,
+            "dz": 4.0,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["content_type"] == "image/png"
+    assert len(payload["image_base64"]) > 2000
+
+
+def test_eos_chart_returns_png():
+    response = client.post(
+        "/api/engine/pvt/eos/chart",
+        json={
+            "pressure": 5_000_000.0,
+            "temperature": 250.0,
+            "components": [
+                {
+                    "name": "methane",
+                    "critical_pressure": 4_599_000.0,
+                    "critical_temperature": 190.56,
+                    "acentric_factor": 0.011,
+                    "molecular_weight": 16.043,
+                }
+            ],
+            "composition": {"methane": 1.0},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["content_type"] == "image/png"
+    assert len(payload["image_base64"]) > 2000
+
+
+def test_nodal_chart_returns_png():
+    response = client.post(
+        "/api/engine/reservoir/nodal/chart",
+        json={"qi": 5000.0, "pr": 3000.0, "p_surf": 1000.0},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["content_type"] == "image/png"
+    assert len(payload["image_base64"]) > 2000
+
+
+def test_trajectory_chart_returns_png():
+    response = client.post(
+        "/api/engine/drilling/trajectory/chart",
+        json={
+            "survey": [
+                {"md": 0.0, "inc": 0.0, "azi": 0.0},
+                {"md": 100.0, "inc": 0.0, "azi": 0.0},
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["content_type"] == "image/png"
+    assert len(payload["image_base64"]) > 2000
+
+
 def test_health_endpoint_returns_ok():
     response = client.get("/health")
     assert response.status_code == 200

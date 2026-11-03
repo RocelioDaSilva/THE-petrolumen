@@ -80,6 +80,8 @@ const tools = [
     group: "SIMULATION",
     title: "Simulate Compositional",
     endpoint: "/api/simulate/compositional",
+    disabled: true,
+    disabledNote: "Solver not yet implemented (backend returns 501).",
     fields: [
       { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 1, ny: 1, nz: 1, dx: 50, dy: 50, dz: 10 } },
       { name: "components", type: "json", label: "Components · ComponentInput[]", value: [{ name: "methane", mw: 16.043, tc: 190.56, pc: 4599000, omega: 0.011 }] },
@@ -94,6 +96,8 @@ const tools = [
     group: "SIMULATION",
     title: "Simulate Thermal",
     endpoint: "/api/simulate/thermal",
+    disabled: true,
+    disabledNote: "Solver not yet implemented (backend returns 501).",
     fields: [
       { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 1, ny: 1, nz: 1, dx: 50, dy: 50, dz: 10 } },
       { name: "components", type: "json", label: "Components · ComponentInput[]", value: [{ name: "methane", mw: 16.043, tc: 190.56, pc: 4599000, omega: 0.011 }] },
@@ -125,6 +129,19 @@ function showTool(tool) {
     button.classList.toggle("active", button.dataset.tool === tool.id);
   });
   form.replaceChildren();
+  runButton.disabled = false;
+  runButton.textContent = "Run";
+
+  if (tool.disabled) {
+    const notice = document.createElement("div");
+    notice.className = "tool-disabled-notice";
+    notice.textContent = tool.disabledNote;
+    form.append(notice);
+    runButton.disabled = true;
+    runButton.textContent = "Unavailable";
+    result.textContent = tool.disabledNote;
+    return;
+  }
 
   for (const field of tool.fields) {
     const wrapper = document.createElement("label");
@@ -226,10 +243,15 @@ async function runTool() {
 for (const tool of tools) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "nav-item";
+  button.className = `nav-item${tool.disabled ? " disabled" : ""}`;
   button.dataset.tool = tool.id;
   button.textContent = tool.title;
-  button.addEventListener("click", () => showTool(tool));
+  if (tool.disabled) {
+    button.setAttribute("aria-disabled", "true");
+  }
+  button.addEventListener("click", () => {
+    if (!tool.disabled) showTool(tool);
+  });
   nav.append(button);
 }
 
