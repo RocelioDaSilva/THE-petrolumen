@@ -42,7 +42,6 @@
             <form id="tool-form"></form>
             <div class="form-actions">
               <button id="run-button" class="run-button" type="button">Run calculation <span>→</span></button>
-              <span id="run-status" role="status"></span>
             </div>
           </div>
           <div class="panel result-panel">
@@ -51,9 +50,13 @@
                 <h2>Result</h2>
                 <p id="result-caption">Response JSON appears here.</p>
               </div>
-              <span class="result-type">JSON</span>
+              <div class="result-mode-toggle" aria-label="Result mode selector">
+                <button type="button" class="result-mode active" data-mode="chart">Chart</button>
+                <button type="button" class="result-mode" data-mode="json">Data</button>
+              </div>
             </div>
-            <pre id="result-output" aria-live="polite">Select a tool and run it to see results.</pre>
+            <div id="result-output" aria-live="polite">Select a tool and run it to see results.</div>
+            <div id="run-status" role="status"></div>
           </div>
         </section>
       </main>

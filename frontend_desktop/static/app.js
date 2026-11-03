@@ -4,6 +4,7 @@ const tools = [
     group: "PVT",
     title: "PVT EOS",
     endpoint: "/api/engine/pvt/eos",
+    chartMode: "chart",
     fields: [
       { name: "pressure", type: "number", label: "Pressure (Pa)", value: 5000000, step: "any" },
       { name: "temperature", type: "number", label: "Temperature (K)", value: 250, step: "any" },
@@ -23,6 +24,7 @@ const tools = [
     group: "DRILLING",
     title: "Drilling Trajectory",
     endpoint: "/api/engine/drilling/trajectory",
+    chartMode: "chart",
     fields: [
       { name: "survey", type: "json", label: "Survey · object<string, number>[]", value: [{ md: 0, inc: 0, azi: 0 }, { md: 100, inc: 0, azi: 0 }] },
       { name: "md_col", type: "text", label: "Measured-depth column", value: "md" },
@@ -35,6 +37,7 @@ const tools = [
     group: "GEOLOGY",
     title: "Geology Grid",
     endpoint: "/api/engine/geology/grid",
+    chartMode: "chart",
     fields: [
       { name: "nx", type: "number", label: "Nx · integer > 0", value: 2, step: 1 },
       { name: "ny", type: "number", label: "Ny · integer > 0", value: 2, step: 1 },
@@ -49,6 +52,7 @@ const tools = [
     group: "RESERVOIR",
     title: "Reservoir Nodal",
     endpoint: "/api/engine/reservoir/nodal",
+    chartMode: "chart",
     fields: [
       { name: "qi", type: "number", label: "Qi · positive", value: 5000, step: "any" },
       { name: "pr", type: "number", label: "Pr · positive", value: 3000, step: "any" },
@@ -115,22 +119,52 @@ const nav = document.querySelector("#tool-nav");
 const form = document.querySelector("#tool-form");
 const result = document.querySelector("#result-output");
 const runButton = document.querySelector("#run-button");
+const resultModeButtons = document.querySelectorAll(".result-mode");
 let selectedTool = tools[0];
 let apiPort = window.API_PORT || null;
+let currentResultMode = "chart";
+
+function updateResultModeButtons() {
+  resultModeButtons.forEach((button) => {
+    const active = button.dataset.mode === currentResultMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function setResultDisplay(payload) {
+  const output = document.querySelector("#result-output");
+  output.classList.toggle("chart-output", currentResultMode === "chart");
+  output.classList.toggle("json-output", currentResultMode !== "chart");
+  output.dataset.payload = JSON.stringify(payload ?? {});
+
+  if (currentResultMode === "chart") {
+    if (payload && typeof payload.image_base64 === "string") {
+      output.innerHTML = `<img src="data:${payload.content_type || "image/png"};base64,${payload.image_base64}" alt="Chart output" />`;
+    } else {
+      output.textContent = "No chart image was returned by the engine.";
+    }
+    return;
+  }
+
+  output.textContent = JSON.stringify(payload ?? {}, null, 2);
+}
 
 function showTool(tool) {
   selectedTool = tool;
+  currentResultMode = tool.chartMode || "chart";
   document.querySelector("#tool-group").textContent = tool.group;
   document.querySelector("#tool-title").textContent = tool.title;
   document.querySelector("#result-caption").textContent = `POST ${tool.endpoint}`;
   document.querySelector("#run-status").textContent = "";
-  result.textContent = "Select Run calculation to submit this request.";
+  setResultDisplay({});
   nav.querySelectorAll("button").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === tool.id);
   });
   form.replaceChildren();
   runButton.disabled = false;
   runButton.textContent = "Run";
+  updateResultModeButtons();
 
   if (tool.disabled) {
     const notice = document.createElement("div");
@@ -139,7 +173,7 @@ function showTool(tool) {
     form.append(notice);
     runButton.disabled = true;
     runButton.textContent = "Unavailable";
-    result.textContent = tool.disabledNote;
+    document.querySelector("#result-output").textContent = tool.disabledNote;
     return;
   }
 
@@ -214,11 +248,11 @@ function formatError(body) {
 async function runTool() {
   const status = document.querySelector("#run-status");
   status.textContent = "";
-  result.textContent = "";
   try {
     if (!apiPort) throw new Error("The local API port is not available yet.");
     const body = getFormData();
-    const response = await fetch(`http://127.0.0.1:${apiPort}${selectedTool.endpoint}`, {
+    const endpoint = currentResultMode === "chart" && selectedTool.chartMode ? `${selectedTool.endpoint}/chart` : selectedTool.endpoint;
+    const response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -230,13 +264,13 @@ async function runTool() {
     } catch {
       payload = { detail: text };
     }
-    result.textContent = JSON.stringify(payload, null, 2);
+    setResultDisplay(payload);
     status.textContent = response.ok ? `HTTP ${response.status}` : `HTTP ${response.status} · ${formatError(payload)}`;
     status.classList.toggle("error", !response.ok);
   } catch (error) {
     status.textContent = error.message;
     status.classList.add("error");
-    result.textContent = "Request was not completed.";
+    document.querySelector("#result-output").textContent = "Request was not completed.";
   }
 }
 
@@ -254,6 +288,18 @@ for (const tool of tools) {
   });
   nav.append(button);
 }
+
+resultModeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    currentResultMode = button.dataset.mode;
+    updateResultModeButtons();
+    const activePayload = document.querySelector("#result-output").dataset.payload ? JSON.parse(document.querySelector("#result-output").dataset.payload) : {};
+    setResultDisplay(activePayload);
+    if (selectedTool && !selectedTool.disabled) {
+      document.querySelector("#result-caption").textContent = `POST ${selectedTool.endpoint}`;
+    }
+  });
+});
 
 runButton.addEventListener("click", runTool);
 showTool(selectedTool);
