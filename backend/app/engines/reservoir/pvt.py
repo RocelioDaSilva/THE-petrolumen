@@ -1,26 +1,28 @@
-"""Thermodynamic PVT correlations for black oil and natural gas."""
+"""Thermodynamic PVT correlations for black oil and natural gas.
 
+Kept local (do NOT delegate without accepting a numerical change):
+  * ``pseudocritical_properties`` — ppes.ch02 uses different Sutton-style
+    constants. At gamma_g=0.65: local (670.13, 365.11) vs ppes
+    (671.44, 370.26).
+  * ``calculate_z_factor_hall_yarborough`` — consequence of the above:
+    at P=5000 psia, T=180F, gamma_g=0.65 local Z=0.9965 vs ppes Z=0.9918.
+  * ``calculate_bubble_point_standing`` — exact analytic inverse of
+    Standing's Rs; numerically inverting ppes.rs_standing would be worse
+    (round-trip error 0.04% via the current closed form).
+
+Delegated to ppes_bridge:
+  * ``calculate_oil_fvf_standing`` -> ``bo_standing`` (identical to 4 dp
+    at parity inputs: 1.2672 vs 1.2672383...).
+"""
 from __future__ import annotations
 
 import math
 
+from app.engines.reservoir.ppes_bridge import bo_standing as _bo_ppes
+
 
 def pseudocritical_properties(gamma_g: float) -> tuple[float, float]:
-    """Calculate pseudocritical pressure (Ppc) and temperature (Tpc) using Sutton correlations.
-
-    Equations:
-        Ppc = 756.8 - 131.0 * gamma_g - 3.6 * gamma_g^2  (psia)
-        Tpc = 169.2 + 349.5 * gamma_g - 74.0 * gamma_g^2  (°R)
-
-    Parameters:
-        gamma_g: Gas specific gravity relative to air (air = 1.0).
-
-    Returns:
-        tuple containing (ppc_psia, tpc_rankine).
-
-    Raises:
-        ValueError: If gas gravity is non-positive.
-    """
+    """Sutton pseudocritical P/T. Kept local — see module docstring."""
     if gamma_g <= 0:
         raise ValueError(f"Gas specific gravity must be positive, got {gamma_g}")
 
@@ -34,29 +36,16 @@ def calculate_z_factor_hall_yarborough(
     temperature_f: float,
     gamma_g: float,
 ) -> float:
-    """Calculate natural gas compressibility factor Z using Hall-Yarborough EOS.
-
-    Parameters:
-        pressure_psia: Pressure in psia.
-        temperature_f: Temperature in °F.
-        gamma_g: Gas specific gravity.
-
-    Returns:
-        Gas compressibility factor Z (dimensionless).
-
-    Raises:
-        ValueError: On unphysical pressure, temperature, or gas gravity.
-    """
+    """Hall-Yarborough Z. Kept local — see module docstring."""
     if pressure_psia <= 0:
         raise ValueError(f"Pressure must be strictly positive (psia), got {pressure_psia}")
     if temperature_f <= -459.67:
-        raise ValueError(f"Temperature must be above absolute zero (-459.67 °F), got {temperature_f}")
+        raise ValueError(f"Temperature must be above absolute zero (-459.67 F), got {temperature_f}")
     if gamma_g <= 0:
         raise ValueError(f"Gas gravity must be positive, got {gamma_g}")
 
     ppc, tpc = pseudocritical_properties(gamma_g)
     temp_r = temperature_f + 459.67
-
     pr = pressure_psia / ppc
     tr = temp_r / tpc
 
@@ -66,19 +55,17 @@ def calculate_z_factor_hall_yarborough(
     c = t * (90.7 - 242.2 * t + 42.4 * (t ** 2))
     d = 2.18 + 2.82 * t
 
-    # Newton-Raphson to solve for reduced density Y
     y = 0.001
     converged = False
+    f = 0.0
     for _ in range(100):
         y2 = y * y
         y3 = y2 * y
         y4 = y3 * y
         denom = (1.0 - y) ** 3
         denom2 = (1.0 - y) ** 4
-
         f = -a * pr + (y + y2 + y3 - y4) / denom - b * y2 + c * (y ** d)
         df = ((1.0 + 4.0 * y + 4.0 * y2 - 4.0 * y3 + y4) / denom2) - 2.0 * b * y + c * d * (y ** (d - 1.0))
-
         if abs(df) < 1e-12:
             break
         y_next = y - f / df
@@ -90,7 +77,8 @@ def calculate_z_factor_hall_yarborough(
 
     if not converged and abs(f) > 1e-4:
         raise RuntimeError(
-            f"Hall-Yarborough Z-factor iteration failed to converge for P={pressure_psia} psia, T={temperature_f} °F, gamma_g={gamma_g}"
+            f"Hall-Yarborough Z-factor iteration failed to converge for "
+            f"P={pressure_psia} psia, T={temperature_f} F, gamma_g={gamma_g}"
         )
 
     z = (a * pr) / max(y, 1e-6)
@@ -105,23 +93,7 @@ def calculate_bubble_point_standing(
     api: float,
     temperature_f: float,
 ) -> float:
-    """Calculate bubble point pressure Pb (psia) using Standing's correlation.
-
-    Equation:
-        Pb = 18.2 * ((Rs / gamma_g)^0.83 * 10^(0.00091 * T - 0.0125 * API) - 1.4)
-
-    Parameters:
-        rs_scf_stb: Solution gas-oil ratio at bubble point (scf/STB).
-        gamma_g: Gas specific gravity (air=1.0).
-        api: Oil API gravity.
-        temperature_f: Reservoir temperature (°F).
-
-    Returns:
-        Bubble point pressure Pb in psia.
-
-    Raises:
-        ValueError: If Rs, gamma_g, or API are non-physical.
-    """
+    """Standing Pb — exact analytic inverse of Standing's Rs. Kept local."""
     if rs_scf_stb < 0:
         raise ValueError(f"Solution GOR must be non-negative, got {rs_scf_stb}")
     if gamma_g <= 0:
@@ -142,20 +114,7 @@ def calculate_oil_fvf_standing(
     gamma_o: float,
     temperature_f: float,
 ) -> float:
-    """Calculate oil formation volume factor Bo (rb/STB) using Standing's correlation.
-
-    Equation:
-        Bo = 0.9759 + 0.000120 * [Rs * (gamma_g / gamma_o)^0.5 + 1.25 * T]^1.2
-
-    Parameters:
-        rs_scf_stb: Solution gas-oil ratio (scf/STB).
-        gamma_g: Gas specific gravity.
-        gamma_o: Oil specific gravity (water=1.0).
-        temperature_f: Reservoir temperature (°F).
-
-    Returns:
-        Oil formation volume factor Bo (bbl/STB).
-    """
+    """Standing Bo, delegated to ppes_bridge.bo_standing (single source of truth)."""
     if rs_scf_stb < 0:
         raise ValueError(f"Solution GOR must be non-negative, got {rs_scf_stb}")
     if gamma_g <= 0:
@@ -165,6 +124,5 @@ def calculate_oil_fvf_standing(
     if temperature_f <= -459.67:
         raise ValueError(f"Temperature must be above absolute zero, got {temperature_f}")
 
-    inside = rs_scf_stb * ((gamma_g / gamma_o) ** 0.5) + 1.25 * temperature_f
-    bo = 0.9759 + 0.000120 * (max(0.0, inside) ** 1.2)
-    return round(float(bo), 4)
+    api = 141.5 / gamma_o - 131.5
+    return round(float(_bo_ppes(temperature_f, api, rs_scf_stb, gamma_g)), 4)

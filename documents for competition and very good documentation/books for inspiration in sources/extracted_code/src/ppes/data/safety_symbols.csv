@@ -1,0 +1,17 @@
+code,name,description
+FSV,Flow Safety Valve,Closes on high/low flow
+BSL,Burner Safety Low,Shuts fuel on low temperature
+PSHL,Pressure Safety High/Low,High/low pressure trip
+PSE,Pressure Safety Element,Sensor element
+FSH,Flow Safety High,High flow trip
+FSL,Flow Safety Low,Low flow trip
+PSV,Pressure Safety Valve,Relief valve
+LSH,Level Safety High,High level trip
+LSL,Level Safety Low,Low level trip
+TSH,Temperature Safety High,High temp trip
+TSL,Temperature Safety Low,Low temp trip
+USV,Underwater Safety Valve,Subsea safety valve
+BDV,Blow Down Valve,Depressurization valve
+SSV,Surface Safety Valve,Surface master valve
+SDV,Shut Down Valve,Shutdown isolation valve
+TSE,Temperature Safety Element,Sensor element

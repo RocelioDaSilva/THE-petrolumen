@@ -10,6 +10,8 @@ logging.basicConfig(
 
 from .api import chart_routes, engine_routes, simulation_routes
 
+from app.api.reservoir_routes import router as reservoir_router
+
 app = FastAPI(title="PetroLumen API", version="0.1.0")
 app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(engine_routes.router, prefix="/api")
@@ -30,3 +32,12 @@ async def unhandled_exception(request, exc):
 @app.get('/', include_in_schema=False)
 async def root():
     return RedirectResponse(url='/docs')
+
+
+app.include_router(reservoir_router)
+
+from app.api.reservoir_routes_ch5_9_13 import router as reservoir_2_router
+app.include_router(reservoir_2_router)
+
+from app.api.reservoir_routes_pvt import router as reservoir_pvt_router
+app.include_router(reservoir_pvt_router)
