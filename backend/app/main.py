@@ -16,6 +16,7 @@ from .api import (
     production_routes,
     pvt_routes,
     simulation_routes,
+    workflow_routes,
 )
 
 
@@ -31,6 +32,7 @@ app.include_router(production_routes.router, prefix="/api")
 app.include_router(petrophysics_routes.router, prefix="/api")
 app.include_router(pvt_routes.router, prefix="/api")
 app.include_router(chart_routes.router, prefix="/api")
+app.include_router(workflow_routes.router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthResponse)
