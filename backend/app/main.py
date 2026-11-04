@@ -9,7 +9,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-from .api import chart_routes, engine_routes, simulation_routes
+from .api import chart_routes, engine_routes, petrophysics_routes, production_routes, pvt_routes, simulation_routes
 
 
 class HealthResponse(BaseModel):
@@ -20,6 +20,9 @@ class HealthResponse(BaseModel):
 app = FastAPI(title="PetroLumen API", version="0.1.0")
 app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(engine_routes.router, prefix="/api")
+app.include_router(production_routes.router, prefix="/api")
+app.include_router(petrophysics_routes.router, prefix="/api")
+app.include_router(pvt_routes.router, prefix="/api")
 app.include_router(chart_routes.router, prefix="/api")
 
 

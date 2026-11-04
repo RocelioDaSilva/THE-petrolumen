@@ -65,6 +65,96 @@ const tools = [
     ]
   },
   {
+    id: "economics",
+    group: "PRODUCTION",
+    title: "Production Economics",
+    endpoint: "/api/engine/production/economics",
+    chartMode: null,
+    fields: [
+      { name: "oil_price", type: "number", label: "Oil price ($/bbl)", value: 70.0, step: "any" },
+      { name: "gas_price", type: "number", label: "Gas price ($/Mscf)", value: 3.0, step: "any" },
+      { name: "discount_rate", type: "number", label: "Discount rate (%)", value: 10.0, step: "any" },
+      { name: "project_life", type: "number", label: "Project life (years)", value: 5, step: 1 },
+      { name: "capex", type: "json", label: "CAPEX breakdown · object<string, number>", value: { drilling: 1000000, facilities: 500000 } },
+      { name: "opex", type: "json", label: "Annual OPEX breakdown · object<string, number>", value: { fixed_opex: 50000, variable_opex: 25000 } },
+      { name: "tax_rate", type: "number", label: "Tax rate (fraction 0-1)", value: 0.34, step: "any" },
+      { name: "water_disposal_cost_per_bbl", type: "number", label: "Water disposal cost ($/bbl)", value: 1.5, step: "any" },
+      { name: "oil_production", type: "json", label: "Annual oil production (bbl/yr) · number[]", value: [100000, 80000, 60000, 45000, 30000] },
+      { name: "gas_production", type: "json", label: "Annual gas production (Mscf/yr) · number[]", value: [500000, 400000, 300000, 200000, 100000] },
+      { name: "water_production", type: "json", label: "Annual water production (bbl/yr) · number[]", value: [20000, 30000, 40000, 50000, 60000] }
+    ]
+  },
+  {
+    id: "facies",
+    group: "PETROPHYSICS",
+    title: "Facies Classification",
+    endpoint: "/api/engine/petrophysics/facies/classify",
+    chartMode: null,
+    fields: [
+      {
+        name: "predict_data",
+        type: "json",
+        label: "Predict log intervals · FaciesLogRecord[]",
+        value: [
+          { gamma: 38.0, resistivity: 135.0, density: 2.64, porosity: 0.10, depth: 2100.0 },
+          { gamma: 68.0, resistivity: 42.0, density: 2.53, porosity: 0.17, depth: 2101.0 },
+          { gamma: 125.0, resistivity: 5.2, density: 2.38, porosity: 0.24, depth: 2102.0 },
+          { gamma: 22.0, resistivity: 240.0, density: 2.70, porosity: 0.06, depth: 2103.0 }
+        ]
+      },
+      {
+        name: "training_data",
+        type: "json",
+        label: "Custom training data (optional) · LabeledFaciesLogRecord[]",
+        value: null,
+        optional: true
+      },
+      { name: "n_estimators", type: "number", label: "Random Forest estimators", value: 100, step: 1 }
+    ]
+  },
+  {
+    id: "mbal",
+    group: "PVT",
+    title: "PVT Material Balance",
+    endpoint: "/api/engine/pvt/mbal",
+    chartMode: null,
+    fields: [
+      { name: "reservoir_type", type: "select", label: "Reservoir fluid type", value: "gas", options: ["oil", "gas"] },
+      {
+        name: "pressure_history",
+        type: "json",
+        label: "Pressure history (psia) · number[]",
+        value: [4000.0, 3200.0]
+      },
+      {
+        name: "production_history",
+        type: "json",
+        label: "Production history · ProductionPointInput[]",
+        value: [
+          { oil_prod: 0.0, gas_prod: 5000000.0, water_prod: 100.0 }
+        ]
+      },
+      {
+        name: "pvt_data",
+        type: "json",
+        label: "PVT table data (optional) · PvtPointInput[]",
+        value: [
+          { pressure: 3200.0, bo: 1.0, bg: 0.0011, rs: 0.0, z: 0.84 },
+          { pressure: 4000.0, bo: 1.0, bg: 0.00082, rs: 0.0, z: 0.89 }
+        ],
+        optional: true
+      },
+      { name: "m", type: "number", label: "Gas cap ratio m", value: 0.0, step: "any" },
+      { name: "We", type: "number", label: "Water influx We (bbl)", value: 500.0, step: "any" },
+      { name: "Wp", type: "number", label: "Water production Wp (STB)", value: 100.0, step: "any" },
+      { name: "Gp", type: "number", label: "Gas production Gp (Mscf)", value: 0.0, step: "any" },
+      { name: "Bw", type: "number", label: "Water FVF Bw", value: 1.0, step: "any" },
+      { name: "cw", type: "number", label: "Water compressibility cw (1/psi)", value: 3.0e-6, step: "any" },
+      { name: "cf", type: "number", label: "Rock compressibility cf (1/psi)", value: 3.0e-6, step: "any" },
+      { name: "Swi", type: "number", label: "Connate water saturation Swi", value: 0.2, step: "any" }
+    ]
+  },
+  {
     id: "black-oil",
     group: "SIMULATION",
     title: "Simulate Black-Oil",
