@@ -1,3 +1,17 @@
+"""Physical Model and Limitations of BlackOilSimulator:
+
+1. Pressure update: Pressure is not solved via a true parabolic/elliptic pressure equation.
+   Instead, the oil conservation row of an ad-hoc linear system is treated as a surrogate
+   pressure equation without fluid/rock compressibilities, formation volume factors (Bo, Bw, Bg),
+   or dissolved gas-oil ratio (Rs). Transmissibility off-diagonals are incorrectly scaled.
+2. Saturation update: Water and gas saturations are solved independently via uncoupled linear
+   rows without Darcy flux divergence coupling or capillary pressure (Pc). Values are clipped
+   to [0, 1] and excess gas is subtracted, rather than enforcing mass conservation.
+3. Well handling: Wells are stored in a list, but `_apply_well_conditions` was never implemented
+   (calling with wells raises AttributeError). There is no Peaceman well index or BHP model.
+Status: Physics is simplified and unphysical; documented in docstring.
+"""
+
 import numpy as np
 from typing import Dict, List, Optional
 from .grid import Grid3D
@@ -83,6 +97,7 @@ class BlackOilSimulator:
                     system_matrix[row, col] += flux
 
         for well in self.wells:
+            # TODO(physics): Implement Peaceman well model, well index (WI), and source/sink terms in matrix/rhs
             self._apply_well_conditions(well, system_matrix, rhs)
 
         try:
@@ -117,11 +132,13 @@ class BlackOilSimulator:
     
     def _accumulation_term(self, cell: int, phase: str, dt: float) -> float:
         """Calcula termo de acumulação para equação de conservação de massa"""
+        # TODO(physics): Include formation volume factors (Bo, Bw, Bg), Rs, rock compressibility, and fluid compressibility in accumulation derivatives
         phi = self.props["porosity"][cell]
         return phi / dt
     
     def _flux_term(self, cell1: int, cell2: int, phase: str, trans: np.ndarray) -> float:
         """Calcula termo de fluxo entre células"""
+        # TODO(physics): Use upstream-weighted mobilities and proper multi-phase potential differences (dp - gamma * dz)
         dp = self.pressure[cell1] - self.pressure[cell2]
         mobility = self._calculate_mobility(phase, cell1)
         return trans[cell1, cell2] * mobility
@@ -163,6 +180,7 @@ class BlackOilSimulator:
     
     def _update_reservoir_state(self, solution: np.ndarray):
         """Atualiza estado do reservatório com nova solução."""
+        # TODO(physics): Decouple pressure and saturation updates (e.g. true IMPES or Newton-Raphson fully implicit) to ensure mass conservation and Sw + So + Sg == 1.0
         n_cells = self.grid.get_total_cells()
 
         for cell in range(n_cells):
