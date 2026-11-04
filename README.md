@@ -1,79 +1,77 @@
-# PetroLúmen - Enterprise Petroleum & Reservoir Engineering Suite
+# PetroLúmen
 
-[![Production Build](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
-[![Engineering Benchmarks](https://img.shields.io/badge/Benchmarks-92%2F92%20Passed-brightgreen.svg)]()
-[![Type Safety](https://img.shields.io/badge/TypeScript-Strict-blue.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
-
-PetroLúmen is an enterprise-grade, multi-discipline petroleum engineering web application combining Drilling, Surface Facilities, PVT Thermodynamics, Reservoir Flow Simulation, Geocellular 3D Modeling, Well Testing, Production Nodal Analysis, and Fiscal Economics.
+PetroLumen is a FastAPI-based reservoir engineering workbench with a PyWebView desktop client. It exposes 16 endpoints covering PVT, drilling, geology, reservoir, production, petrophysics, and simulation, plus a LAS-to-OOIP workflow.
 
 ---
 
-## 🚀 Key Features & Capabilities
+## Quick Start
 
-- **Reservoir Engineering:**
-  - 1D Two-Phase IMPES numerical flow simulator with Corey relative permeability curves and CFL stability checking.
-  - Comprehensive PVT thermodynamics: Standing bubble point, solution GOR, Beggs-Robinson dead oil viscosity, Hall-Yarborough Z-factor, and Lee-Gonzalez-Eakin gas viscosity.
-  - Rate Transient Analysis (RTA) & Flowing Material Balance (FMB) straight-line gas forecasting.
-  - Havlena-Odeh material balance and Horner build-up well test analysis.
-
-- **Drilling & Well Control:**
-  - Full adherence to **Bourgoyne et al. (1986)**, **Carter et al. (5th Ed., 2023)**, and **Cormack (2017)**.
-  - Interactive Kill Sheets (Driller's Method & Wait and Weight), MASP, MASICP, and Kick Tolerance Intensity.
-  - Bingham Plastic and Power-Law annular hydraulics, Equivalent Circulating Density (ECD), and Teale (1965) Mechanical Specific Energy (MSE).
-  - API Bulletin 5C3 casing collapse and burst pressure verification.
-
-- **Surface Facilities:**
-  - **Arnold & Stewart (2008)** 2-phase and 3-phase horizontal/vertical vessel sizing.
-  - Free Water Knockout (FWKO), horizontal heater-treaters, and CPI plate separator droplet cutoff calculations.
-
-- **Production Engineering & Fiscal Economics:**
-  - Nodal Analysis: Vogel and Fetkovich Inflow Performance Relationship (IPR) coupled with Beggs-Brill Vertical Lift Performance (VLP).
-  - Decline Curve Analysis (DCA): Arps (exponential, hyperbolic, harmonic) and Duong unconventional models.
-  - Discounted cash flow modeling (NPV, IRR, Payback, ROI) with Production Sharing Contract (PSC) terms and automated Tornado sensitivity analysis.
-
-- **Academic Transparency & Bilingual Interface:**
-  - Collapsible **Method Panels** detailing governing differential equations, literature citations, and physical assumptions.
-  - Step-by-step **Worked-Solution** breakdowns with one-click high-resolution PDF and CSV export.
-  - 100% Bilingual localization supporting Portuguese (`pt`) and English (`en`) across all calculation modules, charts, and tables.
-
----
-
-## 🛠️ Getting Started
-
-### Prerequisites
-- Node.js (v20+ recommended)
-- Python 3.11+ (for backend engine verification)
-
-### Installation & Execution
-
+### 1. Server
 ```bash
-# Install frontend dependencies
-npm install
-
-# Start the local development server (or npm start)
-npm run start
-
-# Run automated tests and physical benchmarks
-npm test
-
-# Build for production
-npm run build
+cd backend && pip install -r requirements.txt && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-For backend Python development:
+### 2. Desktop
 ```bash
-pip install -e "backend[dev]"
-python -m pytest backend/tests/
-ruff check backend/
-python -m mypy --ignore-missing-imports backend/app/
+cd frontend_desktop && pip install -r requirements_desktop.txt && python desktop_app.py
+```
+
+### 3. Tests
+```bash
+cd backend && pytest tests/ -q
+```
+
+### 4. Interactive API Documentation (Swagger)
+Open your browser to:
+```
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
-## 📚 Documentation & Verification
+## What Works
 
-- [Module Status & Compliance](docs/MODULE_STATUS.md)
-- [Automated Test Report](TEST_REPORT.md)
-- [Deep Audit Report](docs/audits/DEEP_AUDIT_REPORT.md)
-- [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md)
+The table below enumerates every endpoint currently returning 200 OK across the API surface, including the three new calculation engines (economics, facies classification, and material balance) alongside the LAS log parsing and workflow endpoints:
+
+| Method | Path | Tag | Purpose |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/engine/drilling/trajectory` | Drilling | 3D wellbore trajectory calculation using the minimum curvature method. |
+| `POST` | `/api/engine/drilling/trajectory/chart` | Drilling | Render trajectory profile chart as a base64-encoded PNG. |
+| `POST` | `/api/engine/geology/grid` | Geology | 3D reservoir mesh generation, cell volume computation, and geometry verification. |
+| `POST` | `/api/engine/geology/grid/chart` | Geology | Render 2D/3D reservoir grid cross-section chart as a base64-encoded PNG. |
+| `POST` | `/api/engine/petrophysics/facies/classify` | Petrophysics | Lithofacies classification from well log curves (gamma, resistivity, density, porosity) using Random Forest. |
+| `POST` | `/api/engine/production/economics` | Production | Field production economic evaluation calculating discounted cash flows, NPV, IRR, payout time, and fiscal sensitivities. |
+| `POST` | `/api/engine/pvt/eos` | PVT | Peng-Robinson equation of state solver computing natural gas Z-factors and compressibility. |
+| `POST` | `/api/engine/pvt/eos/chart` | PVT | Render Z-factor vs pressure isothermal curve chart as a base64-encoded PNG. |
+| `POST` | `/api/engine/pvt/mbal` | PVT | Havlena-Odeh material balance analysis, OOIP/OGIP estimation, and drive indices (water, gas cap, solution gas). |
+| `POST` | `/api/engine/reservoir/nodal` | Reservoir | Nodal analysis solver determining operating point intersection between Vogel IPR and TPR curves. |
+| `POST` | `/api/engine/reservoir/nodal/chart` | Reservoir | Render Nodal analysis IPR/TPR intersection curve chart as a base64-encoded PNG. |
+| `POST` | `/api/petrophysics/las/parse` | Petrophysics | Ingest and parse wireline log `.las` files to extract well metadata, curve arrays, and summary statistics. |
+| `POST` | `/api/simulate/black-oil` | Simulation | 3D black-oil surrogate simulation running pressure and saturation timesteps across an uncoupled grid. |
+| `GET` | `/health` | General | System health check and API version reporting. |
+
+---
+
+## What's Not Implemented
+
+- `/api/simulate/compositional` → Returns HTTP 501 Not Implemented (compositional flow solver stubbed).
+- `/api/simulate/thermal` → Returns HTTP 501 Not Implemented (thermal flow and heat-transfer solver stubbed).
+- `black_oil_simulator.py` is a toy model; see its docstring for the limitations (physics is documented, not verified). Specifically, pressure is solved via an ad-hoc linear surrogate without true compressibility coupling, saturations are uncoupled without Darcy flux divergence or capillary pressure, and well conditions (`_apply_well_conditions`) are not implemented.
+- No persistence layer (every run is stateless; results are held in memory during the request lifecycle only).
+- No authentication or authorization layer (open local workbench access).
+
+---
+
+## Screenshots
+
+### 3D Geology Grid
+![chart](docs/screenshots/placeholder.png)
+*Caption: 3D geology grid*
+
+### Z-Factor vs Pressure
+![chart](docs/screenshots/placeholder.png)
+*Caption: z-factor vs pressure*
+
+### IPR/TPR Nodal Intersection
+![chart](docs/screenshots/placeholder.png)
+*Caption: IPR/TPR nodal intersection*
