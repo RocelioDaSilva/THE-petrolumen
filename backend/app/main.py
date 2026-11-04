@@ -50,7 +50,6 @@ async def unhandled_exception(request, exc):
 
 @app.get("/", include_in_schema=False)
 async def root():
-<<<<<<< HEAD
     return RedirectResponse(url='/docs')
 
 
@@ -61,6 +60,3 @@ app.include_router(reservoir_2_router)
 
 from app.api.reservoir_routes_pvt import router as reservoir_pvt_router
 app.include_router(reservoir_pvt_router)
-=======
-    return RedirectResponse(url="/docs")
->>>>>>> e71e563d58ad2551c5b5ba935bbab0be1ad238ec
