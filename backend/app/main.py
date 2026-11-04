@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,13 +11,19 @@ logging.basicConfig(
 
 from .api import chart_routes, engine_routes, simulation_routes
 
+
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+
+
 app = FastAPI(title="PetroLumen API", version="0.1.0")
 app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(engine_routes.router, prefix="/api")
 app.include_router(chart_routes.router, prefix="/api")
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 async def health():
     return {"status": "ok", "version": app.version}
 

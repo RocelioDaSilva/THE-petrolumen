@@ -138,12 +138,25 @@ class ThermalInput(CompositionalInput):
     initial_temperature: PositiveFloat
 
 
-def _not_implemented(detail: str) -> NoReturn:
-    raise HTTPException(status_code=501, detail=detail)
+class UnimplementedResponse(BaseModel):
+    detail: str
+    tracking: str
+
+
+def _not_implemented(detail: str, tracking: str) -> NoReturn:
+    raise HTTPException(
+        status_code=501,
+        detail={"detail": detail, "tracking": tracking},
+    )
 
 
 @router.post("/simulate/black-oil", tags=["Simulation"], response_model=BlackOilResponse)
 def simulate_black_oil(payload: BlackOilInput) -> BlackOilResponse:
+    if payload.wells:
+        raise HTTPException(
+            status_code=422,
+            detail="Well handling not yet implemented — see # TODO in black_oil_simulator.py",
+        )
     simulator = BlackOilSimulator()
     simulator.setup_grid(
         payload.grid.nx,
@@ -210,7 +223,11 @@ def simulate_black_oil(payload: BlackOilInput) -> BlackOilResponse:
     )
 
 
-@router.post("/simulate/compositional", tags=["Simulation"])
+@router.post(
+    "/simulate/compositional",
+    responses={501: {"model": UnimplementedResponse, "description": "The compositional flow solver is not implemented."}},
+    tags=["Simulation"],
+)
 def simulate_compositional(payload: CompositionalInput) -> None:
     simulator = CompositionalSimulator()
     simulator.setup_components(
@@ -225,12 +242,16 @@ def simulate_compositional(payload: CompositionalInput) -> None:
     simulator.initialize_composition(payload.initial_composition)
     simulator.run_simulation(payload.timesteps)
     _not_implemented(
-        "The compositional flow solver is not implemented; no simulation results "
-        "were produced."
+        "The compositional flow solver is not implemented; no simulation results were produced.",
+        "app.engines.reservoir.simulation.compositional_simulator.CompositionalSimulator",
     )
 
 
-@router.post("/simulate/thermal", tags=["Simulation"])
+@router.post(
+    "/simulate/thermal",
+    responses={501: {"model": UnimplementedResponse, "description": "The thermal flow and heat-transfer solver is not implemented."}},
+    tags=["Simulation"],
+)
 def simulate_thermal(payload: ThermalInput) -> None:
     simulator = ThermalSimulator()
     simulator.setup_components(
@@ -247,8 +268,8 @@ def simulate_thermal(payload: ThermalInput) -> None:
     for timestep in payload.timesteps:
         simulator.run_thermal_timestep(timestep)
     _not_implemented(
-        "The thermal flow and heat-transfer solver is not implemented; "
-        "no simulation results were produced."
+        "The thermal flow and heat-transfer solver is not implemented; no simulation results were produced.",
+        "app.engines.reservoir.simulation.thermal_simulator.ThermalSimulator",
     )
 
 

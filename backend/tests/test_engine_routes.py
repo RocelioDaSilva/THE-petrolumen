@@ -193,6 +193,40 @@ def test_black_oil_defaults_return_200():
     assert "wells" in payload
 
 
+def test_black_oil_with_wells_returns_422():
+    response = client.post(
+        "/api/simulate/black-oil",
+        json={
+            "grid": {"nx": 2, "ny": 2, "nz": 1, "dx": 50, "dy": 50, "dz": 10},
+            "porosity": [0.2, 0.2, 0.2, 0.2],
+            "permeability": [100, 100, 100, 100],
+            "rock_compressibility": 0,
+            "fluid_properties": {
+                "water_viscosity": 1,
+                "oil_viscosity": 2,
+                "gas_viscosity": 0.02,
+            },
+            "initial_pressure": 3000,
+            "initial_water_saturation": [0.2, 0.2, 0.2, 0.2],
+            "initial_gas_saturation": [0, 0, 0, 0],
+            "wells": [
+                {
+                    "name": "PROD-1",
+                    "i": 0,
+                    "j": 0,
+                    "perforation_layers": [0],
+                    "well_type": "producer",
+                    "controls": {"bhp": 2000.0},
+                }
+            ],
+            "timesteps": [1],
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Well handling not yet implemented" in response.json()["detail"]
+
+
 def test_compositional_route_is_marked_unimplemented():
     response = client.post(
         "/api/simulate/compositional",
@@ -206,6 +240,13 @@ def test_compositional_route_is_marked_unimplemented():
         },
     )
     assert response.status_code == 501
+    payload = response.json()
+    assert "detail" in payload
+    body = payload["detail"] if isinstance(payload["detail"], dict) else payload
+    assert "detail" in body
+    assert "tracking" in body
+    assert len(body["detail"]) > 0
+    assert len(body["tracking"]) > 0
 
 
 def test_thermal_route_is_marked_unimplemented():
@@ -223,3 +264,16 @@ def test_thermal_route_is_marked_unimplemented():
         },
     )
     assert response.status_code == 501
+    payload = response.json()
+    assert "detail" in payload
+    body = payload["detail"] if isinstance(payload["detail"], dict) else payload
+    assert "detail" in body
+    assert "tracking" in body
+    assert len(body["detail"]) > 0
+    assert len(body["tracking"]) > 0
+
+
+def test_root_endpoint_redirects_to_docs():
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"
