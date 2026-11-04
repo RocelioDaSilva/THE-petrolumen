@@ -65,6 +65,17 @@ const tools = [
     ]
   },
   {
+    id: "las-parse",
+    group: "PETROPHYSICS",
+    title: "LAS Parse",
+    endpoint: "/api/petrophysics/las/parse",
+    chartMode: null,
+    isUpload: true,
+    fields: [
+      { name: "file", type: "file", label: "LAS File (.las)", accept: ".las" }
+    ]
+  },
+  {
     id: "black-oil",
     group: "SIMULATION",
     title: "Simulate Black-Oil",
@@ -122,7 +133,7 @@ const tools = [
 for (const tool of tools) {
   tool.defaultValues = {};
   for (const field of tool.fields) {
-    tool.defaultValues[field.name] = JSON.parse(JSON.stringify(field.value));
+    tool.defaultValues[field.name] = field.value !== undefined ? JSON.parse(JSON.stringify(field.value)) : null;
   }
 }
 
@@ -149,11 +160,68 @@ function updateResultModeButtons() {
   });
 }
 
+function renderLasTable(payload) {
+  const output = document.querySelector("#result-output");
+  output.classList.remove("chart-output");
+  output.classList.add("json-output");
+  output.dataset.payload = JSON.stringify(payload ?? {});
+
+  if (!payload || !payload.curves || !payload.curve_stats) {
+    output.textContent = JSON.stringify(payload ?? {}, null, 2);
+    return;
+  }
+
+  const container = document.createElement("div");
+  const summary = document.createElement("div");
+  summary.className = "las-summary";
+  const wellName = payload.well?.WELL || payload.well?.well || "Unknown";
+  const rowCount = payload.row_count ?? 0;
+  const curveCount = payload.curves.length;
+  summary.innerHTML = `Well: <span>${wellName}</span> | Curves: <span>${curveCount}</span> (${payload.curves.join(", ")}) | Rows: <span>${rowCount}</span>`;
+  container.append(summary);
+
+  const table = document.createElement("table");
+  table.className = "las-table";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Curve Name</th>
+        <th>Min</th>
+        <th>Max</th>
+        <th>Mean</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${payload.curves.map((curve) => {
+        const stats = payload.curve_stats[curve] || {};
+        const minVal = stats.min !== null && stats.min !== undefined ? (typeof stats.min === "number" ? stats.min.toFixed(4) : stats.min) : "—";
+        const maxVal = stats.max !== null && stats.max !== undefined ? (typeof stats.max === "number" ? stats.max.toFixed(4) : stats.max) : "—";
+        const meanVal = stats.mean !== null && stats.mean !== undefined ? (typeof stats.mean === "number" ? stats.mean.toFixed(4) : stats.mean) : "—";
+        return `
+          <tr>
+            <td><strong>${curve}</strong></td>
+            <td>${minVal}</td>
+            <td>${maxVal}</td>
+            <td>${meanVal}</td>
+          </tr>
+        `;
+      }).join("")}
+    </tbody>
+  `;
+  container.append(table);
+  output.replaceChildren(container);
+}
+
 function setResultDisplay(payload) {
   const output = document.querySelector("#result-output");
   output.classList.toggle("chart-output", currentResultMode === "chart");
   output.classList.toggle("json-output", currentResultMode !== "chart");
   output.dataset.payload = JSON.stringify(payload ?? {});
+
+  if (selectedTool?.id === "las-parse" && payload && payload.curve_stats) {
+    renderLasTable(payload);
+    return;
+  }
 
   if (currentResultMode === "chart") {
     if (payload && typeof payload.image_base64 === "string") {
@@ -211,7 +279,11 @@ function showTool(tool) {
     wrapper.append(caption);
 
     let input;
-    if (field.type === "json") {
+    if (field.type === "file") {
+      input = document.createElement("input");
+      input.type = "file";
+      if (field.accept) input.accept = field.accept;
+    } else if (field.type === "json") {
       input = document.createElement("textarea");
       input.rows = Array.isArray(field.value) ? 5 : 3;
       input.value = field.value === null ? "" : JSON.stringify(field.value, null, 2);
@@ -239,12 +311,14 @@ function showTool(tool) {
     form.append(wrapper);
   }
 
-  const resetButton = document.createElement("button");
-  resetButton.type = "button";
-  resetButton.className = "reset-button";
-  resetButton.textContent = "Reset to example";
-  resetButton.addEventListener("click", () => applyExampleValues(tool));
-  form.append(resetButton);
+  if (!tool.isUpload) {
+    const resetButton = document.createElement("button");
+    resetButton.type = "button";
+    resetButton.className = "reset-button";
+    resetButton.textContent = "Reset to example";
+    resetButton.addEventListener("click", () => applyExampleValues(tool));
+    form.append(resetButton);
+  }
 }
 
 function applyExampleValues(tool) {
@@ -368,14 +442,32 @@ async function runTool() {
   status.textContent = "";
   try {
     if (!apiPort) throw new Error("The local API port is not available yet.");
-    const body = getFormData();
-    const endpoint = currentResultMode === "chart" && selectedTool.chartMode ? `${selectedTool.endpoint}/chart` : selectedTool.endpoint;
+
+    let response;
     const started = performance.now();
-    const response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
+
+    if (selectedTool.isUpload) {
+      const fileInput = form.elements.namedItem("file");
+      if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        throw new Error("Please select a .las file to upload.");
+      }
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      response = await fetch(`http://127.0.0.1:${apiPort}${selectedTool.endpoint}`, {
+        method: "POST",
+        body: formData
+      });
+    } else {
+      const body = getFormData();
+      const endpoint = currentResultMode === "chart" && selectedTool.chartMode ? `${selectedTool.endpoint}/chart` : selectedTool.endpoint;
+      response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+    }
+
     const elapsedMs = Math.round(performance.now() - started);
     const text = await response.text();
     let payload;
