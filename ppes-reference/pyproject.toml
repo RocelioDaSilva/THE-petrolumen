@@ -1,0 +1,39 @@
+﻿[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ppes"
+version = "0.1.0"
+description = "Petroleum Production Engineering Software (Guo, Lyons, Ghalambor 2007)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "PPES Project"}]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-regressions>=2.5", "hypothesis>=6.98"]
+ui  = ["streamlit>=1.30", "matplotlib>=3.8"]
+api = ["fastapi>=0.109", "uvicorn[standard]>=0.27"]
+
+[project.scripts]
+ppes = "ppes.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ppes = ["data/*.csv"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
