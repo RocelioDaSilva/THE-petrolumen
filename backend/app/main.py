@@ -9,7 +9,14 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-from .api import chart_routes, engine_routes, petrophysics_routes, production_routes, pvt_routes, simulation_routes
+from .api import (
+    chart_routes,
+    engine_routes,
+    petrophysics_routes,
+    production_routes,
+    pvt_routes,
+    simulation_routes,
+)
 
 
 class HealthResponse(BaseModel):
@@ -37,6 +44,6 @@ async def unhandled_exception(request, exc):
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
-@app.get('/', include_in_schema=False)
+@app.get("/", include_in_schema=False)
 async def root():
-    return RedirectResponse(url='/docs')
+    return RedirectResponse(url="/docs")

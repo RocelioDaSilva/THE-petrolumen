@@ -1,6 +1,10 @@
-"""HTTP routes for petrophysical rock typing and machine learning facies classification.
+"""HTTP endpoints for Petrophysics operations.
 
-In-repo Training Benchmark Samples:
+Provides:
+- POST /petrophysics/las/parse — parse an uploaded .las file and return well metadata, curves, and statistics.
+- POST /engine/petrophysics/facies/classify — classify lithofacies from well log curves using a Random Forest classifier.
+
+In-repo Training Benchmark Samples (facies classification):
 When no custom training dataset is supplied in the request, the endpoint trains
 the Random Forest classifier on 8 calibrated well log records embedded inline below:
   1. Gamma: 35.0 API,  Res: 150.0 ohm-m, Density: 2.65 g/cc, Porosity: 0.08  -> Facies: 1 (Clean Sandstone)
@@ -16,17 +20,130 @@ the Random Forest classifier on 8 calibrated well log records embedded inline be
 from __future__ import annotations
 
 import math
+import os
+import shutil
+import tempfile
 from typing import Any
 
+import lasio
+import numpy as np
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field, model_validator
 
 from ..engines.petrophysics.facies import predict_facies, train_facies_classifier
 
 router = APIRouter()
 
-# 8 inline labeled well log records representative of typical lithofacies
+
+# ============================================================
+# LAS PARSE
+# ============================================================
+
+class CurveStats(BaseModel):
+    min: float | None = None
+    max: float | None = None
+    mean: float | None = None
+    null_count: int
+
+
+class LasParseResponse(BaseModel):
+    well: dict[str, Any]
+    curves: list[str]
+    row_count: int
+    depth_range: list[float]
+    curve_stats: dict[str, CurveStats]
+
+
+@router.post(
+    "/petrophysics/las/parse",
+    tags=["Petrophysics"],
+    response_model=LasParseResponse,
+)
+async def parse_las(file: UploadFile = File(...)) -> LasParseResponse:
+    """Parse an uploaded .las file and return well metadata, curve names, and statistics."""
+    filename = file.filename or ""
+    if not filename.lower().endswith(".las"):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid file format. Only .las files are supported.",
+        )
+
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".las", delete=False) as tmp:
+            temp_path = tmp.name
+            shutil.copyfileobj(file.file, tmp)
+
+        try:
+            las = lasio.read(temp_path)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Failed to parse LAS file: {exc}",
+            ) from exc
+
+        well_metadata: dict[str, Any] = {}
+        for item in las.well:
+            val = item.value
+            if isinstance(val, (np.integer, np.floating)):
+                val = val.item()
+            well_metadata[item.mnemonic] = val
+
+        curve_names = [curve.mnemonic for curve in las.curves]
+        row_count = len(las.index)
+
+        if len(las.index) > 0:
+            depth_start = float(las.index[0])
+            depth_stop = float(las.index[-1])
+            depth_range = [depth_start, depth_stop]
+        else:
+            depth_range = [0.0, 0.0]
+
+        curve_stats: dict[str, CurveStats] = {}
+        for curve in las.curves:
+            data = curve.data
+            nan_mask = np.isnan(data)
+            null_count = int(np.sum(nan_mask))
+            valid_data = data[~nan_mask]
+
+            if len(valid_data) > 0:
+                c_min = float(np.min(valid_data))
+                c_max = float(np.max(valid_data))
+                c_mean = float(np.mean(valid_data))
+            else:
+                c_min = None
+                c_max = None
+                c_mean = None
+
+            curve_stats[curve.mnemonic] = CurveStats(
+                min=c_min,
+                max=c_max,
+                mean=c_mean,
+                null_count=null_count,
+            )
+
+        return LasParseResponse(
+            well=well_metadata,
+            curves=curve_names,
+            row_count=row_count,
+            depth_range=depth_range,
+            curve_stats=curve_stats,
+        )
+
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        await file.close()
+
+
+# ============================================================
+# FACIES CLASSIFICATION
+# ============================================================
+
 DEFAULT_LABELED_FACIES_SAMPLES: list[dict[str, Any]] = [
     {"gamma": 35.0, "resistivity": 150.0, "density": 2.65, "porosity": 0.08, "facies": 1},
     {"gamma": 40.0, "resistivity": 120.0, "density": 2.62, "porosity": 0.12, "facies": 1},
@@ -40,31 +157,11 @@ DEFAULT_LABELED_FACIES_SAMPLES: list[dict[str, Any]] = [
 
 
 class FaciesLogRecord(BaseModel):
-    gamma: float = Field(
-        ...,
-        example=45.0,
-        description="Gamma Ray log reading in API units.",
-    )
-    resistivity: float = Field(
-        ...,
-        example=110.0,
-        description="Deep resistivity log reading in ohm-m.",
-    )
-    density: float = Field(
-        ...,
-        example=2.63,
-        description="Bulk density log reading in g/cm3.",
-    )
-    porosity: float = Field(
-        ...,
-        example=0.11,
-        description="Neutron or effective porosity fraction (0 to 1).",
-    )
-    depth: float | None = Field(
-        default=None,
-        example=2450.5,
-        description="Optional measured depth in meters or feet.",
-    )
+    gamma: float = Field(..., example=45.0, description="Gamma Ray log reading in API units.")
+    resistivity: float = Field(..., example=110.0, description="Deep resistivity log reading in ohm-m.")
+    density: float = Field(..., example=2.63, description="Bulk density log reading in g/cm3.")
+    porosity: float = Field(..., example=0.11, description="Neutron or effective porosity fraction (0 to 1).")
+    depth: float | None = Field(default=None, example=2450.5, description="Optional measured depth in meters or feet.")
 
     @model_validator(mode="after")
     def check_finite(self) -> "FaciesLogRecord":
@@ -77,11 +174,7 @@ class FaciesLogRecord(BaseModel):
 
 
 class LabeledFaciesLogRecord(FaciesLogRecord):
-    facies: int | str = Field(
-        ...,
-        example=1,
-        description="Known lithofacies class identifier or label.",
-    )
+    facies: int | str = Field(..., example=1, description="Known lithofacies class identifier or label.")
 
 
 class FaciesClassifyRequest(BaseModel):
@@ -100,18 +193,9 @@ class FaciesClassifyRequest(BaseModel):
             {"gamma": 35.0, "resistivity": 150.0, "density": 2.65, "porosity": 0.08, "facies": 1},
             {"gamma": 120.0, "resistivity": 6.0, "density": 2.38, "porosity": 0.23, "facies": 3},
         ],
-        description=(
-            "Optional custom labeled training data. If omitted or empty, 8 inline "
-            "calibrated benchmark well log samples are used."
-        ),
+        description="Optional custom labeled training data. If omitted or empty, 8 inline calibrated benchmark samples are used.",
     )
-    n_estimators: int = Field(
-        default=100,
-        gt=0,
-        le=500,
-        example=100,
-        description="Number of decision trees for the Random Forest classifier.",
-    )
+    n_estimators: int = Field(default=100, gt=0, le=500, example=100, description="Number of decision trees for the Random Forest classifier.")
 
 
 class FaciesClassifyResponse(BaseModel):
@@ -128,7 +212,7 @@ class FaciesClassifyResponse(BaseModel):
     response_model=FaciesClassifyResponse,
 )
 def classify_facies(payload: FaciesClassifyRequest) -> FaciesClassifyResponse:
-    """Classify lithofacies from well log curves (gamma, resistivity, density, porosity)
+    """Classify lithofacies from well log curves (gamma, resistivity, density, porosity).
 
     Uses a Random Forest classifier. If custom training data is omitted, 8 in-repo
     benchmark samples covering Sandstone, Shaly Sand, Marine Shale, and Carbonate are utilized.
