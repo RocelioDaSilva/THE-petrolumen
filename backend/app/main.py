@@ -28,6 +28,15 @@ class HealthResponse(BaseModel):
 from app.api.reservoir_routes import router as reservoir_router
 
 app = FastAPI(title="PetroLumen API", version="0.1.0")
+
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+):\d+",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(engine_routes.router, prefix="/api")
 app.include_router(production_routes.router, prefix="/api")

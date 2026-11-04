@@ -252,6 +252,27 @@ export interface NodalPoint {
   p_vlp: number;
 }
 
+export function computeVlp(
+  q: number,
+  pWh: number,
+  depth: number,
+  tubingId: number,
+  waterCut: number,
+  gor: number,
+): number {
+  const safePWh = Math.max(0, pWh || 0);
+  const safeDepth = Math.max(100, depth || 1000);
+  const safeTubing = Math.max(1.0, tubingId || 2.875);
+  const safeWc = Math.max(0, Math.min(0.99, waterCut || 0));
+  const safeGor = Math.max(0, gor || 0);
+  const liquidDensity = 62.4 * (1.0 * safeWc + 0.82 * (1 - safeWc));
+  const hydrostaticGrad = liquidDensity / 144.0;
+  const frictionFactor = 0.02;
+  const frictionLoss = (1.5e-5 * frictionFactor * Math.pow(q, 1.8) * safeDepth) / Math.pow(safeTubing, 4.8);
+  const gasSlippageFactor = Math.max(0.6, 1.0 - (safeGor / 2000) * 0.25);
+  return safePWh + safeDepth * hydrostaticGrad * gasSlippageFactor + frictionLoss;
+}
+
 export function solveNodal(input: NodalInput): {
   curves: NodalPoint[];
   operatingPoint: { q: number; p: number } | null;

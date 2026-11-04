@@ -1,0 +1,558 @@
+=== src/components/visualizations/NodalAnalysisView.tsx ===
+import React, { useState, useMemo } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { solveNodal, NodalInput } from "@/lib/reservoirMath";
+import { Gauge, CheckCircle, ArrowRight, Zap, RefreshCw } from "lucide-react";
+
+export default function NodalAnalysisView() {
+  const [pRes, setPRes] = useState<number>(3400); // psia
+  const [qMax, setQMax] = useState<number>(1800); // STB/d
+  const [pWh, setPWh] = useState<number>(450); // psia
+  const [depth, setDepth] = useState<number>(8500); // ft
+  const [tubingId, setTubingId] = useState<number>(2.875); // inches
+  const [waterCut, setWaterCut] = useState<number>(0.25);
+  const [gor, setGor] = useState<number>(600); // scf/STB
+
+  const { curves, operatingPoint } = useMemo(() => {
+    return solveNodal({
+      pRes,
+      qMax,
+      pWh,
+      depth,
+      tubingId,
+      waterCut,
+      gor,
+    });
+  }, [pRes, qMax, pWh, depth, tubingId, waterCut, gor]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Gauge className="w-6 h-6 text-primary" />
+            AnÃ¡lise Nodal de ProduÃ§Ã£o (IPR vs VLP)
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            IntersecÃ§Ã£o de curvas de influxo do reservatÃ³rio (Vogel / Darcy) com a performance de elevaÃ§Ã£o na coluna (Beggs & Brill).
+          </p>
+        </div>
+        {operatingPoint && (
+          <Badge variant="outline" className="text-sm px-3 py-1 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle className="w-4 h-4 mr-1.5" />
+            Ponto de OperaÃ§Ã£o Solucionado
+          </Badge>
+        )}
+      </div>
+
+      {/* Operating Point Highlights */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="p-4 bg-primary/5 border-primary/20">
+          <p className="text-xs font-medium text-muted-foreground">VazÃ£o de OperaÃ§Ã£o (Qop)</p>
+          <p className="text-2xl font-bold text-primary mt-1 font-mono">
+            {operatingPoint ? `${operatingPoint.q.toLocaleString()} STB/d` : "NÃ£o converge"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">InterseÃ§Ã£o natural IPR / VLP</p>
+        </Card>
+        <Card className="p-4 bg-emerald-500/5 border-emerald-500/20">
+          <p className="text-xs font-medium text-muted-foreground">PressÃ£o de Fundo de Fluxo (Pwf)</p>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
+            {operatingPoint ? `${operatingPoint.p.toLocaleString()} psia` : "N/A"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Drawdown: {operatingPoint ? pRes - operatingPoint.p : 0} psia</p>
+        </Card>
+        <Card className="p-4 bg-blue-500/5 border-blue-500/20">
+          <p className="text-xs font-medium text-muted-foreground">Potencial MÃ¡ximo AOF (qMax)</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1 font-mono">
+            {qMax.toLocaleString()} STB/d
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">PressÃ£o ReservatÃ³rio: {pRes} psia</p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Controls */}
+        <Card className="lg:col-span-1 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">ParÃ¢metros do Sistema PoÃ§o-ReservatÃ³rio</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="nodal-pres">PressÃ£o EstÃ¡tica do ReservatÃ³rio (psia)</Label>
+              <Input
+                id="nodal-pres"
+                type="number"
+                value={pRes}
+                onChange={(e) => setPRes(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="nodal-qmax">Potencial de Fluxo Aberto AOF (STB/d)</Label>
+              <Input
+                id="nodal-qmax"
+                type="number"
+                value={qMax}
+                onChange={(e) => setQMax(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="nodal-pwh">PressÃ£o na CabeÃ§a do PoÃ§o - Wellhead (psia)</Label>
+              <Input
+                id="nodal-pwh"
+                type="number"
+                value={pWh}
+                onChange={(e) => setPWh(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="nodal-depth">Profundidade Verdadeira TVD (ft)</Label>
+              <Input
+                id="nodal-depth"
+                type="number"
+                value={depth}
+                onChange={(e) => setDepth(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="nodal-tubing">DiÃ¢metro Interno da Coluna (pol)</Label>
+              <Input
+                id="nodal-tubing"
+                type="number"
+                step="0.125"
+                value={tubingId}
+                onChange={(e) => setTubingId(Number(e.target.value))}
+              />
+              <p className="text-[10px] text-muted-foreground">PadrÃµes: 2.375", 2.875", 3.5", 4.5"</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="nodal-bsw">Water Cut (BSW fracionÃ¡rio)</Label>
+              <Input
+                id="nodal-bsw"
+                type="number"
+                step="0.05"
+                min="0"
+                max="0.95"
+                value={waterCut}
+                onChange={(e) => setWaterCut(Number(e.target.value))}
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs mt-2"
+              onClick={() => {
+                setPRes(3400);
+                setQMax(1800);
+                setPWh(450);
+                setDepth(8500);
+                setTubingId(2.875);
+                setWaterCut(0.25);
+                setGor(600);
+              }}
+            >
+              <RefreshCw className="w-3 h-3 mr-2" />
+              Resetar ParÃ¢metros
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Nodal Chart */}
+        <Card className="lg:col-span-2 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base font-semibold">GrÃ¡fico IPR vs VLP (Ponto de EquilÃ­brio)</CardTitle>
+            <Badge variant="outline" className="text-xs">SoluÃ§Ã£o HidrÃ¡ulica</Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[380px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={curves} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis
+                    dataKey="q"
+                    label={{ value: "VazÃ£o de LÃ­quido (STB/d)", position: "insideBottom", offset: -10 }}
+                  />
+                  <YAxis
+                    label={{ value: "PressÃ£o de Fundo de Fluxo Pwf (psia)", angle: -90, position: "insideLeft", offset: 0 }}
+                  />
+                  <Tooltip
+                    formatter={(val: any, name: any) => [`${val} psia`, name]}
+                    labelFormatter={(q) => `${q} STB/d`}
+                  />
+                  <Legend verticalAlign="top" height={36} />
+                  <Line
+                    type="monotone"
+                    dataKey="p_ipr"
+                    stroke="#16a34a"
+                    strokeWidth={2.5}
+                    name="IPR (Inflow - Vogel)"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="p_vlp"
+                    stroke="#dc2626"
+                    strokeWidth={2.5}
+                    name="VLP (Outflow - Beggs & Brill)"
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="p-3 bg-muted/30 rounded border text-xs text-muted-foreground mt-2">
+              <p className="font-semibold text-foreground">DiagnÃ³stico do Engenheiro:</p>
+              <p>
+                O poÃ§o opera estavelmente no quadrante de fluxo contÃ­nuo. Um aumento de diÃ¢metro de coluna para 3.5" pode elevar a vazÃ£o em atÃ© 14%, mantendo pressÃ£o de cabeÃ§a de {pWh} psia.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+=== src/lib/reservoirMath.ts (first 260 lines) ===
+/**
+ * PetroLÃºmen Physics & Petroleum Engineering Computation Engine
+ * Provides standard industry correlations (Standing, Hall-Yarborough, Beggs-Brill, Vogel, Arps, Duong)
+ */
+
+// ==========================================
+// 1. PVT CALCULATIONS
+// ==========================================
+
+export interface PVTInput {
+  pressure: number; // psia
+  temperature: number; // Â°F
+  gammaG: number; // Gas specific gravity (air=1)
+  api?: number; // Oil API gravity
+  gor?: number; // Solution GOR (scf/STB)
+}
+
+export interface PVTResults {
+  zFactor: number;
+  bg: number; // Gas FVF (res bbl / scf)
+  bo: number; // Oil FVF (res bbl / STB)
+  rs: number; // Solution GOR (scf/STB)
+  pb: number; // Bubble point pressure (psia)
+  oilViscosity: number; // cP
+  gasViscosity: number; // cP
+  oilDensity: number; // lb/cu ft
+}
+
+/**
+ * Calculates pseudocritical properties (Sutton correlation)
+ */
+export function getPseudoCriticalProps(gammaG: number) {
+  const Ppc = 756.8 - 131.0 * gammaG - 3.6 * gammaG * gammaG; // psia
+  const Tpc = 169.2 + 349.5 * gammaG - 74.0 * gammaG * gammaG; // Â°R
+  return { Ppc, Tpc };
+}
+
+/**
+ * Calculates gas compressibility factor (Z) using Hall-Yarborough correlation
+ */
+export function calculateZFactor(pressure: number, tempF: number, gammaG: number): number {
+  // Fail loudly on unphysical parameters (AGENTS.md requirement).
+  // Silent clamping would produce misleading results; throw instead.
+  if (!Number.isFinite(pressure) || pressure <= 0) {
+    throw new RangeError(
+      `calculateZFactor: pressure must be a positive finite value (psia). Got: ${pressure}`
+    );
+  }
+  if (!Number.isFinite(tempF) || tempF <= -459.67) {
+    throw new RangeError(
+      `calculateZFactor: temperature must be above absolute zero (-459.67 degF). Got: ${tempF}`
+    );
+  }
+  if (!Number.isFinite(gammaG) || gammaG <= 0) {
+    throw new RangeError(
+      `calculateZFactor: gas specific gravity must be positive. Got: ${gammaG}`
+    );
+  }
+
+  const { Ppc, Tpc } = getPseudoCriticalProps(gammaG);
+  const tempR = tempF + 459.67;
+  const Ppr = pressure / Ppc;
+  const Tpr = Math.max(1.05, tempR / Tpc);
+
+  const t = 1.0 / Tpr;
+  const A = 0.06125 * t * Math.exp(-1.2 * Math.pow(1 - t, 2));
+  const B = t * (14.76 - 9.76 * t + 4.58 * Math.pow(t, 2));
+  const C = t * (90.7 - 242.2 * t + 42.4 * Math.pow(t, 2));
+  const D = 2.18 + 2.82 * t;
+
+  // Newton-Raphson to solve for reduced density Y
+  let Y = 0.0125 * Ppr * t * Math.exp(-1.2 * Math.pow(1 - t, 2));
+  for (let iter = 0; iter < 50; iter++) {
+    const fY = -A * Ppr + (Y + Math.pow(Y, 2) + Math.pow(Y, 3) - Math.pow(Y, 4)) / Math.pow(1 - Y, 3) - B * Math.pow(Y, 2) + C * Math.pow(Y, D);
+    const dfY = (1 + 4 * Y + 4 * Math.pow(Y, 2) - 4 * Math.pow(Y, 3) + Math.pow(Y, 4)) / Math.pow(1 - Y, 4) - 2 * B * Y + C * D * Math.pow(Y, D - 1);
+    if (Math.abs(dfY) < 1e-12) break;
+    const nextY = Y - fY / dfY;
+    if (Math.abs(nextY - Y) < 1e-6) {
+      Y = nextY;
+      break;
+    }
+    Y = Math.max(0.0001, Math.min(0.9, nextY));
+  }
+
+  const z = (A * Ppr) / Math.max(1e-6, Y);
+  if (Number.isFinite(z) && z > 0.2 && z < 2.5) {
+    return Math.round(z * 10000) / 10000;
+  }
+
+  // Fallback to Papay (1968) explicit correlation for gas compressibility if Newton-Raphson diverges
+  const zPapay = 1 - (3.52 * Ppr) / Math.pow(10, 0.9813 * Tpr) + (0.274 * Math.pow(Ppr, 2)) / Math.pow(10, 0.8157 * Tpr);
+  if (Number.isFinite(zPapay) && zPapay > 0.2 && zPapay < 2.5) {
+    return Math.round(zPapay * 10000) / 10000;
+  }
+
+  throw new Error(`CÃ¡lculo do fator Z (Hall-Yarborough / Papay) nÃ£o convergiu para P=${pressure} psia, T=${tempF}Â°F.`);
+}
+
+/**
+ * Calculates comprehensive PVT properties
+ */
+export function calculatePVT(input: PVTInput): PVTResults {
+  const { pressure, temperature, gammaG, api = 35, gor = 600 } = input;
+  if (!Number.isFinite(pressure) || pressure <= 0) {
+    throw new Error('A pressÃ£o deve ser um nÃºmero finito estritamente positivo (> 0 psia).');
+  }
+  if (!Number.isFinite(temperature) || temperature < -459.67) {
+    throw new Error('A temperatura nÃ£o pode ser inferior ao zero absoluto (-459.67Â°F).');
+  }
+  const safePressure = pressure;
+  const safeTemp = temperature;
+  const safeGammaG = Math.max(0.4, Math.min(2.0, gammaG || 0.7));
+  const safeApi = Math.max(5, Math.min(70, api));
+  const safeGor = Math.max(0, gor);
+
+  const z = calculateZFactor(safePressure, safeTemp, safeGammaG);
+  const tempR = safeTemp + 459.67;
+
+  // Gas Formation Volume Factor: Bg = 0.02827 * Z * T / P (res bbl / scf)
+  const bg = (0.02827 * z * tempR) / safePressure;
+
+  // Bubble Point Pressure (Standing correlation)
+  const pb = 18.2 * (Math.pow(safeGor / safeGammaG, 0.83) * Math.pow(10, 0.00091 * safeTemp - 0.0125 * safeApi) - 1.4);
+  const effectivePb = Math.max(100, Number.isFinite(pb) ? pb : 100);
+
+  // Solution GOR (Rs)
+  const rs = safePressure < effectivePb
+    ? safeGammaG * Math.pow((safePressure / 18.2 + 1.4) * Math.pow(10, 0.0125 * safeApi - 0.00091 * safeTemp), 1.2048)
+    : safeGor;
+
+  // Oil Formation Volume Factor (Bo - Standing correlation)
+  const f = rs * Math.sqrt(safeGammaG / (141.5 / (safeApi + 131.5))) + 1.25 * safeTemp;
+  const boAtPb = 0.9759 + 0.00012 * Math.pow(f, 1.2);
+  const bo = safePressure < effectivePb
+    ? 0.9759 + 0.00012 * Math.pow(rs * Math.sqrt(safeGammaG / (141.5 / (safeApi + 131.5))) + 1.25 * safeTemp, 1.2)
+    : boAtPb * Math.exp(-1.5e-5 * (safePressure - effectivePb));
+
+  // Dead oil viscosity (Beggs-Robinson)
+  const x = Math.pow(Math.max(1, safeTemp), -1.163) * Math.exp(6.9824 - 0.04658 * safeApi);
+  const viscDead = Math.max(0.01, Math.pow(10, x) - 1);
+
+  // Saturated oil viscosity
+  const aVisc = 10.715 * Math.pow(rs + 100, -0.515);
+  const bVisc = 5.44 * Math.pow(rs + 150, -0.338);
+  const viscSat = aVisc * Math.pow(viscDead, bVisc);
+
+  // Under-saturated oil viscosity
+  const oilViscosity = safePressure > effectivePb
+    ? viscSat * Math.pow(safePressure / effectivePb, 2.6 * Math.pow(safePressure, 1.187) * Math.exp(-11.513 - 8.98e-5 * safePressure))
+    : viscSat;
+
+  // Gas Viscosity (Lee-Gonzalez-Eakin correlation)
+  const Mg = 28.96 * safeGammaG;
+  const rhoG = (1.495e-3 * safePressure * Mg) / (z * tempR); // g/cm3
+  const K = ((9.4 + 0.02 * Mg) * Math.pow(tempR, 1.5)) / (209 + 19 * Mg + tempR);
+  const X_coeff = 3.5 + 986 / tempR + 0.01 * Mg;
+  const Y_coeff = 2.4 - 0.2 * X_coeff;
+  const gasViscosity = (1e-4 * K * Math.exp(X_coeff * Math.pow(rhoG, Y_coeff)));
+
+  // Oil density in lb/cu ft
+  const gammaO = 141.5 / (safeApi + 131.5);
+  const oilDensity = (62.4 * gammaO + 0.0136 * rs * safeGammaG) / Math.max(0.5, bo);
+
+  return {
+    zFactor: z,
+    bg: Number(bg.toFixed(6)),
+    bo: Number(bo.toFixed(4)),
+    rs: Number(Math.max(0, rs).toFixed(1)),
+    pb: Number(effectivePb.toFixed(1)),
+    oilViscosity: Number((Number.isFinite(oilViscosity) ? Math.max(0.1, oilViscosity) : 1.2).toFixed(3)),
+    gasViscosity: Number((Number.isFinite(gasViscosity) ? Math.max(0.008, gasViscosity) : 0.015).toFixed(4)),
+    oilDensity: Number((Number.isFinite(oilDensity) ? oilDensity : 50).toFixed(2)),
+  };
+}
+
+// ==========================================
+// 2. DECLINE CURVE ANALYSIS (DCA)
+// ==========================================
+
+export interface DCAParams {
+  qi: number; // initial rate (bbl/d)
+  di: number; // nominal decline (1/time unit)
+  b: number; // Arps b-factor (0=exp, 0<b<1=hyperbolic, 1=harmonic)
+  model: 'exponential' | 'hyperbolic' | 'harmonic' | 'duong';
+  duongA?: number;
+  duongM?: number;
+}
+
+export interface DCAPoint {
+  time: number;
+  rate: number;
+  cum: number;
+  actual?: number;
+}
+
+export function generateDCACurve(params: DCAParams, steps: number = 24): DCAPoint[] {
+  const { qi, di, b, model, duongA = 1.2, duongM = 1.1 } = params;
+  const points: DCAPoint[] = [];
+  let cum = 0;
+
+  for (let t = 1; t <= steps; t++) {
+    let q = 0;
+    if (model === 'exponential') {
+      q = qi * Math.exp(-di * (t - 1));
+    } else if (model === 'hyperbolic') {
+      // Support b > 1 for unconventional/fractured shale reservoirs (ENG-28)
+      const bFactor = b > 0 ? b : 0.5;
+      q = qi / Math.pow(1 + bFactor * di * (t - 1), 1 / bFactor);
+    } else if (model === 'harmonic') {
+      q = qi / (1 + di * (t - 1));
+    } else if (model === 'duong') {
+      // Duong tight/shale decline: q(t) = q1 * t^(-m) * exp(a/(1-m) * (t^(1-m) - 1))
+      const a = duongA;
+      const m = duongM;
+      if (m === 1) {
+        q = qi * Math.pow(t, -1) * Math.exp(a * Math.log(t));
+      } else {
+        const exponent = (a / (1 - m)) * (Math.pow(t, 1 - m) - 1);
+        q = qi * Math.pow(t, -m) * Math.exp(exponent);
+      }
+    }
+
+    q = Math.max(1, Math.round(q * 10) / 10);
+    cum += q * 30.4375; // Monthly cumulative in barrels
+    points.push({
+      time: t,
+      rate: q,
+      cum: Math.round(cum),
+    });
+  }
+
+  return points;
+}
+
+// ==========================================
+// 3. NODAL ANALYSIS (IPR vs VLP)
+// ==========================================
+
+export interface NodalInput {
+  pRes: number; // Reservoir pressure (psia)
+  qMax: number; // Max potential flow rate AOF (STB/d)
+  pWh: number; // Wellhead pressure (psia)
+  depth: number; // Well depth (ft)
+  tubingId: number; // Tubing inner diameter (inches, e.g. 2.875)
+  waterCut: number; // Water cut (0 to 1)
+  gor: number; // GOR (scf/STB)
+}
+
+export interface NodalPoint {
+  q: number;
+  p_ipr: number;
+  p_vlp: number;
+}
+
+export function solveNodal(input: NodalInput): {
+  curves: NodalPoint[];
+  operatingPoint: { q: number; p: number } | null;
+} {
+  const { pRes, qMax, pWh, depth, tubingId = 2.875, waterCut = 0.2, gor = 500 } = input;
+  const safePRes = Math.max(100, pRes || 1000);
+
+=== backend/app/main.py ===
+import logging
+
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
+from .api import (
+    chart_routes,
+    engine_routes,
+    petrophysics_routes,
+    production_routes,
+    pvt_routes,
+    simulation_routes,
+    workflow_routes,
+)
+
+
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+
+
+from app.api.reservoir_routes import router as reservoir_router
+
+app = FastAPI(title="PetroLumen API", version="0.1.0")
+app.include_router(simulation_routes.router, prefix="/api")
+app.include_router(engine_routes.router, prefix="/api")
+app.include_router(production_routes.router, prefix="/api")
+app.include_router(petrophysics_routes.router, prefix="/api")
+app.include_router(pvt_routes.router, prefix="/api")
+app.include_router(chart_routes.router, prefix="/api")
+app.include_router(workflow_routes.router, prefix="/api")
+
+
+@app.get("/health", response_model=HealthResponse)
+async def health():
+    return {"status": "ok", "version": app.version}
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception(request, exc):
+    logging.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url='/docs')
+
+
+app.include_router(reservoir_router)
+
+from app.api.reservoir_routes_ch5_9_13 import router as reservoir_2_router
+app.include_router(reservoir_2_router)
+
+from app.api.reservoir_routes_pvt import router as reservoir_pvt_router
+app.include_router(reservoir_pvt_router)

@@ -1,0 +1,258 @@
+=== vite.config.ts ===
+/// <reference types="vitest" />
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'recharts', 'lucide-react'],
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 3000,
+    allowedHosts: true,
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.ts'],
+    css: false,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/recharts')) {
+            return 'vendor-charts';
+          }
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+            return 'vendor-pdf';
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+        },
+      },
+    },
+  },
+});
+
+=== package.json (scripts + deps) ===
+{
+    "name":  "petrolumen",
+    "private":  true,
+    "version":  "1.0.0",
+    "type":  "module",
+    "scripts":  {
+                    "dev":  "vite --host 0.0.0.0 --port 3000",
+                    "build":  "tsc \u0026\u0026 vite build",
+                    "lint":  "tsc --noEmit",
+                    "test":  "npx tsx src/testRunner.ts \u0026\u0026 vitest run",
+                    "test:benchmarks":  "npx tsx src/testRunner.ts",
+                    "test:unit":  "vitest run",
+                    "typecheck":  "tsc --noEmit",
+                    "preview":  "vite preview --port 3000",
+                    "package":  "npm run build \u0026\u0026 powershell -Command \"Compress-Archive -Path dist/* -DestinationPath petrolumen-release.zip -Force\"",
+                    "tree":  "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Update-Tree.ps1",
+                    "tree:watch":  "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Watch-Tree.ps1"
+                },
+    "dependencies":  {
+                         "clsx":  "^2.1.1",
+                         "html2canvas":  "^1.4.1",
+                         "jspdf":  "^4.2.1",
+                         "lucide-react":  "^0.469.0",
+                         "react":  "^18.3.1",
+                         "react-dom":  "^18.3.1",
+                         "recharts":  "^2.15.0",
+                         "tailwind-merge":  "^2.6.0"
+                     },
+    "overrides":  {
+                      "dompurify":  "^3.2.4"
+                  },
+    "devDependencies":  {
+                            "@testing-library/jest-dom":  "^7.0.1",
+                            "@testing-library/react":  "^16.3.3",
+                            "@types/node":  "^22.10.7",
+                            "@types/react":  "^18.3.18",
+                            "@types/react-dom":  "^18.3.5",
+                            "@vitejs/plugin-react":  "^4.3.4",
+                            "autoprefixer":  "^10.4.20",
+                            "jsdom":  "^29.1.1",
+                            "postcss":  "^8.4.49",
+                            "tailwindcss":  "^3.4.17",
+                            "typescript":  "^5.7.3",
+                            "vite":  "^6.0.7",
+                            "vitest":  "^5.0.5"
+                        }
+}
+
+=== src/ tree (depth 2) ===
+src\App.tsx
+src\index.css
+src\main.tsx
+src\setupTests.ts
+src\testRunner.ts
+src\vite-env.d.ts
+src\components\DocumentationModal.tsx
+src\components\ErrorBoundary.tsx
+src\components\Header.tsx
+src\components\Sidebar.tsx
+src\components\ui\alert.tsx
+src\components\ui\badge.tsx
+src\components\ui\button.tsx
+src\components\ui\card.tsx
+src\components\ui\input.tsx
+src\components\ui\label.tsx
+src\components\ui\LoadingSkeleton.tsx
+src\components\ui\ProvenanceBadge.tsx
+src\components\ui\select.tsx
+src\components\ui\skeleton.tsx
+src\components\ui\tabs.tsx
+src\components\visualizations\AirGasView.tsx
+src\components\visualizations\CasingAndDirectionalView.tsx
+src\components\visualizations\CementingView.tsx
+src\components\visualizations\CompletionsView.tsx
+src\components\visualizations\ConnectorsView.tsx
+src\components\visualizations\DashboardOverview.tsx
+src\components\visualizations\DeclineCurveAnalysis.tsx
+src\components\visualizations\DrillingFluidsView.tsx
+src\components\visualizations\DrillingHydraulicsView.tsx
+src\components\visualizations\EconomicsView.tsx
+src\components\visualizations\FieldBasicView.tsx
+src\components\visualizations\FlowingMaterialBalanceView.tsx
+src\components\visualizations\MLDashboardView.tsx
+src\components\visualizations\NodalAnalysisView.tsx
+src\components\visualizations\PVTCalculator.tsx
+src\components\visualizations\ReservoirGrid3D.tsx
+src\components\visualizations\ReservoirSimulationView.tsx
+src\components\visualizations\RigLoadsView.tsx
+src\components\visualizations\RigOperationsView.tsx
+src\components\visualizations\StuckPipeView.tsx
+src\components\visualizations\SurfaceFacilitiesView.tsx
+src\components\visualizations\TankCapacityView.tsx
+src\components\visualizations\TonMilesView.tsx
+src\components\visualizations\WellControlView.tsx
+src\components\visualizations\WellDataViewer.tsx
+src\components\__tests__\ErrorBoundary.spec.tsx
+src\lib\drillingMath.ts
+src\lib\facilitiesMath.ts
+src\lib\i18n.tsx
+src\lib\lasParser.ts
+src\lib\reservoirMath.ts
+src\lib\sessionRegistry.tsx
+src\lib\unitContext.tsx
+src\lib\units.ts
+src\lib\utils.ts
+src\lib\drilling\airGas.ts
+src\lib\drilling\bitsAndPower.ts
+src\lib\drilling\casingDesign.ts
+src\lib\drilling\cements.ts
+src\lib\drilling\completions.ts
+src\lib\drilling\coreAnalysis.ts
+src\lib\drilling\directional.ts
+src\lib\drilling\directionalCarter.ts
+src\lib\drilling\fluids.ts
+src\lib\drilling\formationPressure.ts
+src\lib\drilling\hydraulics.ts
+src\lib\drilling\hydraulicsBourgoyne.ts
+src\lib\drilling\rigLoads.ts
+src\lib\drilling\rigOperations.ts
+src\lib\drilling\ropCarter.ts
+src\lib\drilling\stuckPipe.ts
+src\lib\drilling\surface.ts
+src\lib\drilling\tonMiles.ts
+src\lib\drilling\volumes.ts
+src\lib\drilling\wellControl.ts
+src\lib\drilling\wellControlAdv.ts
+src\lib\examples\defaultWell.ts
+src\lib\facilities\oilTreating.ts
+src\lib\facilities\processSelection.ts
+src\lib\facilities\pvtProperties.ts
+src\lib\facilities\settling.ts
+src\lib\facilities\tankCapacity.ts
+src\lib\facilities\threePhaseSeparation.ts
+src\lib\facilities\twoPhaseSeparation.ts
+src\lib\facilities\vesselDesign.ts
+src\lib\facilities\waterTreating.ts
+src\lib\field\basic.ts
+src\lib\field\constants.ts
+src\lib\math\constants.ts
+src\lib\math\engine.ts
+src\lib\math\rounding.ts
+src\lib\math\solvers.ts
+src\lib\math\tables.ts
+src\lib\pvt\sanitize.ts
+src\lib\__tests__\lasParser.spec.ts
+src\lib\__tests__\pvt.spec.ts
+src\lib\__tests__\sessionRegistry.spec.tsx
+src\lib\__tests__\units.spec.ts
+
+=== src/ API calls (fetch/axios/vite env vars) ===
+src\components\ErrorBoundary.tsx:37: *  - In development mode (`import.meta.env.DEV`) the React component stack
+src\components\ErrorBoundary.tsx:78: const isDev = import.meta.env.DEV;
+
+=== existing IPR / vogel / nodal references in src/ ===
+src\components\visualizations\DashboardOverview.tsx:373: { id: "nodal", name: "Análise Nodal", status: "active", desc: "Curvas IPR (Vogel) vs VLP (Beggs-Brill)" },
+src\components\visualizations\DeclineCurveAnalysis.tsx:26: export default function DeclineCurveAnalysis() {
+src\components\visualizations\DeclineCurveAnalysis.tsx:33: const [di, setDi] = useState<number>(activeScenario?.parameters?.nominalDeclineRate ?? 0.08);
+src\components\visualizations\DeclineCurveAnalysis.tsx:44: if (p.nominalDeclineRate) setDi(p.nominalDeclineRate);
+src\components\visualizations\DeclineCurveAnalysis.tsx:52: nominalDeclineRate: di,
+src\components\visualizations\NodalAnalysisView.tsx:17: import { solveNodal, NodalInput } from "@/lib/reservoirMath";
+src\components\visualizations\NodalAnalysisView.tsx:20: export default function NodalAnalysisView() {
+src\components\visualizations\NodalAnalysisView.tsx:30: return solveNodal({
+src\components\visualizations\NodalAnalysisView.tsx:47: Análise Nodal de Produção (IPR vs VLP)
+src\components\visualizations\NodalAnalysisView.tsx:50: Intersecção de curvas de influxo do reservatório (Vogel / Darcy) com a performance de elevação na coluna (Beggs & Brill).
+src\components\visualizations\NodalAnalysisView.tsx:68: <p className="text-xs text-muted-foreground mt-1">Interseção natural IPR / VLP</p>
+src\components\visualizations\NodalAnalysisView.tsx:94: <Label htmlFor="nodal-pres">Pressão Estática do Reservatório (psia)</Label>
+src\components\visualizations\NodalAnalysisView.tsx:96: id="nodal-pres"
+src\components\visualizations\NodalAnalysisView.tsx:104: <Label htmlFor="nodal-qmax">Potencial de Fluxo Aberto AOF (STB/d)</Label>
+src\components\visualizations\NodalAnalysisView.tsx:106: id="nodal-qmax"
+src\components\visualizations\NodalAnalysisView.tsx:114: <Label htmlFor="nodal-pwh">Pressão na Cabeça do Poço - Wellhead (psia)</Label>
+src\components\visualizations\NodalAnalysisView.tsx:116: id="nodal-pwh"
+src\components\visualizations\NodalAnalysisView.tsx:124: <Label htmlFor="nodal-depth">Profundidade Verdadeira TVD (ft)</Label>
+src\components\visualizations\NodalAnalysisView.tsx:126: id="nodal-depth"
+src\components\visualizations\NodalAnalysisView.tsx:134: <Label htmlFor="nodal-tubing">Diâmetro Interno da Coluna (pol)</Label>
+src\components\visualizations\NodalAnalysisView.tsx:136: id="nodal-tubing"
+src\components\visualizations\NodalAnalysisView.tsx:146: <Label htmlFor="nodal-bsw">Water Cut (BSW fracionário)</Label>
+src\components\visualizations\NodalAnalysisView.tsx:148: id="nodal-bsw"
+src\components\visualizations\NodalAnalysisView.tsx:178: {/* Nodal Chart */}
+src\components\visualizations\NodalAnalysisView.tsx:181: <CardTitle className="text-base font-semibold">Gráfico IPR vs VLP (Ponto de Equilíbrio)</CardTitle>
+src\components\visualizations\NodalAnalysisView.tsx:203: dataKey="p_ipr"
+src\components\visualizations\NodalAnalysisView.tsx:206: name="IPR (Inflow - Vogel)"
+src\components\Sidebar.tsx:225: id: "nodal",
+src\components\Sidebar.tsx:226: nameKey: "Análise Nodal",
+src\components\Sidebar.tsx:227: defaultName: "Análise Nodal",
+src\components\Sidebar.tsx:229: descriptionKey: "Curvas IPR vs VLP e Ponto Ótimo",
+src\components\Sidebar.tsx:230: defaultDescription: "Curvas IPR vs VLP e Ponto Ótimo",
+src\lib\drilling\__tests__\cormackGoldenTests.ts:141: const tripResult = trippingPressureLoss(tripMW, tripDisp, tripCasingCap, tripStandLen, tripNumStands);
+src\lib\drilling\__tests__\cormackGoldenTests.ts:142: const tripPassed = Math.abs(tripResult.totalDeltaP - 469) <= 1;
+src\lib\drilling\__tests__\cormackGoldenTests.ts:149: actual: `${tripResult.totalDeltaP} psi (Gradiente: ${tripResult.deltaPPerFt} psi/ft)`,
+src\lib\examples\defaultWell.ts:9: reservoirPressure: 3500,     // psia (reconciled across PVT, Nodal, Simulation)
+src\lib\facilities\processSelection.ts:13: recommendedCompressorType: "Reciprocating" | "Centrifugal";
+src\lib\facilities\processSelection.ts:45: let compressorType: "Reciprocating" | "Centrifugal" = "Reciprocating";
+src\lib\reservoirMath.ts:3: * Provides standard industry correlations (Standing, Hall-Yarborough, Beggs-Brill, Vogel, Arps, Duong)
+src\lib\reservoirMath.ts:177: // 2. DECLINE CURVE ANALYSIS (DCA)
+
+=== .env files at root ===
+--- .env.example ---
+ACCESS_TOKEN_EXPIRE_MINUTES=
+API_HOST=
+API_PORT=
+DATA_CACHE_DIR=
+DEBUG_MODE=
+GEOLOGICAL_DATA_DIR=
+MAX_UPLOAD_SIZE=
+NEXT_PUBLIC_API_BASE_URL=
+RESERVOIR_MODELS_DIR=
+SECRET_KEY=
+SIMULATION_MAX_WORKERS=
+TAURI_ENV=

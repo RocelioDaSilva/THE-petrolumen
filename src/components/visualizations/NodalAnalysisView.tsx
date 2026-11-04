@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { solveNodal, NodalInput } from "@/lib/reservoirMath";
-import { Gauge, CheckCircle, ArrowRight, Zap, RefreshCw } from "lucide-react";
+import { NodalPoint, computeVlp } from "@/lib/reservoirMath";
+import { vogel, vogelCurve } from "@/lib/api";
+import { Gauge, CheckCircle, ArrowRight, Zap, RefreshCw, Cloud } from "lucide-react";
 
 export default function NodalAnalysisView() {
   const [pRes, setPRes] = useState<number>(3400); // psia
@@ -25,18 +26,84 @@ export default function NodalAnalysisView() {
   const [tubingId, setTubingId] = useState<number>(2.875); // inches
   const [waterCut, setWaterCut] = useState<number>(0.25);
   const [gor, setGor] = useState<number>(600); // scf/STB
+  const [verifyState, setVerifyState] = useState<{ loading: boolean; result?: { pwf: number; q_local: number; q_backend: number; delta: number }; error?: string }>({ loading: false });
 
-  const { curves, operatingPoint } = useMemo(() => {
-    return solveNodal({
-      pRes,
-      qMax,
-      pWh,
-      depth,
-      tubingId,
-      waterCut,
-      gor,
-    });
+  const [curves, setCurves] = useState<NodalPoint[]>([]);
+  const [operatingPoint, setOperatingPoint] = useState<{ q: number; p: number } | null>(null);
+  const [iprSource, setIprSource] = useState<"backend" | "local">("backend");
+  const [iprLoading, setIprLoading] = useState<boolean>(true);
+  const [iprError, setIprError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIprLoading(true);
+    setIprError(null);
+    (async () => {
+      try {
+        const nPoints = 25;
+        let iprPoints: { q: number; pwf: number }[];
+        let source: "backend" | "local" = "backend";
+        try {
+          const res = await vogelCurve({ qmax: qMax, pbar: pRes, n_points: nPoints });
+          iprPoints = res.points;
+        } catch (e: any) {
+          console.warn("Backend IPR failed, using local fallback:", e);
+          source = "local";
+          const dq = qMax / (nPoints - 1);
+          iprPoints = Array.from({ length: nPoints }, (_, i) => {
+            const q = i * dq;
+            const ratio = Math.min(0.999, q / qMax);
+            const pwf = Math.max(0, 0.125 * pRes * (-1 + Math.sqrt(81 - 80 * ratio)));
+            return { q, pwf };
+          });
+        }
+        if (cancelled) return;
+        const merged: NodalPoint[] = iprPoints.map(({ q, pwf }) => ({
+          q: Math.round(q),
+          p_ipr: Math.round(pwf),
+          p_vlp: Math.round(computeVlp(q, pWh, depth, tubingId, waterCut, gor)),
+        }));
+        let bestDiff = Infinity;
+        let op: { q: number; p: number } | null = null;
+        const safePWh = Math.max(0, pWh || 100);
+        for (const pt of merged) {
+          const diff = Math.abs(pt.p_ipr - pt.p_vlp);
+          if (diff < bestDiff && pt.p_ipr > safePWh) {
+            bestDiff = diff;
+            op = { q: pt.q, p: Math.round((pt.p_ipr + pt.p_vlp) / 2) };
+          }
+        }
+        setCurves(merged);
+        setOperatingPoint(op);
+        setIprSource(source);
+      } catch (e: any) {
+        if (!cancelled) setIprError(e?.detail ?? String(e));
+      } finally {
+        if (!cancelled) setIprLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [pRes, qMax, pWh, depth, tubingId, waterCut, gor]);
+
+  const handleVerify = async () => {
+    setVerifyState({ loading: true });
+    try {
+      const pTest = Math.round(pRes / 2);
+      const res = await vogel({ qmax: qMax, pwf: pTest, pbar: pRes });
+      let qLocal: number | null = null;
+      for (let i = 0; i < curves.length - 1; i++) {
+        const a = curves[i], b = curves[i + 1];
+        if ((a.p_ipr - pTest) * (b.p_ipr - pTest) <= 0 && b.p_ipr !== a.p_ipr) {
+          const t = (pTest - a.p_ipr) / (b.p_ipr - a.p_ipr);
+          qLocal = a.q + t * (b.q - a.q);
+          break;
+        }
+      }
+      setVerifyState({ loading: false, result: { pwf: pTest, q_local: qLocal ?? NaN, q_backend: res.q, delta: qLocal != null ? Math.abs(res.q - qLocal) : NaN } });
+    } catch (e: any) {
+      setVerifyState({ loading: false, error: e?.detail ?? String(e) });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -82,6 +149,32 @@ export default function NodalAnalysisView() {
           <p className="text-xs text-muted-foreground mt-1">Pressão Reservatório: {pRes} psia</p>
         </Card>
       </div>
+
+{/* Backend Verification */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Cloud className="w-4 h-4 text-primary" />
+            Verificação com Backend (ppes)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button size="sm" onClick={handleVerify} disabled={verifyState.loading}>
+              {verifyState.loading ? "Verificando..." : "Verificar IPR no Backend"}
+            </Button>
+            {verifyState.result && (
+              <div className="text-xs font-mono space-x-3">
+                <span className="text-muted-foreground">pwf={verifyState.result.pwf} psia</span>
+                <span className="text-emerald-600">q_local={Number.isFinite(verifyState.result.q_local) ? verifyState.result.q_local.toFixed(2) : "N/A"}</span>
+                <span className="text-blue-600">q_backend={verifyState.result.q_backend.toFixed(2)}</span>
+                <span className={verifyState.result.delta < 0.01 ? "text-emerald-600" : "text-amber-600"}>Delta={Number.isFinite(verifyState.result.delta) ? verifyState.result.delta.toFixed(4) : "N/A"}</span>
+              </div>
+            )}
+            {verifyState.error && (<span className="text-xs text-red-600">Erro: {verifyState.error}</span>)}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Controls */}

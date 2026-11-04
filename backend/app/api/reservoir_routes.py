@@ -68,6 +68,36 @@ def api_vogel(req: VogelRequest):
 # ---------------------------------------------------------------------------
 # Chapter 2 — z-factor from gas specific gravity
 # ---------------------------------------------------------------------------
+class VogelCurveRequest(BaseModel):
+    qmax: float = Field(..., gt=0, description="Maximum rate [stb/day]")
+    pbar: float = Field(..., gt=0, description="Average reservoir pressure [psia]")
+    n_points: int = Field(25, ge=2, le=1000, description="Sweep points")
+
+
+class VogelCurvePoint(BaseModel):
+    q: float
+    pwf: float
+
+
+class VogelCurveResponse(BaseModel):
+    points: list[VogelCurvePoint]
+    method: str = "vogel_eq_3_19_inverse"
+
+
+@router.post("/vogel/curve", response_model=VogelCurveResponse)
+def api_vogel_curve(req: VogelCurveRequest):
+    """Chapter 3 - batch Vogel IPR sweep (q -> pwf, closed-form inverse)."""
+    n = req.n_points
+    dq = req.qmax / (n - 1)
+    pts = []
+    for i in range(n):
+        q = i * dq
+        ratio = min(0.999, q / req.qmax)
+        pwf = max(0.0, 0.125 * req.pbar * (-1.0 + (81.0 - 80.0 * ratio) ** 0.5))
+        pts.append(VogelCurvePoint(q=round(q, 2), pwf=round(pwf, 2)))
+    return VogelCurveResponse(points=pts)
+
+
 class ZFactorRequest(BaseModel):
     p: float = Field(..., gt=0, description="Pressure [psia]")
     t_F: float = Field(..., description="Temperature [F]")
