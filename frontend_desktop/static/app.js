@@ -65,21 +65,116 @@ const tools = [
     ]
   },
   {
+    id: "las-parse",
+    group: "PETROPHYSICS",
+    title: "LAS Parse",
+    endpoint: "/api/petrophysics/las/parse",
+    chartMode: null,
+    isUpload: true,
+    fields: [
+      { name: "file", type: "file", label: "LAS File (.las)", accept: ".las" }
+    ]
+  },
+  {
+    id: "economics",
+    group: "PRODUCTION",
+    title: "Production Economics",
+    endpoint: "/api/engine/production/economics",
+    chartMode: null,
+    fields: [
+      { name: "oil_price", type: "number", label: "Oil price ($/bbl)", value: 70.0, step: "any" },
+      { name: "gas_price", type: "number", label: "Gas price ($/Mscf)", value: 3.0, step: "any" },
+      { name: "discount_rate", type: "number", label: "Discount rate (%)", value: 10.0, step: "any" },
+      { name: "project_life", type: "number", label: "Project life (years)", value: 5, step: 1 },
+      { name: "capex", type: "json", label: "CAPEX breakdown · object<string, number>", value: { drilling: 1000000, facilities: 500000 } },
+      { name: "opex", type: "json", label: "Annual OPEX breakdown · object<string, number>", value: { fixed_opex: 50000, variable_opex: 25000 } },
+      { name: "tax_rate", type: "number", label: "Tax rate (fraction 0-1)", value: 0.34, step: "any" },
+      { name: "water_disposal_cost_per_bbl", type: "number", label: "Water disposal cost ($/bbl)", value: 1.5, step: "any" },
+      { name: "oil_production", type: "json", label: "Annual oil production (bbl/yr) · number[]", value: [100000, 80000, 60000, 45000, 30000] },
+      { name: "gas_production", type: "json", label: "Annual gas production (Mscf/yr) · number[]", value: [500000, 400000, 300000, 200000, 100000] },
+      { name: "water_production", type: "json", label: "Annual water production (bbl/yr) · number[]", value: [20000, 30000, 40000, 50000, 60000] }
+    ]
+  },
+  {
+    id: "facies",
+    group: "PETROPHYSICS",
+    title: "Facies Classification",
+    endpoint: "/api/engine/petrophysics/facies/classify",
+    chartMode: null,
+    fields: [
+      {
+        name: "predict_data",
+        type: "json",
+        label: "Predict log intervals · FaciesLogRecord[]",
+        value: [
+          { gamma: 38.0, resistivity: 135.0, density: 2.64, porosity: 0.10, depth: 2100.0 },
+          { gamma: 68.0, resistivity: 42.0, density: 2.53, porosity: 0.17, depth: 2101.0 },
+          { gamma: 125.0, resistivity: 5.2, density: 2.38, porosity: 0.24, depth: 2102.0 },
+          { gamma: 22.0, resistivity: 240.0, density: 2.70, porosity: 0.06, depth: 2103.0 }
+        ]
+      },
+      {
+        name: "training_data",
+        type: "json",
+        label: "Custom training data (optional) · LabeledFaciesLogRecord[]",
+        value: null,
+        optional: true
+      },
+      { name: "n_estimators", type: "number", label: "Random Forest estimators", value: 100, step: 1 }
+    ]
+  },
+  {
+    id: "mbal",
+    group: "PVT",
+    title: "PVT Material Balance",
+    endpoint: "/api/engine/pvt/mbal",
+    chartMode: null,
+    fields: [
+      { name: "reservoir_type", type: "select", label: "Reservoir fluid type", value: "gas", options: ["oil", "gas"] },
+      { name: "pressure_history", type: "json", label: "Pressure history (psia) · number[]", value: [4000.0, 3200.0] },
+      {
+        name: "production_history",
+        type: "json",
+        label: "Production history · ProductionPointInput[]",
+        value: [{ oil_prod: 0.0, gas_prod: 5000000.0, water_prod: 100.0 }]
+      },
+      {
+        name: "pvt_data",
+        type: "json",
+        label: "PVT table data (optional) · PvtPointInput[]",
+        value: [
+          { pressure: 3200.0, bo: 1.0, bg: 0.0011, rs: 0.0, z: 0.84 },
+          { pressure: 4000.0, bo: 1.0, bg: 0.00082, rs: 0.0, z: 0.89 }
+        ],
+        optional: true
+      },
+      { name: "m", type: "number", label: "Gas cap ratio m", value: 0.0, step: "any" },
+      { name: "We", type: "number", label: "Water influx We (bbl)", value: 500.0, step: "any" },
+      { name: "Wp", type: "number", label: "Water production Wp (STB)", value: 100.0, step: "any" },
+      { name: "Gp", type: "number", label: "Gas production Gp (Mscf)", value: 0.0, step: "any" },
+      { name: "Bw", type: "number", label: "Water FVF Bw", value: 1.0, step: "any" },
+      { name: "cw", type: "number", label: "Water compressibility cw (1/psi)", value: 3.0e-6, step: "any" },
+      { name: "cf", type: "number", label: "Rock compressibility cf (1/psi)", value: 3.0e-6, step: "any" },
+      { name: "Swi", type: "number", label: "Connate water saturation Swi", value: 0.2, step: "any" }
+    ]
+  },
+  {
     id: "black-oil",
     group: "SIMULATION",
     title: "Simulate Black-Oil",
     endpoint: "/api/simulate/black-oil",
+    chartMode: null,
     fields: [
-      { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 20, ny: 20, nz: 5, dx: 100, dy: 100, dz: 20 } },
-      { name: "porosity", type: "json", label: "Porosity · number[]", value: new Array(2000).fill(0.22) },
-      { name: "permeability", type: "json", label: "Permeability · number[]", value: new Array(2000).fill(250) },
-      { name: "rock_compressibility", type: "number", label: "Rock compressibility", value: 0, step: "any" },
-      { name: "fluid_properties", type: "json", label: "Fluid properties · object<string, positive number>", value: { water_viscosity: 1.5, oil_viscosity: 3.2, gas_viscosity: 0.02 } },
-      { name: "initial_pressure", type: "number", label: "Initial pressure · positive", value: 4800, step: "any" },
-      { name: "initial_water_saturation", type: "json", label: "Initial water saturation · number[]", value: new Array(2000).fill(0.28) },
-      { name: "initial_gas_saturation", type: "json", label: "Initial gas saturation · number[]", value: new Array(2000).fill(0.05) },
-      { name: "wells", type: "json", label: "Wells · WellInput[]", value: [] },
-      { name: "timesteps", type: "json", label: "Timesteps · positive number[]", value: Array.from({ length: 30 }, (_, index) => index + 1) }
+      { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 2, ny: 2, nz: 1, dx: 50, dy: 50, dz: 10 } },
+      { name: "porosity", type: "json", label: "Porosity · number[] (length nx*ny*nz)", value: [0.2, 0.2, 0.2, 0.2] },
+      { name: "permeability", type: "json", label: "Permeability · number[] (length nx*ny*nz)", value: [100, 100, 100, 100] },
+      { name: "rock_compressibility", type: "number", label: "Rock compressibility (>= 0)", value: 0, step: "any" },
+      { name: "fluid_properties", type: "json", label: "Fluid properties · object<string, positive number>", value: { water_viscosity: 1, oil_viscosity: 2, gas_viscosity: 0.02 } },
+      { name: "initial_pressure", type: "number", label: "Initial pressure (Pa) · positive", value: 3000, step: "any" },
+      { name: "initial_water_saturation", type: "json", label: "Initial water saturation · number[] (0-1)", value: [0.2, 0.2, 0.2, 0.2] },
+      { name: "initial_gas_saturation", type: "json", label: "Initial gas saturation · number[] (0-1)", value: [0, 0, 0, 0] },
+      { name: "wells", type: "json", label: "Wells · WellInput[] (optional)", value: [] },
+      { name: "timesteps", type: "json", label: "Timesteps · positive number[]", value: [1] }
     ]
   },
   {
@@ -88,7 +183,7 @@ const tools = [
     title: "Simulate Compositional",
     endpoint: "/api/simulate/compositional",
     disabled: true,
-    disabledNote: "Solver not yet implemented (backend returns 501).",
+    disabledNote: "Solver not implemented on backend (endpoint /api/simulate/compositional returns 501 Not Implemented).",
     fields: [
       { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 1, ny: 1, nz: 1, dx: 50, dy: 50, dz: 10 } },
       { name: "components", type: "json", label: "Components · ComponentInput[]", value: [{ name: "methane", mw: 16.043, tc: 190.56, pc: 4599000, omega: 0.011 }] },
@@ -104,7 +199,7 @@ const tools = [
     title: "Simulate Thermal",
     endpoint: "/api/simulate/thermal",
     disabled: true,
-    disabledNote: "Solver not yet implemented (backend returns 501).",
+    disabledNote: "Solver not implemented on backend (endpoint /api/simulate/thermal returns 501 Not Implemented).",
     fields: [
       { name: "grid", type: "json", label: "Grid · GridInput", value: { nx: 1, ny: 1, nz: 1, dx: 50, dy: 50, dz: 10 } },
       { name: "components", type: "json", label: "Components · ComponentInput[]", value: [{ name: "methane", mw: 16.043, tc: 190.56, pc: 4599000, omega: 0.011 }] },
@@ -117,237 +212,3 @@ const tools = [
     ]
   }
 ];
-
-for (const tool of tools) {
-  tool.defaultValues = {};
-  for (const field of tool.fields) {
-    tool.defaultValues[field.name] = JSON.parse(JSON.stringify(field.value));
-  }
-}
-
-const nav = document.querySelector("#tool-nav");
-const form = document.querySelector("#tool-form");
-const result = document.querySelector("#result-output");
-const runButton = document.querySelector("#run-button");
-const resultModeButtons = document.querySelectorAll(".result-mode");
-let selectedTool = tools[0];
-let apiPort = window.API_PORT || null;
-let currentResultMode = "chart";
-
-function updateResultModeButtons() {
-  resultModeButtons.forEach((button) => {
-    const active = button.dataset.mode === currentResultMode;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
-}
-
-function setResultDisplay(payload) {
-  const output = document.querySelector("#result-output");
-  output.classList.toggle("chart-output", currentResultMode === "chart");
-  output.classList.toggle("json-output", currentResultMode !== "chart");
-  output.dataset.payload = JSON.stringify(payload ?? {});
-
-  if (currentResultMode === "chart") {
-    if (payload && typeof payload.image_base64 === "string") {
-      output.innerHTML = `<img src="data:${payload.content_type || "image/png"};base64,${payload.image_base64}" alt="Chart output" />`;
-    } else {
-      output.textContent = "No chart image was returned by the engine.";
-    }
-    return;
-  }
-
-  output.textContent = JSON.stringify(payload ?? {}, null, 2);
-}
-
-function showTool(tool) {
-  selectedTool = tool;
-  currentResultMode = tool.chartMode || "chart";
-  document.querySelector("#tool-group").textContent = tool.group;
-  document.querySelector("#tool-title").textContent = tool.title;
-  document.querySelector("#result-caption").textContent = `POST ${tool.endpoint}`;
-  document.querySelector("#run-status").textContent = "";
-  setResultDisplay({});
-  nav.querySelectorAll("button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.tool === tool.id);
-  });
-  form.replaceChildren();
-  runButton.disabled = false;
-  runButton.textContent = "Run";
-  updateResultModeButtons();
-
-  if (tool.disabled) {
-    const notice = document.createElement("div");
-    notice.className = "tool-disabled-notice";
-    notice.textContent = tool.disabledNote;
-    form.append(notice);
-    runButton.disabled = true;
-    runButton.textContent = "Unavailable";
-    document.querySelector("#result-output").textContent = tool.disabledNote;
-    return;
-  }
-
-  for (const field of tool.fields) {
-    const wrapper = document.createElement("label");
-    wrapper.className = "field";
-    wrapper.htmlFor = `field-${field.name}`;
-    const caption = document.createElement("span");
-    caption.textContent = field.label;
-    wrapper.append(caption);
-
-    let input;
-    if (field.type === "json") {
-      input = document.createElement("textarea");
-      input.rows = Array.isArray(field.value) ? 5 : 3;
-      input.value = field.value === null ? "" : JSON.stringify(field.value, null, 2);
-      input.dataset.valueType = "json";
-    } else if (field.type === "select") {
-      input = document.createElement("select");
-      for (const option of field.options) {
-        const element = document.createElement("option");
-        element.value = option;
-        element.textContent = option;
-        input.append(element);
-      }
-      input.value = field.value;
-    } else {
-      input = document.createElement("input");
-      input.type = field.type;
-      input.value = field.value;
-      if (field.step) input.step = field.step;
-      if (field.type === "number") input.inputMode = "decimal";
-    }
-    input.id = `field-${field.name}`;
-    input.name = field.name;
-    if (field.optional) input.placeholder = "Optional — leave blank to omit";
-    wrapper.append(input);
-    form.append(wrapper);
-  }
-
-  const resetButton = document.createElement("button");
-  resetButton.type = "button";
-  resetButton.className = "reset-button";
-  resetButton.textContent = "Reset to example";
-  resetButton.addEventListener("click", () => applyExampleValues(tool));
-  form.append(resetButton);
-}
-
-function applyExampleValues(tool) {
-  for (const field of tool.fields) {
-    const input = form.elements.namedItem(field.name);
-    if (!input) continue;
-    const value = tool.defaultValues[field.name];
-    if (field.type === "json") {
-      input.value = value === null ? "" : JSON.stringify(value, null, 2);
-    } else if (field.type === "select") {
-      input.value = value;
-    } else {
-      input.value = value;
-    }
-  }
-}
-
-function getFormData() {
-  const data = {};
-  for (const field of selectedTool.fields) {
-    const input = form.elements.namedItem(field.name);
-    if (field.optional && input.value.trim() === "") continue;
-    if (input.dataset.valueType === "json") {
-      try {
-        data[field.name] = JSON.parse(input.value);
-      } catch {
-        throw new Error(`${field.name}: enter valid JSON.`);
-      }
-    } else if (field.type === "number") {
-      data[field.name] = Number(input.value);
-    } else {
-      data[field.name] = input.value;
-    }
-  }
-  return data;
-}
-
-function formatError(body) {
-  if (Array.isArray(body?.detail)) {
-    return body.detail.map((issue) => {
-      const field = Array.isArray(issue.loc) ? issue.loc.slice(1).join(".") : "request";
-      return `${field || "request"}: ${issue.msg || "invalid value"}`;
-    }).join("\n");
-  }
-  return typeof body?.detail === "string" ? body.detail : JSON.stringify(body, null, 2);
-}
-
-async function runTool() {
-  const status = document.querySelector("#run-status");
-  const timing = document.querySelector("#response-time");
-  timing.textContent = "Response time: —";
-  status.textContent = "";
-  try {
-    if (!apiPort) throw new Error("The local API port is not available yet.");
-    const body = getFormData();
-    const endpoint = currentResultMode === "chart" && selectedTool.chartMode ? `${selectedTool.endpoint}/chart` : selectedTool.endpoint;
-    const started = performance.now();
-    const response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    const elapsedMs = Math.round(performance.now() - started);
-    const text = await response.text();
-    let payload;
-    try {
-      payload = text ? JSON.parse(text) : {};
-    } catch {
-      payload = { detail: text };
-    }
-    setResultDisplay(payload);
-    timing.textContent = `Response time: ${elapsedMs}ms`;
-    status.textContent = response.ok ? `HTTP ${response.status}` : `HTTP ${response.status} · ${formatError(payload)}`;
-    status.classList.toggle("error", !response.ok);
-  } catch (error) {
-    timing.textContent = "Response time: —";
-    status.textContent = error.message;
-    status.classList.add("error");
-    document.querySelector("#result-output").textContent = "Request was not completed.";
-  }
-}
-
-for (const tool of tools) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `nav-item${tool.disabled ? " disabled" : ""}`;
-  button.dataset.tool = tool.id;
-  button.textContent = tool.title;
-  if (tool.disabled) {
-    button.setAttribute("aria-disabled", "true");
-  }
-  button.addEventListener("click", () => {
-    if (!tool.disabled) showTool(tool);
-  });
-  nav.append(button);
-}
-
-resultModeButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    currentResultMode = button.dataset.mode;
-    updateResultModeButtons();
-    const activePayload = document.querySelector("#result-output").dataset.payload ? JSON.parse(document.querySelector("#result-output").dataset.payload) : {};
-    setResultDisplay(activePayload);
-    if (selectedTool && !selectedTool.disabled) {
-      document.querySelector("#result-caption").textContent = `POST ${selectedTool.endpoint}`;
-    }
-  });
-});
-
-runButton.addEventListener("click", runTool);
-showTool(selectedTool);
-
-window.addEventListener("pywebviewready", async () => {
-  try {
-    apiPort = await window.pywebview.api.get_port();
-    window.API_PORT = apiPort;
-    document.querySelector("#connection-status").textContent = `Local API · 127.0.0.1:${apiPort}`;
-  } catch (error) {
-    document.querySelector("#connection-status").textContent = `API bridge unavailable: ${error.message}`;
-  }
-});

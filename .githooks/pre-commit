@@ -1,0 +1,7 @@
+#!/bin/sh
+# Keeps TREE.md in sync with every commit.
+# One-time setup:  git config core.hooksPath .githooks
+#                  chmod +x .githooks/pre-commit
+echo "[pre-commit] Regenerating TREE.md..."
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/Update-Tree.ps1
+git add TREE.md

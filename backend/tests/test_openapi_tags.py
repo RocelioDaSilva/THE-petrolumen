@@ -30,3 +30,27 @@ def test_grid_endpoint_roundtrip():
     r = client.post("/api/engine/geology/grid",
                     json={"nx": 2, "ny": 2, "nz": 1, "dx": 50, "dy": 50, "dz": 10})
     assert r.status_code == 200
+
+
+def test_every_endpoint_has_documented_responses():
+    spec = client.get("/openapi.json").json()
+    paths = spec.get("paths", {})
+    assert len(paths) >= 12
+    for path, path_item in paths.items():
+        for method, operation in path_item.items():
+            if method.lower() not in {"get", "post", "put", "delete", "patch"}:
+                continue
+            responses = operation.get("responses", {})
+            assert "200" in responses or "307" in responses or "501" in responses, (
+                f"{method.upper()} {path} missing standard response"
+            )
+            # Verify documented response schema exists
+            target_code = "501" if "501" in responses else ("200" if "200" in responses else list(responses.keys())[0])
+            resp_obj = responses[target_code]
+            content = resp_obj.get("content", {})
+            json_media = content.get("application/json", {})
+            schema = json_media.get("schema", {})
+            assert schema, f"{method.upper()} {path} response {target_code} has no schema"
+            assert "$ref" in schema or schema.get("type") or schema.get("properties"), (
+                f"{method.upper()} {path} schema is empty: {schema}"
+            )
