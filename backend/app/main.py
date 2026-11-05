@@ -69,3 +69,6 @@ app.include_router(reservoir_2_router)
 
 from app.api.reservoir_routes_pvt import router as reservoir_pvt_router
 app.include_router(reservoir_pvt_router)
+
+from app.api.well_test_routes import router as well_test_router
+app.include_router(well_test_router)

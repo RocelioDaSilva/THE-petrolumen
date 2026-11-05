@@ -8,3 +8,4 @@
 *.jpeg binary
 *.pdf binary
 /documents[[:space:]]for[[:space:]]competition[[:space:]]and[[:space:]]very[[:space:]]good[[:space:]]documentation/books[[:space:]]for[[:space:]]inspiration[[:space:]]in[[:space:]]sources/THE-petrolumen-main[[:space:]]4-11.zip filter=lfs diff=lfs merge=lfs -text
+/documents[[:space:]]for[[:space:]]competition[[:space:]]and[[:space:]]very[[:space:]]good[[:space:]]documentation/reservoir[[:space:]]module/books/Software[[:space:]]Development[[:space:]]&[[:space:]]Programming[[:space:]]for[[:space:]]Petroleum[[:space:]]Engineering/Hoss[[:space:]]Belyadi[[:space:]],[[:space:]]Alireza[[:space:]]Haghighat[[:space:]]-[[:space:]]Machine[[:space:]]Learning[[:space:]]Guide[[:space:]]for[[:space:]]Oil.epub filter=lfs diff=lfs merge=lfs -text

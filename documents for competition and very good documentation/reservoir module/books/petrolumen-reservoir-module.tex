@@ -1,0 +1,908 @@
+\documentclass[10pt,a4paper]{article}
+
+% ==================================================================
+% Packages
+% ==================================================================
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=2.0cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{siunitx}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  citecolor=blue!50!black,
+  pdftitle={PetroLumen Reservoir Module -- Mathematical and Implementation Reference},
+  pdfauthor={PetroLumen Project}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small PetroLumen}
+\fancyhead[R]{\small Reservoir Module --- Mathematical Reference}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\definecolor{codebg}{RGB}{247,247,250}
+\definecolor{codekw}{RGB}{0,90,160}
+\definecolor{codestr}{RGB}{140,60,20}
+\definecolor{codecom}{RGB}{90,120,90}
+
+\lstdefinestyle{py}{
+  language=Python,
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{codekw}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=6pt,
+  frame=single,
+  rulecolor=\color{gray!40},
+  breaklines=true,
+  breakatwhitespace=false,
+  showstringspaces=false,
+  tabsize=4,
+  captionpos=b
+}
+\lstdefinestyle{sh}{
+  language=bash,
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecom}\itshape,
+  frame=single,
+  rulecolor=\color{gray!40},
+  breaklines=true,
+  showstringspaces=false,
+  captionpos=b
+}
+\lstdefinestyle{txt}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\scriptsize,
+  frame=single,
+  rulecolor=\color{gray!40},
+  breaklines=true,
+  showstringspaces=false,
+  captionpos=b
+}
+\lstset{style=py}
+
+\titleformat{\section}{\Large\bfseries\color{blue!40!black}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\color{blue!30!black}}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{blue!20!black}}{\thesubsubsection}{0.4em}{}
+
+\newtheorem{definition}{Definition}[section]
+\newtheorem{remark}{Remark}[section]
+
+% shorthand
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\grad}{\nabla}
+\newcommand{\divv}{\nabla\cdot}
+\newcommand{\bo}{B_o}
+\newcommand{\bw}{B_w}
+\newcommand{\bg}{B_g}
+\newcommand{\rs}{R_s}
+\newcommand{\sw}{S_w}
+\newcommand{\so}{S_o}
+\newcommand{\sg}{S_g}
+\newcommand{\kr}{k_r}
+\newcommand{\krw}{k_{rw}}
+\newcommand{\kro}{k_{ro}}
+\newcommand{\krg}{k_{rg}}
+\newcommand{\muo}{\mu_o}
+\newcommand{\muw}{\mu_w}
+\newcommand{\mug}{\mu_g}
+\newcommand{\pc}{p_c}
+\newcommand{\phio}{\phi}
+\newcommand{\ct}{c_t}
+\newcommand{\inj}{\mathrm{inj}}
+\newcommand{\prod}{\mathrm{prod}}
+\newcommand{\res}{\mathrm{res}}
+
+\title{
+  \vspace{-1.2cm}
+  \textbf{PetroLumen}\\[0.2em]
+  \large Reservoir Module --- Mathematical Foundations,\\
+  Numerical Methods, and Free-Tool Implementation Reference\\[0.4em]
+  \normalsize From governing PDEs to validated Python code
+}
+\author{PetroLumen Engineering}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+This document is the mathematical and implementation reference for the
+\textbf{reservoir module} of PetroLumen. It begins with the black-oil
+conservation equations and Darcy's law, derives the material-balance and
+well-test equations that the module exposes as engineering tools, presents the
+finite-volume discretisation and Newton--Raphson linearisation used by the
+OPM Flow and JutulDarcy engines, documents the PVT correlations and
+geostatistical formulations, and ends with benchmark tolerances and concrete
+Python integration code. Every equation is tied to a free or open-source
+implementation path so that the reservoir module can be built, validated and
+shipped without commercial software licences.
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+% ==================================================================
+\part{Physical and Mathematical Foundations}
+% ==================================================================
+
+\section{Governing equations of multiphase flow}
+
+\subsection{Black-oil model: assumptions and conservation laws}
+
+The black-oil model treats the reservoir as three phases (water, oil, gas) and
+three pseudo-components (water, stock-tank oil, surface gas). Oil and gas may
+exchange mass through solution gas; water is immiscible with the hydrocarbon
+phases[reference:0].
+
+Let $\alpha\in\{w,o,g\}$ denote phase, $\phi$ porosity, $\rho_\alpha$ phase
+density at reservoir conditions, $S_\alpha$ phase saturation, $\bm{u}_\alpha$
+Darcy velocity, and $q_\alpha$ source/sink term. The mass-conservation
+equations are
+
+\begin{align}
+  \pd{}{t}\bigl(\phi\,\rho_w S_w\bigr)
+  &= -\divv\bigl(\rho_w \bm{u}_w\bigr) + q_w, \label{eq:cons-w}\\[2pt]
+  \pd{}{t}\bigl(\phi\,\rho_o S_o\bigr)
+  &= -\divv\bigl(\rho_o \bm{u}_o\bigr) + q_o, \label{eq:cons-o}\\[2pt]
+  \pd{}{t}\bigl(\phi\,\rho_g S_g\bigr)
+  &= -\divv\bigl(\rho_g \bm{u}_g\bigr) + q_g. \label{eq:cons-g}
+\end{align}
+These are the standard black-oil conservation statements[reference:1][reference:2].
+
+The phase velocities follow the multiphase extension of Darcy's law:
+\begin{equation}
+  \bm{u}_\alpha
+  = -\frac{k\,\kr_\alpha(S_\alpha)}{\mu_\alpha(p_\alpha)}
+    \bigl(\grad p_\alpha - \rho_\alpha\, g\,\grad z\bigr),
+  \qquad \alpha=w,o,g,
+  \label{eq:darcy}
+\end{equation}
+where $k$ is absolute permeability, $\kr_\alpha$ relative permeability,
+$\mu_\alpha$ viscosity, $p_\alpha$ phase pressure, $g$ gravitational
+acceleration and $z$ depth[reference:3].
+
+The system is closed by
+\begin{align}
+  S_w + S_o + S_g &= 1, \label{eq:sat}\\
+  p_{c,wo}(S_w) &= p_o - p_w, \label{eq:pc-wo}\\
+  p_{c,go}(S_g) &= p_g - p_o, \label{eq:pc-go}
+\end{align}
+with capillary pressure functions $p_{c,wo}$ and $p_{c,go}$ supplied by the
+rock model.
+
+\subsection{Black-oil PVT relations}
+
+The black-oil formulation expresses phase densities and formation volume
+factors through the solution gas--oil ratio $\rs(p)$, the oil formation volume
+factor $\bo(p,\rs)$, the gas formation volume factor $\bg(p)$, the water
+formation volume factor $\bw(p)$, and the volatilised oil--gas ratio $R_v$.
+The reservoir densities are
+\begin{align}
+  \rho_o &= \frac{\rho_{o,\mathrm{STC}} + \rs\,\rho_{g,\mathrm{STC}}}{\bo}, \label{eq:rho-o}\\
+  \rho_g &= \frac{\rho_{g,\mathrm{STC}} + R_v\,\rho_{o,\mathrm{STC}}}{\bg}, \label{eq:rho-g}\\
+  \rho_w &= \frac{\rho_{w,\mathrm{STC}}}{\bw}, \label{eq:rho-w}
+\end{align}
+where the subscript STC denotes standard (stock-tank) conditions.
+
+The black-oil equations can be written in the equivalent ``$\phi S/B$'' form
+used by most simulators:
+\begin{equation}
+  \pd{}{t}\!\left(\frac{\phi\,S_o}{\bo}\right)
+  + \divv\!\left(\frac{\bm{u}_o}{\bo}\right)
+  = q_o',
+  \label{eq:bo-form}
+\end{equation}
+and analogously for water and gas, with the gas equation carrying both free-gas
+and solution-gas contributions.
+
+\subsection{Compositional extension (outline)}
+
+For compositional runs, the black-oil pseudo-components are replaced by $N_c$
+components with mole fractions $x_{i\alpha}$ in phase $\alpha$. The
+conservation equations become
+\begin{equation}
+  \pd{}{t}\!\left(\phi\sum_{\alpha}\rho_\alpha\,S_\alpha\,x_{i\alpha}\right)
+  + \divv\!\left(\sum_{\alpha}\rho_\alpha\,x_{i\alpha}\,\bm{u}_\alpha\right)
+  = q_i,
+  \qquad i=1,\dots,N_c,
+  \label{eq:comp-cons}
+\end{equation}
+with phase equilibrium computed from an equation of state (e.g.\ Peng--Robinson)
+and fugacity equality. OPM Flow and JutulDarcy both support compositional
+formulations; PetroLumen exposes them through the same engine plug-in
+interface but with a different fluid model type.
+
+% ------------------------------------------------------------------
+\section{Volumetrics and original fluids in place}
+% ------------------------------------------------------------------
+
+\subsection{Volumetric OOIP and OGIP}
+
+For a grid cell $i$ with bulk volume $V_{b,i}$, porosity $\phi_i$, and initial
+water saturation $S_{w,i}^0$, the original oil in place is
+\begin{equation}
+  N_i = \frac{V_{b,i}\,\phi_i\,(1-S_{w,i}^0)}{\bo_i^0},
+  \label{eq:ooip-cell}
+\end{equation}
+and the original gas in place (free gas) is
+\begin{equation}
+  G_i = \frac{V_{b,i}\,\phi_i\,S_{g,i}^0}{\bg_i^0}.
+  \label{eq:ogip-cell}
+\end{equation}
+Summing over active cells gives the field totals.
+
+\subsection{Recovery factor and drive indices}
+
+The recovery factor at time $t$ is
+\begin{equation}
+  \mathrm{RF}(t) = \frac{N_p(t)}{N},
+  \label{eq:rf}
+\end{equation}
+where $N_p$ is cumulative oil production.
+
+The drive indices of Pirson partition the total withdrawal into expansion
+terms:
+\begin{align}
+  \mathrm{DI}_{\mathrm{oil}} &= \frac{N(\bo-\bo_i)}{\bo_i}, \\
+  \mathrm{DI}_{\mathrm{gas}} &= \frac{N\,m\,\bo_i\!\left(\frac{\bg}{\bg_i}-1\right)}{\bo_i}, \\
+  \mathrm{DI}_{\mathrm{water}} &= \frac{W_e - W_p\,\bw}{\bo_i}, \\
+  \mathrm{DI}_{\mathrm{rock}} &= \frac{N\,\bo_i\!\left(\frac{c_w S_w + c_f}{1-S_w}\right)\Delta p}{\bo_i},
+\end{align}
+where $m$ is the initial gas-cap-to-oil-zone volume ratio, $W_e$ water influx,
+$W_p$ water production, $c_w$ water compressibility and $c_f$ formation
+compressibility. The sum of drive indices equals one at any time.
+
+% ------------------------------------------------------------------
+\section{Material balance}
+% ------------------------------------------------------------------
+
+\subsection{General Havlena--Odeh form}
+
+The general material-balance equation for an oil reservoir is written as
+\begin{equation}
+  F = N\bigl(E_o + m\,E_g + E_{fw}\bigr) + W_e\,\bw,
+  \label{eq:mbe}
+\end{equation}
+where
+\begin{align}
+  F &= N_p\!\left[\bo + (R_p-\rs)\bg\right] + W_p\,\bw, \label{eq:F}\\
+  E_o &= (\bo-\bo_i) + (R_{si}-\rs)\bg, \label{eq:Eo}\\
+  E_g &= \bo_i\!\left(\frac{\bg}{\bg_i}-1\right), \label{eq:Eg}\\
+  E_{fw} &= \bo_i\!\left[\frac{c_w S_{wi}+c_f}{1-S_{wi}}\right]\Delta p. \label{eq:Efw}
+\end{align}
+$F$ is the underground withdrawal, $E_o$ the oil-and-dissolved-gas expansion,
+$E_g$ the gas-cap expansion, and $E_{fw}$ the connate-water and rock
+expansion[reference:4][reference:5].
+
+\subsection{Linearised Havlena--Odeh plots}
+
+For a reservoir with no initial gas cap ($m=0$) and no water influx, equation
+\eqref{eq:mbe} reduces to
+\begin{equation}
+  F = N\,(E_o + E_{fw}),
+  \label{eq:mbe-simple}
+\end{equation}
+so a plot of $F$ against $E_o+E_{fw}$ yields a straight line through the origin
+with slope $N$.
+
+When a gas cap is present, the linearised form is
+\begin{equation}
+  \frac{F - W_e\bw}{E_o + \bo_i E_{fw}}
+  = N + G\left(\frac{E_g + \bg_i E_{fw}}{E_o + \bo_i E_{fw}}\right),
+  \label{eq:havlena-odeh}
+\end{equation}
+where $G$ is the original free gas in place. A plot of the left-hand side
+against the bracket on the right gives intercept $N$ and slope $G$[reference:6].
+
+\subsection{Gas material balance}
+
+For a volumetric dry-gas reservoir, the material balance reduces to the
+$p/Z$ straight line:
+\begin{equation}
+  \frac{p}{Z} = \frac{p_i}{Z_i}\left(1 - \frac{G_p}{G}\right).
+  \label{eq:pz}
+\end{equation}
+A linear regression of $p/Z$ against $G_p$ gives $G$ as the $x$-intercept
+[reference:7].
+
+\subsection{Aquifer influx}
+
+The Van Everdingen--Hurst dimensionless aquifer influx is
+\begin{equation}
+  W_e(t) = B\,\Delta p\,W_D(t_D),
+  \label{eq:veh}
+\end{equation}
+with dimensionless time
+\begin{equation}
+  t_D = \frac{k\,t}{\phi\,\mu\,c_t\,r_a^2}.
+  \label{eq:td-aquifer}
+\end{equation}
+Carter--Tracy provides a computationally efficient alternative; PetroLumen
+exposes both through a single \texttt{AquiferModel} interface, with
+ECLIPSE \texttt{AQUTAB} export[reference:8].
+
+% ------------------------------------------------------------------
+\section{Pressure transient analysis}
+% ------------------------------------------------------------------
+
+\subsection{Dimensionless variables}
+
+Dimensionless pressure and time for a single-phase oil well are
+\begin{align}
+  p_D &= \frac{2\pi k h}{q B \mu}\,\Delta p, \label{eq:pd}\\
+  t_D &= \frac{k\,\Delta t}{\phi\,\mu\,c_t\,r_w^2}. \label{eq:td}
+\end{align}
+These definitions underpin type-curve matching and semi-log analysis
+[reference:9].
+
+\subsection{Radial-flow semi-log analysis}
+
+During infinite-acting radial flow, the drawdown or buildup pressure follows
+\begin{equation}
+  \Delta p = \frac{162.6\,q B \mu}{k h}\,
+  \left[\log_{10}\!\left(\frac{k t}{\phi \mu c_t r_w^2}\right) - 3.23 + 0.87\,s\right],
+  \label{eq:semilog}
+\end{equation}
+where $s$ is the skin factor. The slope $m$ of the semi-log straight line
+(psi per log$_{10}$ cycle) gives the permeability:
+\begin{equation}
+  k = \frac{162.6\,q B \mu}{m h}.
+  \label{eq:k-semilog}
+\end{equation}
+The skin is obtained from the pressure change at one hour:
+\begin{equation}
+  s = 1.151\left[\frac{\Delta p_{1\mathrm{hr}}}{m}
+  - \log_{10}\!\left(\frac{k}{\phi \mu c_t r_w^2}\right) + 3.23\right].
+  \label{eq:skin}
+\end{equation}
+These are the standard equations used in commercial PTA software and reproduced
+by \texttt{welltest-pta}[reference:10].
+
+\subsection{Horner buildup analysis}
+
+For a buildup test, the Horner equation is
+\begin{equation}
+  p_{ws} = p_i - \frac{162.6\,q B \mu}{k h}
+  \log_{10}\!\left(\frac{t_p + \Delta t}{\Delta t}\right),
+  \label{eq:horner}
+\end{equation}
+where $t_p$ is the producing time before shut-in and $\Delta t$ is shut-in
+time[reference:11][reference:12]. A plot of $p_{ws}$ against the Horner time
+ratio yields a straight line whose slope gives $k$ and whose extrapolation to
+unity gives $p_i$ (or the current average pressure).
+
+\subsection{Bourdet derivative}
+
+The Bourdet logarithmic derivative is
+\begin{equation}
+  p' = \frac{\dd p}{\dd \ln t},
+  \label{eq:bourdet}
+\end{equation}
+computed with a three-point window to smooth noise while preserving flow-regime
+signatures. \texttt{welltest-pta} exposes \texttt{bourdet\_derivative(dt, dp, L=0.2, use\_smooth=True)}
+and performs automatic flow-regime identification by fitting piece-wise
+log--log slopes to the derivative curve[reference:13].
+
+% ------------------------------------------------------------------
+\section{Geostatistics and static modelling}
+% ------------------------------------------------------------------
+
+\subsection{Variogram}
+
+The experimental semi-variogram is
+\begin{equation}
+  \hat{\gamma}(\bm{h}) = \frac{1}{2N(\bm{h})}
+  \sum_{i=1}^{N(\bm{h})}\bigl[z(\bm{x}_i)-z(\bm{x}_i+\bm{h})\bigr]^2,
+  \label{eq:variogram}
+\end{equation}
+where $\bm{h}$ is the lag vector and $N(\bm{h})$ the number of pairs at that
+lag. Permissible models (spherical, exponential, Gaussian) are fitted to
+$\hat{\gamma}$; \texttt{GeostatsPy} provides \texttt{gam\_3D},
+\texttt{make\_variogram\_3D} and \texttt{vmodel\_3D}[reference:14].
+
+\subsection{Ordinary kriging}
+
+The ordinary kriging estimator is
+\begin{equation}
+  \hat{z}(\bm{x}_0) = \sum_{i=1}^{n}\lambda_i\,z(\bm{x}_i),
+  \label{eq:ok-est}
+\end{equation}
+with weights $\lambda_i$ solving the kriging system
+\begin{equation}
+  \begin{bmatrix}
+    \bm{\Gamma} & \bm{1}\\
+    \bm{1}^{\!\top} & 0
+  \end{bmatrix}
+  \begin{bmatrix}
+    \bm{\lambda}\\ \mu
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+    \bm{\gamma}_0\\ 1
+  \end{bmatrix},
+  \label{eq:ok-system}
+\end{equation}
+where $\Gamma_{ij}=\gamma(\bm{x}_i-\bm{x}_j)$, $(\bm{\gamma}_0)_i=\gamma(\bm{x}_i-\bm{x}_0)$,
+and $\mu$ is the Lagrange multiplier. \texttt{GeostatsPy} implements this as
+\texttt{kb2d}/\texttt{kb3d}[reference:15].
+
+\subsection{Sequential Gaussian simulation}
+
+SGS proceeds by (i) normal-score transforming the data, (ii) selecting a random
+path through the grid, (iii) kriging the mean and variance at each unsampled
+node from previously simulated and original data, and (iv) drawing a value from
+the local Gaussian distribution and adding it to the simulated field:
+\begin{equation}
+  z^{*}(\bm{x}_0) = \hat{z}(\bm{x}_0) + \sigma_K(\bm{x}_0)\,r,
+  \qquad r\sim\mathcal{N}(0,1),
+  \label{eq:sgs}
+\end{equation}
+where $\sigma_K$ is the kriging standard deviation. \texttt{GeostatsPy}
+provides \texttt{sgsim\_3D} and the associated normal-score utilities
+[reference:16].
+
+% ==================================================================
+\part{Numerical Methods}
+% ==================================================================
+
+\section{Finite-volume discretisation}
+
+\subsection{Two-point flux approximation}
+
+OPM Flow and JutulDarcy use a finite-volume discretisation with the two-point
+flux approximation (TPFA) on corner-point or unstructured grids[reference:17]
+[reference:18]. For a phase $\alpha$, the flux across the face between cells
+$i$ and $j$ is
+\begin{equation}
+  F_{\alpha,ij} = -T_{ij}\,\lambda_{\alpha,ij}\,
+  \bigl(p_{\alpha,j}-p_{\alpha,i} - \rho_{\alpha,ij}\,g\,(z_j-z_i)\bigr),
+  \label{eq:tpfa}
+\end{equation}
+where $T_{ij}$ is the transmissibility,
+\begin{equation}
+  T_{ij} = \frac{A_{ij}\,k_{ij}}{d_{ij}},
+  \label{eq:trans}
+\end{equation}
+with $A_{ij}$ the interfacial area, $k_{ij}$ the harmonic-mean permeability,
+and $d_{ij}$ the centroid-to-centroid distance. The phase mobility is
+\begin{equation}
+  \lambda_{\alpha,ij} = \left(\frac{\kr_\alpha}{\mu_\alpha B_\alpha}\right)_{\!ij},
+  \label{eq:mobility}
+\end{equation}
+evaluated upstream.
+
+\subsection{Time discretisation}
+
+The backward-Euler (fully implicit) discretisation of the mass-conservation
+equation for cell $i$ and phase $\alpha$ is
+\begin{equation}
+  \frac{V_i}{\Delta t}
+  \Bigl[(\phi\,\rho_\alpha S_\alpha)_i^{n+1}
+       -(\phi\,\rho_\alpha S_\alpha)_i^{n}\Bigr]
+  + \sum_{j\in\mathcal{N}(i)} F_{\alpha,ij}^{n+1}
+  = q_{\alpha,i}^{n+1},
+  \label{eq:be}
+\end{equation}
+where $\mathcal{N}(i)$ is the set of neighbouring cells[reference:19].
+
+\subsection{IMPES versus fully implicit}
+
+IMPES (implicit pressure, explicit saturation) solves a single pressure equation
+implicitly and updates saturations explicitly; it is cheap per timestep but
+conditionally stable and unsuitable for large timesteps or strong
+capillary/gravity effects. Fully implicit (FIM) solves all conservation
+equations simultaneously at $t^{n+1}$, requiring a Newton--Raphson iteration
+but remaining stable for large timesteps. OPM Flow's default is FIM; IMPES is
+available for screening and teaching[reference:20].
+
+% ------------------------------------------------------------------
+\section{Newton--Raphson linearisation}
+% ------------------------------------------------------------------
+
+Let $\bm{R}(\bm{x})=0$ be the discrete residual vector, with $\bm{x}$ the vector
+of primary unknowns (typically $p_o$, $S_w$, $S_g$). Newton--Raphson iterates
+\begin{equation}
+  \bm{J}(\bm{x}^k)\,\delta\bm{x}^k = -\bm{R}(\bm{x}^k),
+  \qquad
+  \bm{x}^{k+1} = \bm{x}^k + \delta\bm{x}^k,
+  \label{eq:newton}
+\end{equation}
+where $\bm{J}=\partial\bm{R}/\partial\bm{x}$ is the Jacobian. Each Newton step
+requires the solution of a large, sparse, ill-conditioned linear system
+[reference:21][reference:22].
+
+The Jacobian has a block structure: diagonal blocks couple the unknowns within a
+cell, and off-diagonal blocks couple neighbouring cells through the TPFA flux
+terms. For a three-phase black-oil model with three unknowns per active cell,
+the block size is $3\times 3$.
+
+\subsection{Convergence criteria}
+
+OPM Flow and JutulDarcy typically require
+\begin{align}
+  \|\bm{R}\|_2 &< \varepsilon_R, \label{eq:conv-res}\\
+  \|\delta\bm{x}\|_2 &< \varepsilon_x, \label{eq:conv-dx}
+\end{align}
+with tolerances scaled by the number of active cells and the magnitude of the
+solution. Typical defaults are $\varepsilon_R\sim10^{-6}$ and
+$\varepsilon_x\sim10^{-6}$ in consistent units; PetroLumen should expose these
+as solver options and log the achieved residuals per Newton iteration.
+
+\subsection{Linear solvers}
+
+The linear system $\bm{J}\delta\bm{x}=-\bm{R}$ is solved with a Krylov method
+(GMRES or BiCGStab) preconditioned by CPR (constrained pressure residual) or
+AMG. CPR splits the system into a pressure part solved with AMG and a
+transport part solved with ILU, which is the standard strategy in OPM Flow
+[reference:23][reference:24]. GPU-accelerated CPR variants are documented for
+SPE10 and Norne[reference:25].
+
+% ------------------------------------------------------------------
+\section{Well modelling}
+% ------------------------------------------------------------------
+
+Wells are coupled to the reservoir equations through a well model. For a well
+$w$ completed in cells $\mathcal{C}_w$, the well equations are solved fully
+implicitly with the reservoir equations[reference:26]:
+\begin{align}
+  q_{\alpha,w} &= \sum_{c\in\mathcal{C}_w} W_{w,c}\,\lambda_{\alpha,c}\,
+  \bigl(p_{\alpha,c} - p_{w} - \rho_{\alpha,c}\,g\,(z_c-z_w)\bigr), \label{eq:well-rate}\\
+  \sum_{\alpha} q_{\alpha,w} &= q_{w}^{\mathrm{target}}, \label{eq:well-constraint}
+\end{align}
+where $W_{w,c}$ is the well index, $p_w$ the wellbore pressure, and
+$q_w^{\mathrm{target}}$ the rate or pressure constraint. The well index for a
+vertical well in a rectangular cell is
+\begin{equation}
+  W_{w,c} = \frac{2\pi\,k_c\,h_c}
+  {\ln(r_{e,c}/r_w) + s_c},
+  \label{eq:well-index}
+\end{equation}
+with $r_{e,c}$ the equivalent radius and $s_c$ the skin.
+
+% ==================================================================
+\part{Free-Tool Implementation}
+% ==================================================================
+
+\section{Engine plug-in interface}
+
+All simulation engines implement the same contract:
+
+\begin{lstlisting}[caption={Engine plug-in protocol.}]
+from typing import Protocol, runtime_checkable
+
+@runtime_checkable
+class EnginePlugin(Protocol):
+    name: str
+    def validate_case(self, case) -> list[str]: ...
+    def build_inputs(self, case, workdir) -> dict: ...
+    def run(self, workdir, options) -> "RunResult": ...
+    def parse_results(self, workdir) -> "ResultSet": ...
+\end{lstlisting}
+
+\subsection{OPM Flow back-end}
+
+OPM Flow reads Eclipse-style decks. A minimal writer:
+
+\begin{lstlisting}[caption={Deck writer for a black-oil case.}]
+def write_deck(case, grid_path, out_path):
+    with open(out_path, "w") as f:
+        f.write("RUNSPEC\n")
+        f.write("DIMENS\n 10 10 3 /\n")
+        f.write("OIL\nWATER\nGAS\nFIELD\n")
+        f.write("GRID\n")
+        f.write(f"INCLUDE\n '{grid_path}' /\n")
+        f.write("PROPS\n")
+        f.write(f"INCLUDE\n '{case.fluid_id}.inc' /\n")
+        f.write(f"INCLUDE\n '{case.rock_id}.inc' /\n")
+        f.write("SCHEDULE\n")
+        f.write(f"INCLUDE\n '{case.schedule_id}.inc' /\n")
+        f.write("END\n")
+\end{lstlisting}
+
+Run with subprocess isolation to keep the GPL boundary clean:
+
+\begin{lstlisting}[caption={Subprocess wrapper for OPM Flow.}]
+import subprocess, hashlib, datetime
+
+def run_flow(deck_path, workdir, timeout=86400):
+    proc = subprocess.run(
+        ["flow", deck_path], cwd=workdir,
+        capture_output=True, text=True, timeout=timeout
+    )
+    return {
+        "deck_hash": hashlib.sha256(open(deck_path, "rb").read()).hexdigest(),
+        "exit_code": proc.returncode,
+        "finished": datetime.datetime.utcnow().isoformat(),
+    }
+\end{lstlisting}
+
+\subsection{JutulDarcy back-end}
+
+JutulDarcy is a Julia package and is fully differentiable with respect to
+forces and discretisation parameters. Call it from Python via
+\texttt{juliacall} or a Julia subprocess. Its differentiability makes it
+particularly useful for gradient-based history matching and optimisation.
+
+\subsection{pyMRST back-end}
+
+pyMRST wraps the MATLAB Reservoir Simulation Toolbox and is GPL-3.0. Use it for
+research-grade discretisations and teaching; like OPM Flow, invoke it as an
+external process.
+
+% ------------------------------------------------------------------
+\section{PVT implementation}
+% ------------------------------------------------------------------
+
+\subsection{Standing correlation}
+
+Standing's bubble-point pressure is
+\begin{equation}
+  p_b = 18.2\left[\left(\frac{\rs}{\gamma_g}\right)^{0.83}10^{a}-1\right],
+  \qquad
+  a = 0.00091\,T - 0.0125\,\mathrm{API},
+  \label{eq:standing}
+\end{equation}
+with $p_b$ in psia, $\rs$ in scf/STB, $T$ in \si{\fahrenheit} and API gravity
+in degrees[reference:28].
+
+\subsection{Vasquez--Beggs correlation}
+
+Vasquez and Beggs give
+\begin{equation}
+  \rs = C_1\,\gamma_{gs}\,p^{C_2}\exp\!\left(\frac{C_3\,\mathrm{API}}{T+460}\right),
+  \label{eq:vb-rs}
+\end{equation}
+with coefficients selected for API $\le 30$ or $>30$[reference:29][reference:30].
+The oil formation volume factor is
+\begin{equation}
+  \bo = 1.0 + C_1\rs + C_2(T-60)\left(\frac{\mathrm{API}}{\gamma_{gs}}\right)
+  + C_3\rs(T-60)\left(\frac{\mathrm{API}}{\gamma_{gs}}\right).
+  \label{eq:vb-bo}
+\end{equation}
+
+\subsection{Hall--Yarborough Z-factor}
+
+The Hall--Yarborough equation of state is used for gas $Z$-factor:
+\begin{equation}
+  Z = \frac{0.06125\,p_{pr}}{Y}\exp\!\bigl[-1.2(1-1/T_{pr})^2\bigr],
+  \label{eq:hy-z}
+\end{equation}
+where $Y$ solves the implicit equation
+\begin{equation}
+  -0.06125\,p_{pr}\frac{Y}{T_{pr}}
+  + \frac{Y+Y^2+Y^3-Y^4}{(1-Y)^3}
+  - \left(\frac{14.76}{T_{pr}}-\frac{9.76}{T_{pr}^2}+\frac{4.58}{T_{pr}^3}\right)Y^2
+  + \left(\frac{90.7}{T_{pr}}-\frac{242.2}{T_{pr}^2}+\frac{42.4}{T_{pr}^3}\right)Y^{(2.18+2.82/T_{pr})}
+  = 0.
+  \label{eq:hy-implicit}
+\end{equation}
+Solve by Newton iteration; \texttt{pyResToolbox} provides a tested
+implementation.
+
+% ------------------------------------------------------------------
+\section{Well-test implementation}
+% ------------------------------------------------------------------
+
+\texttt{welltest-pta} provides the full pipeline:
+\begin{lstlisting}[caption={Well-test analysis with welltest-pta.}]
+from welltest_pta import Event
+event = Event(dt, dp, rate_history)
+dt_b, dp_b = event.bourdet(L=0.2, use_smooth=True)
+params = event.reservoir_params(k=..., h=..., mu=..., B=...)
+\end{lstlisting}
+The library exposes \texttt{.bourdet()}, \texttt{.horner()}, \texttt{.mdh()} and
+\texttt{.flow\_regimes()} on every drawdown/buildup event[reference:31].
+
+% ------------------------------------------------------------------
+\section{Material-balance implementation}
+% ------------------------------------------------------------------
+
+\texttt{PetroCalc} provides \texttt{petrocalc.reservoir} and
+\texttt{petrocalc.gas\_reservoir} with material-balance, drive-index and
+recovery functions[reference:32]. The Havlena--Odeh regression can be assembled
+directly with \texttt{NumPy}:
+
+\begin{lstlisting}[caption={Havlena--Odeh linear regression.}]
+import numpy as np
+
+def havlena_odeh(F, Eo, Eg, Ef, We, Bw):
+    y = (F - We * Bw) / (Eo + Ef)
+    x = (Eg + Ef) / (Eo + Ef)
+    A = np.vstack([np.ones_like(x), x]).T
+    (N, G), *_ = np.linalg.lstsq(A, y, rcond=None)
+    return N, G
+\end{lstlisting}
+
+% ------------------------------------------------------------------
+\section{Geostatistics implementation}
+% ------------------------------------------------------------------
+
+\begin{lstlisting}[caption={Variogram modelling and kriging with GeostatsPy.}]
+import geostatspy.geostats as geostats
+import geostatspy.GSLIB as GSLIB
+
+vario = GSLIB.make_variogram(nug=0.0, nst=1, it1=1,
+                            cc1=1.0, a1=1000.0)
+est, var = geostats.kb2d(df, xcol="X", ycol="Y", vcol="Por",
+                         nx=50, xmn=0.0, xsiz=25.0,
+                         nz=1, zmin=0.0, zsiz=1.0,
+                         ndmin=1, ndmax=8, nmult=1,
+                         ktype=1, vario=vario)
+\end{lstlisting}
+\texttt{geostats.sgsim\_3D} performs sequential Gaussian simulation
+[reference:33][reference:34].
+
+% ------------------------------------------------------------------
+\section{RESQML and grid I/O}
+% ------------------------------------------------------------------
+
+\texttt{resqpy} is a pure Python package for reading, writing and modifying
+RESQML models; it implements the full RESQML units-of-measure system
+[reference:35][reference:36].
+
+\begin{lstlisting}[caption={Opening a RESQML model and accessing a grid.}]
+import resqpy.model as rq
+
+model = rq.Model("reservoir.epc")
+grid = model.grid()          # first grid in the model
+extent = grid.extent_kji     # (nk, nj, ni)
+\end{lstlisting}
+
+\texttt{Petres} constructs corner-point grids programmatically and round-trips
+\texttt{.GRDECL} files.
+
+% ==================================================================
+\part{Validation}
+% ==================================================================
+
+\section{Benchmark tolerances}
+
+\begin{longtable}{@{}p{2.0cm}p{5.4cm}p{6.8cm}@{}}
+\toprule
+\textbf{Benchmark} & \textbf{Physics} & \textbf{Acceptance criterion}\\
+\midrule
+\endhead
+SPE1  & Three-phase, two wells, gas coning & BHP and gas rate within 2\% of published reference\\
+SPE9  & Black-oil, 26 wells, faulted grid & Cumulative production within 2\% at final time\\
+SPE10 & 60$\times$220$\times$85 heterogeneous permeability & Water-cut history within 3\%; determinism across runs\\
+Norne & Real field, complex geology & Summary vectors within agreed tolerance vs.\ reference\\
+\bottomrule
+\end{longtable}
+
+\noindent Additional gates:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Determinism.} Same deck and engine version must produce
+        bit-identical summary output on the same hardware.
+  \item \textbf{Unit round-trip.} SI $\rightarrow$ field $\rightarrow$ SI
+        must be lossless within \num{1e-12} relative error.
+  \item \textbf{Deck round-trip.} Parse an Eclipse deck, regenerate it, and
+        confirm OPM Flow produces the same summary vectors.
+  \item \textbf{RESQML round-trip.} RESQML in $\rightarrow$ internal $\rightarrow$
+        RESQML out must be lossless for supported attributes.
+\end{itemize}
+
+% ------------------------------------------------------------------
+\section{Regression harness}
+
+\begin{lstlisting}[caption={Pytest fixture for SPE1 regression.}]
+import pytest, subprocess, json
+
+@pytest.mark.benchmark
+def test_spe1(tmp_path):
+    deck = tmp_path / "SPE1.DATA"
+    deck.write_text(SPE1_DECK)
+    result = subprocess.run(["flow", str(deck)], cwd=tmp_path,
+                            capture_output=True, text=True, timeout=600)
+    assert result.returncode == 0
+    summary = parse_summary(tmp_path / "SPE1.SMSPEC")
+    assert abs(summary["FOPT"][-1] - 1.0e6) / 1.0e6 < 0.02
+\end{lstlisting}
+
+% ==================================================================
+\part{Deployment and Engineering Practice}
+% ==================================================================
+
+\section{Licensing boundaries}
+
+\begin{longtable}{@{}p{3.4cm}p{2.4cm}p{8.4cm}@{}}
+\toprule
+\textbf{Component} & \textbf{Licence} & \textbf{Integration rule}\\
+\midrule
+OPM Flow & OSL-3.0 / GPL & External executable; never link into PetroLumen\\
+JutulDarcy.jl & MIT & May be imported via \texttt{juliacall}, but ship as optional extra\\
+pyMRST & GPL-3.0 & External process only\\
+pyResToolbox & GPL-3.0 & External service or optional extra\\
+resqpy & MIT & Safe to import directly\\
+Petres & LGPL & Safe to import; dynamic linking required for LGPL compliance\\
+GeostatsPy & MIT & Safe to import directly\\
+welltest-pta & MIT & Safe to import directly\\
+PetroCalc & MIT & Safe to import directly\\
+\bottomrule
+\end{longtable}
+
+Ship PetroLumen itself under Apache-2.0 or MIT and declare GPL engines as
+optional, user-installed back-ends discovered at runtime.
+
+\section{Performance strategy}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Delegate numerics.} OPM Flow, JutulDarcy and PETSc carry the
+        linear algebra; Python orchestrates.
+  \item \textbf{Vectorise the glue.} NumPy and \texttt{xarray} for result
+        aggregation; never loop over grid cells in Python.
+  \item \textbf{Compile hotspots.} Numba or Cython for custom upscaling and
+        derivative computation.
+  \item \textbf{Parallelism by job.} Run cases concurrently on the queue; let
+        the engine manage MPI/OpenMP inside a case.
+  \item \textbf{Optional GPU path.} JutulDarcy on CUDA-capable hardware; keep
+        it optional so the default install stays portable.
+\end{enumerate}
+
+\section{Roadmap}
+
+\begin{longtable}{@{}p{1.4cm}p{4.6cm}p{8.2cm}@{}}
+\toprule
+\textbf{Phase} & \textbf{Deliverable} & \textbf{Mathematical scope}\\
+\midrule
+M0 & Skeleton & Schema, units, project store, CI\\
+M1 & Engineering basics & Volumetrics \eqref{eq:ooip-cell}--\eqref{eq:ogip-cell},
+material balance \eqref{eq:mbe}, semi-log PTA \eqref{eq:k-semilog}--\eqref{eq:skin}\\
+M2 & Simulation MVP & TPFA \eqref{eq:tpfa}, backward Euler \eqref{eq:be},
+Newton \eqref{eq:newton}, OPM Flow back-end, SPE1/SPE9 passing\\
+M3 & Static link & Variogram \eqref{eq:variogram}, kriging \eqref{eq:ok-system},
+SGS \eqref{eq:sgs}, RESQML via resqpy, SPE10 passing\\
+M4 & Post-processing & Summary parsing, 3D visualisation, forecasting\\
+M5 & Uncertainty & Ensembles, sensitivity, surrogate-assisted HM, Norne passing\\
+M6 & Hardening & Performance tuning, plugin SDK, container image\\
+\bottomrule
+\end{longtable}
+
+\section*{References}
+\addcontentsline{toc}{section}{References}
+\begin{enumerate}[leftmargin=1.6em,label={[\arabic*]}]
+  \item L.P. Dake, \emph{Fundamentals of Reservoir Engineering}, Elsevier, 1978.
+  \item T. Ahmed, \emph{Reservoir Engineering Handbook}, Gulf Professional Publishing, 5th ed.\ 2019.
+  \item K.-A. Lie, \emph{An Introduction to Reservoir Simulation Using MATLAB/GNU Octave}, Cambridge University Press, 2019.
+  \item D.W. Peaceman, \emph{Fundamentals of Numerical Reservoir Simulation}, Elsevier, 1977.
+  \item M.J. Pyrcz, C.V. Deutsch, \emph{Geostatistical Reservoir Modeling}, Oxford University Press, 2nd ed.\ 2014.
+  \item R.N. Horne, \emph{Modern Well Test Analysis: A Computer-Aided Approach}, Petroway, 1995.
+  \item Open Porous Media Initiative, \emph{OPM Flow} documentation.
+  \item SINTEF, \emph{JutulDarcy.jl} documentation.
+  \item bp, \emph{resqpy} documentation (RESQML in Python).
+  \item \emph{GeostatsPy} documentation and GSLIB translations.
+  \item \emph{welltest-pta} documentation.
+  \item \emph{PetroCalc} documentation.
+  \item SPE Comparative Solution Projects SPE1, SPE9, SPE10; Norne benchmark dataset.
+\end{enumerate}
+
+\end{document}
