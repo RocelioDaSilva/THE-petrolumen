@@ -88,6 +88,48 @@ h1 { margin: 7px 0 0; font-size: 27px; font-weight: 650; letter-spacing: -.03em;
 .las-summary { margin-bottom: 12px; font-size: 12px; color: #cbd5e1; }
 .las-summary span { color: #51d6a5; font-weight: 600; }
 
+.ooip-card {
+  padding: 18px 20px;
+  border: 1px solid #253347;
+  border-radius: 12px;
+  background: #0f1724;
+  color: #e2e8f0;
+}
+.ooip-card h3 {
+  margin: 0 0 14px 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: #51d6a5;
+  letter-spacing: -0.01em;
+}
+.ooip-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ooip-card td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #1c2738;
+}
+.ooip-card td:first-child {
+  color: #94a3b8;
+}
+.ooip-card td:last-child {
+  text-align: right;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  color: #e2e8f0;
+}
+.ooip-card td strong {
+  color: #51d6a5;
+}
+.ooip-note {
+  margin: 14px 0 0 0;
+  font-size: 11px;
+  font-style: italic;
+  color: #64748b;
+  line-height: 1.5;
+}
+
 @media (max-width: 980px) {
   .sidebar { width: 210px; flex-basis: 210px; }
   .workspace { padding: 26px 22px; }
