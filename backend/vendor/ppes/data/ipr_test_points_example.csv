@@ -1,0 +1,6 @@
+well_id,date,pwf_psia,rate_bpd,model
+A,2024-01-15,4000,300,single-phase
+B,2024-01-15,2000,900,Vogel
+C,2024-02-01,3500,500,single-phase
+C,2024-02-15,1500,1500,Vogel-two-point
+C,2024-03-01,800,1900,Vogel-two-point

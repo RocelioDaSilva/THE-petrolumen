@@ -1,0 +1,11 @@
+component,purpose,api_reference
+casing_head,Supports casing string; hangs from surface casing,API 6A
+tubing_head,Supports tubing string; seated on casing head,API 6A
+master_valve,Primary well control valve; below tee/cross,API 6A
+wing_valve,Access to annulus/flow lines,API 6A
+needle_valve,Pressure gauge isolation,API 6A
+christmas_tree,Assembly of valves above tubing head,API 6A
+surface_choke,Restricts flow to control rate/pressure,API 6A
+downhole_choke,Restricts flow at bottom; controls drawdown,API 6A
+packer,Isolates annulus from production,API 11D1
+polished_rod,Sealing surface at stuffing box,API 11B

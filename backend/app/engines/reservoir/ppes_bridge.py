@@ -1,4 +1,9 @@
-"""PetroLumen <-> ppes bridge. Single stable import point."""
+"""PetroLumen <-> ppes bridge. Single stable import point.
+
+``ppes`` is vendored at ``backend/vendor/ppes`` and placed on ``sys.path`` by
+:mod:`app` (``app/__init__.py``), so this bridge is reproducible without a
+machine-local editable install.
+"""
 from ppes.ch02_pvt import *
 from ppes.ch03_ipr import *
 from ppes.ch04_tpr import *

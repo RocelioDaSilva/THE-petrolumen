@@ -20,9 +20,20 @@ from .pvt import (
     calculate_z_factor_hall_yarborough,
     pseudocritical_properties,
 )
+from .well_test_analysis import (
+    FlowRegimes,
+    analyze_buildup,
+    analyze_drawdown,
+    bourdet_derivative,
+    horner_time,
+)
 from .well_testing import calculate_radius_of_investigation
 
 __all__ = [
+    "FlowRegimes",
+    "analyze_buildup",
+    "analyze_drawdown",
+    "bourdet_derivative",
     "calculate_bubble_point_standing",
     "calculate_eur",
     "calculate_fmb_gas",
@@ -36,6 +47,7 @@ __all__ = [
     "forecast_production",
     "find_operating_point",
     "harmonic",
+    "horner_time",
     "hyperbolic",
     "ipr_vogel",
     "pseudocritical_properties",
