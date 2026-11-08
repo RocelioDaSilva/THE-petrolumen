@@ -5,6 +5,10 @@ import {
   FluidCompositionEditor,
   type PVTComponent,
 } from "../pvt/FluidCompositionEditor";
+import {
+  ModelManager,
+  type PVTModelSummary,
+} from "../pvt/ModelManager";
 
 const methane: PVTComponent = {
   name: "Methane",
@@ -48,5 +52,42 @@ describe("PVT workflow", () => {
     expect(screen.getByLabelText("Mole fraction 2")).toHaveValue(0.5);
     fireEvent.click(screen.getByRole("button", { name: "Save composition" }));
     expect(onSave).toHaveBeenCalledOnce();
+  });
+
+  it("test_pvt_model_manager creates, selects, and deletes models", () => {
+    const model: PVTModelSummary = {
+      id: "model-1",
+      name: "Reservoir fluid",
+      type: "black_oil",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const onCreate = vi.fn();
+    const onSelect = vi.fn();
+    const onDelete = vi.fn();
+    render(
+      <ModelManager
+        models={[model]}
+        selectedModelId={model.id}
+        onCreate={onCreate}
+        onSelect={onSelect}
+        onDelete={onDelete}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Model name"), {
+      target: { value: "New model" },
+    });
+    fireEvent.change(screen.getByLabelText("Model type"), {
+      target: { value: "compositional" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create model" }));
+    expect(onCreate).toHaveBeenCalledWith("New model", "compositional");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select Reservoir fluid" }),
+    );
+    expect(onSelect).toHaveBeenCalledWith(model);
+    fireEvent.click(screen.getByRole("button", { name: "Delete Reservoir fluid" }));
+    expect(onDelete).toHaveBeenCalledWith(model.id);
   });
 });
