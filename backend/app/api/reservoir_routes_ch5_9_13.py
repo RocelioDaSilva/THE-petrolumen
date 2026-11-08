@@ -8,6 +8,8 @@ sizing (Ch. 13). Mount in ``main.py``:
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -21,11 +23,35 @@ from app.engines.reservoir.ppes_bridge import (
 router = APIRouter(prefix="/api/v1/reservoir", tags=["reservoir-ch5-9-13"])
 
 
+class ChapterCapability(BaseModel):
+    chapter: int
+    name: str
+    endpoints: list[str]
+
+
+class ReservoirChaptersCapabilityResponse(BaseModel):
+    engine: str
+    source: str
+    chapters: list[ChapterCapability]
+
+
+class ReservoirChaptersHealthResponse(BaseModel):
+    status: Literal["ok"]
+    chapters: list[int]
+    engine: str
+
+
+CalculationResponse = dict[str, float | str]
+
+
 # ---------------------------------------------------------------------------
 # Capability discovery
 # ---------------------------------------------------------------------------
-@router.get("/capabilities/ch5-9-13")
-def capabilities_2():
+@router.get(
+    "/capabilities/ch5-9-13",
+    response_model=ReservoirChaptersCapabilityResponse,
+)
+def capabilities_2() -> ReservoirChaptersCapabilityResponse:
     """List chapters 5, 9, 13 endpoints exposed by this router."""
     return {
         "engine": "ppes",
@@ -53,9 +79,14 @@ def capabilities_2():
     }
 
 
-@router.get("/health/ch5-9-13")
-def health_2():
-    return {"status": "ok", "chapters": [5, 9, 13], "engine": "ppes"}
+@router.get(
+    "/health/ch5-9-13",
+    response_model=ReservoirChaptersHealthResponse,
+)
+def health_2() -> ReservoirChaptersHealthResponse:
+    return ReservoirChaptersHealthResponse(
+        status="ok", chapters=[5, 9, 13], engine="ppes"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +98,7 @@ class GilbertRequest(BaseModel):
     choke_64: float = Field(..., gt=0, description="Choke size [1/64 in]")
 
 
-@router.post("/choke/gilbert")
+@router.post("/choke/gilbert", response_model=CalculationResponse)
 def api_gilbert(req: GilbertRequest):
     """Chapter 5 — Gilbert choke correlation."""
     try:
@@ -81,7 +112,7 @@ class CriticalRatioRequest(BaseModel):
     k: float = Field(..., gt=1.0, description="Specific heat ratio Cp/Cv")
 
 
-@router.post("/choke/critical-ratio")
+@router.post("/choke/critical-ratio", response_model=CalculationResponse)
 def api_critical_ratio(req: CriticalRatioRequest):
     """Chapter 5 — critical pressure ratio for gas flow."""
     try:
@@ -100,7 +131,7 @@ class SonicGasRequest(BaseModel):
     k: float = Field(1.28, gt=1, description="Cp/Cv")
 
 
-@router.post("/choke/sonic-gas")
+@router.post("/choke/sonic-gas", response_model=CalculationResponse)
 def api_sonic_gas(req: SonicGasRequest):
     """Chapter 5 — critical (sonic) gas flow through a choke."""
     try:
@@ -115,7 +146,7 @@ class SubsonicGasRequest(SonicGasRequest):
     p_dn: float = Field(..., gt=0, description="Downstream pressure [psia]")
 
 
-@router.post("/choke/subsonic-gas")
+@router.post("/choke/subsonic-gas", response_model=CalculationResponse)
 def api_subsonic_gas(req: SubsonicGasRequest):
     """Chapter 5 — subcritical (subsonic) gas flow through a choke."""
     if req.p_dn > req.p_up:
@@ -137,7 +168,7 @@ class CollapseBiaxialRequest(BaseModel):
     ym: float = Field(..., gt=0, description="Yield strength [psi]")
 
 
-@router.post("/tubing/collapse-biaxial")
+@router.post("/tubing/collapse-biaxial", response_model=CalculationResponse)
 def api_collapse_biaxial(req: CollapseBiaxialRequest):
     """Chapter 9 — biaxial-corrected collapse pressure."""
     try:
@@ -155,7 +186,7 @@ class BallooningRequest(BaseModel):
     L: float = Field(..., gt=0, description="Length [ft]")
 
 
-@router.post("/tubing/ballooning")
+@router.post("/tubing/ballooning", response_model=CalculationResponse)
 def api_ballooning(req: BallooningRequest):
     """Chapter 9 — ballooning-induced length change."""
     try:
@@ -176,7 +207,7 @@ class PistonRequest(BaseModel):
     A_s: float = Field(..., gt=0, description="Steel cross-section [in^2]")
 
 
-@router.post("/tubing/piston")
+@router.post("/tubing/piston", response_model=CalculationResponse)
 def api_piston(req: PistonRequest):
     """Chapter 9 — piston (reverse) effect length change."""
     try:
@@ -197,7 +228,7 @@ class BendingRequest(BaseModel):
     Rc: float = Field(..., gt=0, description="Radius of curvature [in]")
 
 
-@router.post("/tubing/bending-stress")
+@router.post("/tubing/bending-stress", response_model=CalculationResponse)
 def api_bending(req: BendingRequest):
     """Chapter 9 — bending stress in a curved tubing string."""
     try:
@@ -217,7 +248,7 @@ class ValveDepthRequest(BaseModel):
     Gs: float = Field(..., description="Gas gradient [psi/ft]")
 
 
-@router.post("/gas-lift/valve-depth")
+@router.post("/gas-lift/valve-depth", response_model=CalculationResponse)
 def api_valve_depth(req: ValveDepthRequest):
     """Chapter 13 — depth of the first unloading valve."""
     try:
@@ -234,7 +265,7 @@ class ValvePressuresRequest(BaseModel):
     pt: float = Field(0.0, description="Tubing pressure [psia]")
 
 
-@router.post("/gas-lift/valve-open-close")
+@router.post("/gas-lift/valve-open-close", response_model=CalculationResponse)
 def api_valve_open_close(req: ValvePressuresRequest):
     """Chapter 13 — gas lift valve opening and closing pressures."""
     try:
@@ -259,7 +290,7 @@ class OrificeRequest(BaseModel):
     cd: float = Field(0.6, gt=0, le=1.0, description="Discharge coefficient")
 
 
-@router.post("/gas-lift/orifice-size")
+@router.post("/gas-lift/orifice-size", response_model=CalculationResponse)
 def api_orifice(req: OrificeRequest):
     """Chapter 13 — orifice port area and diameter from target rate."""
     if req.p_dn > req.p_up:
@@ -278,7 +309,7 @@ class InjectionGlrRequest(BaseModel):
     glr_form: float = Field(..., gt=0, description="Formation GLR [scf/stb]")
 
 
-@router.post("/gas-lift/injection-glr")
+@router.post("/gas-lift/injection-glr", response_model=CalculationResponse)
 def api_injection_glr(req: InjectionGlrRequest):
     """Chapter 13 — required injection gas-liquid ratio."""
     try:

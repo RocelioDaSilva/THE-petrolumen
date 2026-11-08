@@ -1,6 +1,6 @@
 # PetroLúmen
 
-PetroLumen is a FastAPI-based reservoir engineering workbench with a PyWebView desktop client. It exposes 16 endpoints covering PVT, drilling, geology, reservoir, production, petrophysics, and simulation, plus a LAS-to-OOIP workflow.
+PetroLumen is a FastAPI-based reservoir engineering workbench with a PyWebView desktop client. It provides engineering endpoints for PVT, drilling, geology, reservoir, production, petrophysics, and simulation, plus a LAS-to-OOIP workflow.
 
 ---
 
@@ -44,6 +44,9 @@ The table below enumerates every endpoint currently returning 200 OK across the 
 | `POST` | `/api/engine/pvt/eos` | PVT | Peng-Robinson equation of state solver computing natural gas Z-factors and compressibility. |
 | `POST` | `/api/engine/pvt/eos/chart` | PVT | Render Z-factor vs pressure isothermal curve chart as a base64-encoded PNG. |
 | `POST` | `/api/engine/pvt/mbal` | PVT | Havlena-Odeh material balance analysis, OOIP/OGIP estimation, and drive indices (water, gas cap, solution gas). |
+| `POST` | `/api/engine/reservoir/compressibility/rock` | Reservoir | Newman's sandstone/limestone pore-volume compressibility, with validity-range reporting. |
+| `POST` | `/api/engine/reservoir/compressibility/gas` | Reservoir | Gas isothermal compressibility and Z-factor pressure derivative at fixed temperature. |
+| `POST` | `/api/engine/reservoir/compressibility/total` | Reservoir | Phase-weighted total compressibility including rock, oil, water, and gas contributions. |
 | `POST` | `/api/engine/reservoir/nodal` | Reservoir | Nodal analysis solver determining operating point intersection between Vogel IPR and TPR curves. |
 | `POST` | `/api/engine/reservoir/nodal/chart` | Reservoir | Render Nodal analysis IPR/TPR intersection curve chart as a base64-encoded PNG. |
 | `POST` | `/api/petrophysics/las/parse` | Petrophysics | Ingest and parse wireline log `.las` files to extract well metadata, curve arrays, and summary statistics. |
@@ -59,6 +62,21 @@ The table below enumerates every endpoint currently returning 200 OK across the 
 - `black_oil_simulator.py` is a toy model; see its docstring for the limitations (physics is documented, not verified). Specifically, pressure is solved via an ad-hoc linear surrogate without true compressibility coupling, saturations are uncoupled without Darcy flux divergence or capillary pressure, and well conditions (`_apply_well_conditions`) are not implemented.
 - No persistence layer (every run is stateless; results are held in memory during the request lifecycle only).
 - No authentication or authorization layer (open local workbench access).
+
+The reservoir calculation package is being expanded incrementally under
+`backend/app/engines/reservoir/`; see [backend/README.md](backend/README.md)
+for the active-engine versus scaffold distinction, units, and new
+compressibility endpoints.
+
+## Product scope
+
+PetroLúmen is an engineering calculation and technical decision-support
+workbench. Its core is transparent calculations, scenario inputs, engineering
+workflows, and explainable results. It is not an ERP, a corporate accounting
+system, a regulator's compliance certification tool, or an autonomous
+engineering decision-maker. Simulation capabilities are disclosed with their
+limits and should not be represented as equivalent to validated commercial
+full-field simulators.
 
 ---
 

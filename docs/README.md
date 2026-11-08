@@ -38,6 +38,9 @@ Audits and environment reports must state their verification date, source commit
   - [Future Enhancements (`docs/plans/FUTURE_IMPROVEMENTS_JULY.md`)](./plans/FUTURE_IMPROVEMENTS_JULY.md) - Historical brainstorm; migrate active items to tracked issues.
   - [Internationalization Plan (`docs/plans/I18N_L10N_PLAN.md`)](./plans/I18N_L10N_PLAN.md) - Proposed plan; confirm current architecture fit.
 
+* **Product & Business Strategy:**
+  - [Documentos de Empreendedorismo e Produto (`docs/empreendedorismo/README.md`)](./empreendedorismo/README.md) - Personas, visão de produto, MVP, sequenciador e estratégia de escopo.
+
 ---
 
 ## 🛠 Quick Terminal Commands

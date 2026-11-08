@@ -22,6 +22,7 @@ const CementingView = lazy(() => import("@/components/visualizations/CementingVi
 const CasingAndDirectionalView = lazy(() => import("@/components/visualizations/CasingAndDirectionalView"));
 const SurfaceFacilitiesView = lazy(() => import("@/components/visualizations/SurfaceFacilitiesView"));
 const ReservoirSimulationView = lazy(() => import("@/components/visualizations/ReservoirSimulationView"));
+const ReservoirCompressibilityView = lazy(() => import("@/components/visualizations/ReservoirCompressibilityView"));
 const ReservoirGrid3D = lazy(() => import("@/components/visualizations/ReservoirGrid3D"));
 const DeclineCurveAnalysis = lazy(() => import("@/components/visualizations/DeclineCurveAnalysis"));
 const PVTCalculator = lazy(() => import("@/components/visualizations/PVTCalculator"));
@@ -137,6 +138,8 @@ function MainApp() {
             </Tabs>
           </div>
         );
+      case "reservoir-compressibility":
+        return wrap(<ReservoirCompressibilityView />);
       case "production-dca":
         return wrap(<DeclineCurveAnalysis />);
       case "pvt":

@@ -202,6 +202,16 @@ export const APP_MODULES: NavModule[] = [
     defaultCategory: "Engenharia de Reservatório",
   },
   {
+    id: "reservoir-compressibility",
+    nameKey: "Compressibilidade de Reservatório",
+    defaultName: "Compressibilidade de Reservatório",
+    icon: Activity,
+    descriptionKey: "Compressibilidade da rocha, gás e total com limites explícitos",
+    defaultDescription: "Compressibilidade da rocha, gás e total com limites explícitos",
+    categoryKey: "reservoirEng",
+    defaultCategory: "Engenharia de Reservatório",
+  },
+  {
     id: "production-dca",
     nameKey: "Curvas de Declínio (DCA)",
     defaultName: "Curvas de Declínio (DCA)",

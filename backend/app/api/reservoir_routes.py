@@ -8,6 +8,8 @@ Exposes validated book calculations (Guo/Lyons/Ghalambor 2007) via
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -19,12 +21,42 @@ from app.engines.reservoir.ppes_bridge import (
 router = APIRouter(prefix="/api/v1/reservoir", tags=["reservoir"])
 
 
+class ReservoirModuleCapability(BaseModel):
+    chapter: int
+    name: str
+    functions: list[str]
+
+
+class ReservoirCalculationCapability(BaseModel):
+    name: str
+    endpoint: str
+    status: Literal["available", "limited", "planned"]
+    limitations: list[str]
+
+
+class ReservoirCapabilitiesResponse(BaseModel):
+    engine: str
+    source: str
+    validated_examples: int
+    modules_exposed: list[ReservoirModuleCapability]
+    additional_calculations: list[ReservoirCalculationCapability]
+    catalog_scope: str
+    product_scope: str
+    not_intended_for: list[str]
+
+
+class ReservoirHealthResponse(BaseModel):
+    status: Literal["ok"]
+    module: str
+    engine: str
+
+
 # ---------------------------------------------------------------------------
 # Capability discovery
 # ---------------------------------------------------------------------------
-@router.get("/capabilities")
-def capabilities():
-    """List which book modules are wired into this router."""
+@router.get("/capabilities", response_model=ReservoirCapabilitiesResponse)
+def capabilities() -> ReservoirCapabilitiesResponse:
+    """List available reservoir calculations and state their limitations."""
     return {
         "engine": "ppes",
         "source": "Guo, Lyons, Ghalambor (2007)",
@@ -35,6 +67,49 @@ def capabilities():
             {"chapter": 3, "name": "IPR", "functions": ["vogel_rate"]},
             {"chapter": 8, "name": "Decline",
              "functions": ["exponential_rate", "exponential_cum"]},
+        ],
+        "additional_calculations": [
+            {
+                "name": "Rock pore-volume compressibility",
+                "endpoint": "/api/engine/reservoir/compressibility/rock",
+                "status": "available",
+                "limitations": [
+                    "Newman's correlations are limited to consolidated sandstone "
+                    "and limestone.",
+                    "The published porosity interval is reported; strict mode "
+                    "must be enabled to reject out-of-range values.",
+                ],
+            },
+            {
+                "name": "Gas isothermal compressibility",
+                "endpoint": "/api/engine/reservoir/compressibility/gas",
+                "status": "available",
+                "limitations": [
+                    "Uses the project's Hall-Yarborough Z correlation with Sutton "
+                    "pseudocritical properties, not the book's DAK example curve.",
+                    "Numerical differentiation is sensitive to the selected "
+                    "pressure step and correlation convergence.",
+                ],
+            },
+            {
+                "name": "Total compressibility",
+                "endpoint": "/api/engine/reservoir/compressibility/total",
+                "status": "available",
+                "limitations": [
+                    "Oil and water compressibilities are user supplied.",
+                    "The phase-weighted relation assumes saturations sum to one.",
+                ],
+            },
+        ],
+        "catalog_scope": "This list supplements the ppes modules exposed by "
+        "this router; it is not an exhaustive inventory of all API routes.",
+        "product_scope": "Engineering calculations and transparent technical "
+        "decision support.",
+        "not_intended_for": [
+            "ERP, accounting, or corporate financial management",
+            "Autonomous engineering decisions without qualified review",
+            "Regulatory compliance certification",
+            "Replacement for validated commercial full-field simulation",
         ],
     }
 
@@ -156,6 +231,8 @@ def api_exponential_decline(req: ExponentialDeclineRequest):
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
-@router.get("/health")
-def health():
-    return {"status": "ok", "module": "reservoir", "engine": "ppes"}
+@router.get("/health", response_model=ReservoirHealthResponse)
+def health() -> ReservoirHealthResponse:
+    return ReservoirHealthResponse(
+        status="ok", module="reservoir", engine="ppes"
+    )

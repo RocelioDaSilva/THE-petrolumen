@@ -15,6 +15,8 @@ from .api import (
     petrophysics_routes,
     production_routes,
     pvt_routes,
+    reservoir_compressibility_routes,
+    reservoir_pvt_routes,
     simulation_routes,
     workflow_routes,
 )
@@ -39,6 +41,8 @@ app.add_middleware(
 )
 app.include_router(simulation_routes.router, prefix="/api")
 app.include_router(engine_routes.router, prefix="/api")
+app.include_router(reservoir_compressibility_routes.router, prefix="/api")
+app.include_router(reservoir_pvt_routes.router, prefix="/api")
 app.include_router(production_routes.router, prefix="/api")
 app.include_router(petrophysics_routes.router, prefix="/api")
 app.include_router(pvt_routes.router, prefix="/api")

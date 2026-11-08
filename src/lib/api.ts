@@ -29,6 +29,84 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export type RockType = 'sandstone' | 'limestone';
+
+export interface RockCompressibilityRequest {
+  phi: number;
+  rock_type: RockType;
+  strict: boolean;
+}
+
+export interface RockCompressibilityResponse {
+  cf_psi_inv: number;
+  rock_type: RockType;
+  in_validity_range: boolean;
+}
+
+export interface GasCompressibilityRequest {
+  p_psia: number;
+  temperature_f: number;
+  gas_sg: number;
+  h_psi?: number;
+}
+
+export interface GasCompressibilityResponse {
+  cg_psi_inv: number;
+  z_at_p: number;
+  dz_dp_psi_inv: number;
+  h_psi: number;
+  method: 'central' | 'forward';
+  z_correlation: string;
+}
+
+export interface TotalCompressibilityRequest extends GasCompressibilityRequest {
+  phi: number;
+  rock_type: RockType;
+  strict_rock_range: boolean;
+  co_psi_inv: number;
+  cw_psi_inv: number;
+  sg: number;
+  so: number;
+  sw: number;
+}
+
+export interface TotalCompressibilityResponse {
+  ct_psi_inv: number;
+  cg_psi_inv: number;
+  cf_psi_inv: number;
+  z_at_p: number;
+  dz_dp_psi_inv: number;
+  in_rock_validity_range: boolean;
+  z_correlation: string;
+}
+
+export function calculateRockCompressibility(
+  input: RockCompressibilityRequest,
+): Promise<RockCompressibilityResponse> {
+  return call('/api/engine/reservoir/compressibility/rock', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function calculateGasCompressibility(
+  input: GasCompressibilityRequest,
+): Promise<GasCompressibilityResponse> {
+  return call('/api/engine/reservoir/compressibility/gas', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function calculateTotalCompressibility(
+  input: TotalCompressibilityRequest,
+): Promise<TotalCompressibilityResponse> {
+  return call('/api/engine/reservoir/compressibility/total', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export function healthReservoir() {
   return call<{ status: string; module: string; engine: string }>('/api/v1/reservoir/health');
 }

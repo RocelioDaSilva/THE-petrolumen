@@ -55,9 +55,17 @@ def test_health(client):
 
 
 def test_capabilities_original(client):
-    mods = [m["name"] for m in
-            client.get("/api/v1/reservoir/capabilities").json()["modules_exposed"]]
+    response = client.get("/api/v1/reservoir/capabilities")
+    assert response.status_code == 200
+    catalog = response.json()
+    mods = [m["name"] for m in catalog["modules_exposed"]]
     assert mods == ["PVT", "IPR", "Decline"]
+    assert catalog["product_scope"].startswith("Engineering calculations")
+    assert any(
+        item["endpoint"] == "/api/engine/reservoir/compressibility/total"
+        for item in catalog["additional_calculations"]
+    )
+    assert "autonomous" in catalog["not_intended_for"][1].lower()
 
 
 def test_vogel(client):

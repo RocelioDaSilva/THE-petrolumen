@@ -67,6 +67,7 @@ h1 { margin: 7px 0 0; font-size: 27px; font-weight: 650; letter-spacing: -.03em;
 #tool-form { display: grid; gap: 14px; }
 .field { display: grid; gap: 7px; color: #aab6c9; font-size: 11px; }
 .field input, .field textarea, .field select { width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid #2b374b; border-radius: 8px; outline: none; color: #e3eaf5; background: #0c131e; font: 12px ui-monospace, "Cascadia Code", monospace; }
+.field input[type="checkbox"] { width: auto; justify-self: start; accent-color: #51d6a5; }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: #43b994; box-shadow: 0 0 0 3px #43b9941c; }
 .field textarea { resize: vertical; line-height: 1.5; tab-size: 2; }
 .form-actions { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
@@ -127,6 +128,41 @@ h1 { margin: 7px 0 0; font-size: 27px; font-weight: 650; letter-spacing: -.03em;
   font-size: 11px;
   font-style: italic;
   color: #64748b;
+  line-height: 1.5;
+}
+
+.compressibility-card {
+  padding: 18px 20px;
+  border: 1px solid #253347;
+  border-radius: 12px;
+  background: #0f1724;
+  color: #e2e8f0;
+}
+.compressibility-card h3 {
+  margin: 0 0 14px;
+  color: #51d6a5;
+  font-size: 16px;
+  font-weight: 650;
+}
+.compressibility-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.compressibility-card td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #1c2738;
+}
+.compressibility-card td:first-child { color: #94a3b8; }
+.compressibility-card td:last-child {
+  text-align: right;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  overflow-wrap: anywhere;
+}
+.compressibility-note {
+  margin: 14px 0 0;
+  color: #94a3b8;
+  font-size: 11px;
   line-height: 1.5;
 }
 

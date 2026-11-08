@@ -51,6 +51,54 @@ const tools = [
     ]
   },
   {
+    id: "compressibility-rock",
+    group: "RESERVOIR",
+    title: "Rock Compressibility",
+    endpoint: "/api/engine/reservoir/compressibility/rock",
+    chartMode: null,
+    description: "Estimate pore-volume compressibility from porosity. Porosity is a fraction; strict mode enforces the published correlation range.",
+    fields: [
+      { name: "phi", type: "number", label: "Porosity fraction · 0 < phi < 1", value: 0.2, step: "any" },
+      { name: "rock_type", type: "select", label: "Rock type", value: "sandstone", options: ["sandstone", "limestone"] },
+      { name: "strict", type: "checkbox", label: "Reject porosity outside the correlation range", value: false }
+    ]
+  },
+  {
+    id: "compressibility-gas",
+    group: "RESERVOIR",
+    title: "Gas Compressibility",
+    endpoint: "/api/engine/reservoir/compressibility/gas",
+    chartMode: null,
+    description: "Compute gas isothermal compressibility from the local Hall-Yarborough Z curve. Pressure is psia, temperature is degF, and gas specific gravity is relative to air.",
+    fields: [
+      { name: "p_psia", type: "number", label: "Pressure (psia)", value: 2500, step: "any" },
+      { name: "temperature_f", type: "number", label: "Temperature (degF)", value: 150, step: "any" },
+      { name: "gas_sg", type: "number", label: "Gas specific gravity (air = 1)", value: 0.9, step: "any" },
+      { name: "h_psi", type: "number", label: "Derivative step (psi, optional)", value: null, step: "any", optional: true }
+    ]
+  },
+  {
+    id: "compressibility-total",
+    group: "RESERVOIR",
+    title: "Total Compressibility",
+    endpoint: "/api/engine/reservoir/compressibility/total",
+    chartMode: null,
+    description: "Combine fluid compressibilities with Newman's rock correlation: ct = cg·Sg + co·So + cw·Sw + cf. Enter saturations as fractions summing to 1.",
+    fields: [
+      { name: "p_psia", type: "number", label: "Pressure (psia)", value: 2500, step: "any" },
+      { name: "temperature_f", type: "number", label: "Temperature (degF)", value: 150, step: "any" },
+      { name: "gas_sg", type: "number", label: "Gas specific gravity (air = 1)", value: 0.9, step: "any" },
+      { name: "phi", type: "number", label: "Porosity fraction · 0 < phi < 1", value: 0.2, step: "any" },
+      { name: "rock_type", type: "select", label: "Rock type", value: "sandstone", options: ["sandstone", "limestone"] },
+      { name: "strict_rock_range", type: "checkbox", label: "Reject porosity outside the correlation range", value: false },
+      { name: "co_psi_inv", type: "number", label: "Oil compressibility (1/psi)", value: 1.0e-5, step: "any" },
+      { name: "cw_psi_inv", type: "number", label: "Water compressibility (1/psi)", value: 3.0e-6, step: "any" },
+      { name: "sg", type: "number", label: "Gas saturation · fraction", value: 0.1, step: "any" },
+      { name: "so", type: "number", label: "Oil saturation · fraction", value: 0.7, step: "any" },
+      { name: "sw", type: "number", label: "Water saturation · fraction", value: 0.2, step: "any" }
+    ]
+  },
+  {
     id: "nodal",
     group: "RESERVOIR",
     title: "Reservoir Nodal",
@@ -282,6 +330,64 @@ function renderOoipCard(payload) {
   `;
 }
 
+function renderCompressibilityCard(payload) {
+  const output = document.querySelector("#result-output");
+  output.classList.remove("chart-output");
+  output.classList.add("json-output");
+  output.dataset.payload = JSON.stringify(payload ?? {});
+
+  const rows = selectedTool.id === "compressibility-rock"
+    ? [
+        ["Rock type", payload.rock_type],
+        ["Pore-volume compressibility", formatCompressibility(payload.cf_psi_inv)],
+        ["Within published porosity range", payload.in_validity_range ? "Yes" : "No"]
+      ]
+    : selectedTool.id === "compressibility-gas"
+      ? [
+          ["Gas compressibility", formatCompressibility(payload.cg_psi_inv)],
+          ["Z-factor", formatScalar(payload.z_at_p)],
+          ["dZ/dP", formatCompressibility(payload.dz_dp_psi_inv)],
+          ["Derivative method", `${payload.method} difference, h = ${formatScalar(payload.h_psi)} psi`],
+          ["Z correlation", payload.z_correlation]
+        ]
+      : [
+          ["Total compressibility", formatCompressibility(payload.ct_psi_inv)],
+          ["Gas compressibility", formatCompressibility(payload.cg_psi_inv)],
+          ["Rock compressibility", formatCompressibility(payload.cf_psi_inv)],
+          ["Z-factor", formatScalar(payload.z_at_p)],
+          ["Within published rock range", payload.in_rock_validity_range ? "Yes" : "No"],
+          ["Z correlation", payload.z_correlation]
+        ];
+
+  const card = document.createElement("div");
+  card.className = "compressibility-card";
+  const heading = document.createElement("h3");
+  heading.textContent = "Reservoir Compressibility Result";
+  card.append(heading);
+
+  const table = document.createElement("table");
+  for (const [label, value] of rows) {
+    const row = table.insertRow();
+    row.insertCell().textContent = label;
+    row.insertCell().textContent = value ?? "—";
+  }
+  card.append(table);
+
+  const note = document.createElement("p");
+  note.className = "compressibility-note";
+  note.textContent = "Use as a screening or learning calculation. Correlation validity and input units matter; confirm critical design values with appropriate laboratory data and engineering review.";
+  card.append(note);
+  output.replaceChildren(card);
+}
+
+function formatCompressibility(value) {
+  return Number.isFinite(value) ? `${value.toExponential(4)} 1/psi` : "—";
+}
+
+function formatScalar(value) {
+  return Number.isFinite(value) ? value.toPrecision(6) : "—";
+}
+
 function renderLasTable(payload) {
   const output = document.querySelector("#result-output");
   output.classList.remove("chart-output");
@@ -350,6 +456,11 @@ function setResultDisplay(payload) {
     return;
   }
 
+  if (selectedTool?.id.startsWith("compressibility-") && payload && Object.keys(payload).length > 0) {
+    renderCompressibilityCard(payload);
+    return;
+  }
+
   if (currentResultMode === "chart") {
     if (payload && typeof payload.image_base64 === "string") {
       output.innerHTML = `<img src="data:${payload.content_type || "image/png"};base64,${payload.image_base64}" alt="Chart output" />`;
@@ -367,6 +478,8 @@ function showTool(tool) {
   currentResultMode = tool.chartMode ? tool.chartMode : "json";
   document.querySelector("#tool-group").textContent = tool.group;
   document.querySelector("#tool-title").textContent = tool.title;
+  document.querySelector("#tool-description").textContent =
+    tool.description || "Values follow the backend request model.";
   document.querySelector("#result-caption").textContent = `POST ${tool.endpoint}`;
   document.querySelector("#run-status").textContent = "";
   setResultDisplay({});
@@ -410,6 +523,10 @@ function showTool(tool) {
       input = document.createElement("input");
       input.type = "file";
       if (field.accept) input.accept = field.accept;
+    } else if (field.type === "checkbox") {
+      input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = Boolean(field.value);
     } else if (field.type === "json") {
       input = document.createElement("textarea");
       input.rows = Array.isArray(field.value) ? 5 : 3;
@@ -457,6 +574,8 @@ function applyExampleValues(tool) {
       input.value = value === null ? "" : JSON.stringify(value, null, 2);
     } else if (field.type === "select") {
       input.value = value;
+    } else if (field.type === "checkbox") {
+      input.checked = Boolean(value);
     } else {
       input.value = value;
     }
@@ -469,7 +588,9 @@ function getFormData() {
     const input = form.elements.namedItem(field.name);
     if (!input) continue;
     if (field.optional && input.value.trim() === "") continue;
-    if (input.dataset.valueType === "json") {
+    if (field.type === "checkbox") {
+      data[field.name] = input.checked;
+    } else if (input.dataset.valueType === "json") {
       try {
         data[field.name] = JSON.parse(input.value);
       } catch (err) {

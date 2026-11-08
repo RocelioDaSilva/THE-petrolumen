@@ -36,13 +36,34 @@ def calculate_z_factor_hall_yarborough(
     temperature_f: float,
     gamma_g: float,
 ) -> float:
-    """Hall-Yarborough Z. Kept local — see module docstring."""
-    if pressure_psia <= 0:
-        raise ValueError(f"Pressure must be strictly positive (psia), got {pressure_psia}")
-    if temperature_f <= -459.67:
-        raise ValueError(f"Temperature must be above absolute zero (-459.67 F), got {temperature_f}")
-    if gamma_g <= 0:
-        raise ValueError(f"Gas gravity must be positive, got {gamma_g}")
+    """Hall-Yarborough Z rounded to four decimals for backward compatibility."""
+    return round(
+        calculate_z_factor_hall_yarborough_unrounded(
+            pressure_psia, temperature_f, gamma_g
+        ),
+        4,
+    )
+
+
+def calculate_z_factor_hall_yarborough_unrounded(
+    pressure_psia: float,
+    temperature_f: float,
+    gamma_g: float,
+) -> float:
+    """Return full-precision Hall-Yarborough Z for derivative calculations."""
+    if not math.isfinite(pressure_psia) or pressure_psia <= 0:
+        raise ValueError(
+            f"Pressure must be a positive finite value (psia), got {pressure_psia}"
+        )
+    if not math.isfinite(temperature_f) or temperature_f <= -459.67:
+        raise ValueError(
+            f"Temperature must be finite and above absolute zero (-459.67 F), "
+            f"got {temperature_f}"
+        )
+    if not math.isfinite(gamma_g) or gamma_g <= 0:
+        raise ValueError(
+            f"Gas gravity must be a positive finite value, got {gamma_g}"
+        )
 
     ppc, tpc = pseudocritical_properties(gamma_g)
     temp_r = temperature_f + 459.67
@@ -84,7 +105,7 @@ def calculate_z_factor_hall_yarborough(
     z = (a * pr) / max(y, 1e-6)
     if z <= 0.0 or not math.isfinite(z):
         raise RuntimeError(f"Unphysical Z-factor calculated: {z}")
-    return round(float(z), 4)
+    return float(z)
 
 
 def calculate_bubble_point_standing(
