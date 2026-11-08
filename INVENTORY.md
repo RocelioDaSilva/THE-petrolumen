@@ -664,8 +664,8 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | `thepetrolumen\thepetrolumen_new\petrolumen\src-tauri\src\main.rs` | data | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src-tauri\tauri.conf.json` | data | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src-tauri\Tauri.toml` | config | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
-| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\FluidCompositionEditor.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Adds/removes mixture components and edits mole fractions; current PVTCalculator has a fixed composition list, not an editor. | `test_pvt_fluid_composition_editor` (to add) |
-| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\ModelManager.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Creates, selects and deletes black-oil/compositional models; edit action is a console-log placeholder and current PVTCalculator has no model manager. | `test_pvt_model_manager` (to add) |
+| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\FluidCompositionEditor.jsx` | frontend | `src/components/visualizations/pvt/FluidCompositionEditor.tsx` | absorbed | Adds/removes mixture components, edits properties and normalizes mole fractions. | `test_pvt_fluid_composition_editor` |
+| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\ModelManager.jsx` | frontend | `src/components/visualizations/pvt/ModelManager.tsx` | absorbed | Creates, selects and deletes named black-oil or compositional models. | `test_pvt_model_manager` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PhaseEnvelope.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Fetches and charts model-specific envelope data and critical/extreme points; current PVTCalculator draws a local bubble-point curve only. | `test_pvt_phase_envelope` (to add) |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTInputForm.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Provides single-point and table input forms by model type; current PVTCalculator is a single calculator without tabular API workflow. | `test_pvt_input_form_workflow` (to add) |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTResults.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Renders calculation/table results and CSV export; current PVTCalculator shows charts/values without table export. | `test_pvt_results_export` (to add) |
@@ -787,9 +787,10 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | Verdict | Count |
 |---|---:|
 | keep-current | 151 |
-| absorb-legacy | 7 |
+| absorb-legacy | 5 |
 | absorb-and-improve | 0 |
 | rebuild | 6 |
+| absorbed | 2 |
 | delete | 603 |
 
 ## Summary B: Absorb priority
@@ -797,12 +798,11 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | Priority | Legacy path | Current target | Effort (S/M/L) | Test file to add |
 |---:|---|---|---|---|
 | 1 | `thepetrolumen\thepetrolumen_new\petrolumen\src\pages\pvt-analysis.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_analysis_workflow`) |
-| 2 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\FluidCompositionEditor.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_fluid_composition_editor`) |
-| 3 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\ModelManager.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_model_manager`) |
-| 4 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PhaseEnvelope.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_phase_envelope`) |
-| 5 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTInputForm.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_input_form_workflow`) |
-| 6 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTResults.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_results_export`) |
-| 7 | `thepetrolumen\thepetrolumen_new\petrolumen\src\services\pvtService.js` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_service_calls`) |
+| 2 | `thepetrolumen\thepetrolumen_new\petrolumen\src\pages\pvt-analysis.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_analysis_workflow`) |
+| 3 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PhaseEnvelope.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_phase_envelope`) |
+| 4 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTInputForm.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_input_form_workflow`) |
+| 5 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTResults.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_results_export`) |
+| 6 | `thepetrolumen\thepetrolumen_new\petrolumen\src\services\pvtService.js` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_service_calls`) |
 | 13 | `reservoir_engineering\flow_simulation\reservoir_simulator.py` | `backend/app/engines/reservoir/simulation/` | L | `backend/tests/test_reservoir_simulator.py` (`test_rebuilt_reservoir_simulator_grid_validation`) |
 
 ## Summary C: Requires human decision
