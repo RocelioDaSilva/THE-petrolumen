@@ -18,6 +18,10 @@ from app.engines.drilling.trajectory import compute_trajectory_minimum_curvature
 from app.engines.petrophysics.facies import predict_facies, train_facies_classifier
 from app.engines.petrophysics.porosity import calculate_density_porosity
 from app.engines.reservoir.decline_curve import exponential, harmonic, hyperbolic
+from app.engines.reservoir import (
+    calculate_volumetric_ogip,
+    calculate_volumetric_stoiip,
+)
 from app.engines.reservoir.material_balance import (
     calculate_fmb_gas,
     estimate_ogip_from_production,
@@ -310,6 +314,31 @@ def test_gas_material_balance():
         calculate_fmb_gas(pi=-100.0)
     with pytest.raises(ValueError):
         estimate_ogip_from_production([10.0], [3000.0])  # Only 1 point
+
+
+def test_volumetric_ogip_stoiip_unit_conversions():
+    reservoir = {
+        "area_acres": 640.0,
+        "net_pay_ft": 50.0,
+        "porosity": 0.2,
+        "water_saturation": 0.25,
+    }
+
+    ogip = calculate_volumetric_ogip(**reservoir, gas_fvf_ft3_scf=0.0283)
+    stoiip = calculate_volumetric_stoiip(**reservoir, oil_fvf_rb_stb=1.2)
+
+    assert ogip == pytest.approx(7388.26855123675)
+    assert stoiip == pytest.approx(31.033468)
+    with pytest.raises(ValueError, match="Porosity"):
+        calculate_volumetric_ogip(
+            **{**reservoir, "porosity": 1.1}, gas_fvf_ft3_scf=0.0283
+        )
+    with pytest.raises(ValueError, match="Gas FVF"):
+        calculate_volumetric_ogip(**reservoir, gas_fvf_ft3_scf=0.0)
+    with pytest.raises(ValueError, match="area_acres"):
+        calculate_volumetric_stoiip(
+            **{**reservoir, "area_acres": float("inf")}, oil_fvf_rb_stb=1.2
+        )
 
 
 def test_edge_cases_and_error_handling():

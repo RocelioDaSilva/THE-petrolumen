@@ -31,6 +31,8 @@ from .black_oil_pvt import (
 )
 from .material_balance import (
     calculate_fmb_gas,
+    calculate_volumetric_ogip,
+    calculate_volumetric_stoiip,
     estimate_ogip_from_production,
 )
 from .nodal import find_operating_point, ipr_vogel, tpr
@@ -68,6 +70,8 @@ __all__ = [
     "calculate_oil_fvf_standing",
     "calculate_radius_of_investigation",
     "calculate_remaining_life",
+    "calculate_volumetric_ogip",
+    "calculate_volumetric_stoiip",
     "calculate_z_factor_hall_yarborough",
     "calculate_z_factor_hall_yarborough_unrounded",
     "estimate_ogip_from_production",
