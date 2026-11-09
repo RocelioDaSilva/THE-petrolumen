@@ -29,6 +29,11 @@ import {
   savePVTModel,
 } from "@/lib/pvt/service";
 import type { SavedPVTModel } from "@/lib/pvt/types";
+import PVTAnalysisWorkflow from "../PVTAnalysisWorkflow";
+
+vi.mock("../PVTCalculator", () => ({
+  default: () => <div>Current PVT calculation view</div>,
+}));
 
 vi.stubGlobal(
   "ResizeObserver",
@@ -245,5 +250,30 @@ describe("PVT workflow", () => {
     expect(() => getSavedPVTModels()).toThrow(
       "Saved PVT models contain invalid JSON.",
     );
+  });
+
+  it("test_pvt_analysis_workflow joins calculation, models, and composition", () => {
+    window.localStorage.clear();
+    render(<PVTAnalysisWorkflow />);
+    expect(screen.getByText("Current PVT calculation view")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Models" }));
+    fireEvent.change(screen.getByLabelText("Model name"), {
+      target: { value: "Reservoir fluid" },
+    });
+    fireEvent.change(screen.getByLabelText("Model type"), {
+      target: { value: "compositional" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create model" }));
+    expect(screen.getByText("Reservoir fluid")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Composition" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add component" }));
+    fireEvent.change(screen.getByLabelText("Mole fraction 1"), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save composition" }));
+
+    expect(getSavedPVTModels()[0].components[0].moleFraction).toBe(1);
   });
 });
