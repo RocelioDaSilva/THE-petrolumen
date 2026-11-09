@@ -12,9 +12,8 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { calculatePVT, calculateZFactor } from "@/lib/reservoirMath";
+import { calculatePVT, calculateZFactor, type PVTResults } from "@/lib/reservoirMath";
 import { convert, UnitSystem } from "@/lib/units";
 import { sanitizePVT } from "@/lib/pvt/sanitize";
 import { Beaker, Droplets, Activity, Zap, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -22,6 +21,11 @@ import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import { useSessionRegistry } from "@/lib/sessionRegistry";
 import { useUnit } from "@/lib/unitContext";
 import { PhaseEnvelope } from "./pvt/PhaseEnvelope";
+import {
+  PVTInputForm,
+  type PVTFormValues,
+  type PVTTableRange,
+} from "./pvt/PVTInputForm";
 
 interface ComponentEntry {
   name: string;
@@ -36,6 +40,9 @@ export default function PVTCalculator() {
   const { unitSystem, setUnitSystem } = useUnit();
   const { activeScenario, updateActiveParameters } = useSessionRegistry();
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [generatedTable, setGeneratedTable] = useState<
+    Array<{ pressure: number; results: PVTResults }>
+  >([]);
 
   const [pressure, setPressure] = useState<number>(activeScenario?.parameters?.reservoirPressurePsia ?? 3200); // psia
   const [temperature, setTemperature] = useState<number>(activeScenario?.parameters?.reservoirTempF ?? 180); // °F
@@ -168,8 +175,35 @@ export default function PVTCalculator() {
   const pUnit = unitSystem === "metric" ? "kPa" : "psia";
   const tUnit = unitSystem === "metric" ? "°C" : "°F";
 
-  const displayPressure = unitSystem === "metric" ? Math.round(convert(pressure, "psi", "kPa")) : pressure;
   const displayTemp = unitSystem === "metric" ? Math.round(convert(temperature, "F", "C")) : temperature;
+
+  const updatePVTInput = (field: keyof PVTFormValues, value: number) => {
+    setGeneratedTable([]);
+    if (field === "pressure") setPressure(value);
+    if (field === "temperature") setTemperature(value);
+    if (field === "gasGravity") setGammaG(value);
+    if (field === "apiGravity") setApi(value);
+    if (field === "gor") setGor(value);
+  };
+
+  const generatePVTTable = ({ start, end, step }: PVTTableRange) => {
+    const table: Array<{ pressure: number; results: PVTResults }> = [];
+    const count = Math.floor((end - start) / step) + 1;
+    for (let index = 0; index < count; index += 1) {
+      const tablePressure = start + index * step;
+      table.push({
+        pressure: tablePressure,
+        results: calculatePVT({
+          pressure: tablePressure,
+          temperature,
+          gammaG,
+          api,
+          gor,
+        }),
+      });
+    }
+    setGeneratedTable(table);
+  };
 
   return (
     <div className="space-y-6">
@@ -307,75 +341,21 @@ export default function PVTCalculator() {
             </Badge>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="pvt-p">Pressão ({pUnit})</Label>
-                <span className="text-xs font-mono font-bold text-primary">{displayPressure}</span>
-              </div>
-              <Input
-                id="pvt-p"
-                type="number"
-                value={pressure}
-                onChange={(e) => setPressure(Number(e.target.value))}
-                className={pressure <= 0 ? "border-red-500 focus-visible:ring-red-500" : ""}
-              />
-              <p className="text-[10px] text-muted-foreground">
-                Base de cálculo: {pressure} psia (deve ser estritamente &gt; 0)
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="pvt-t">Temperatura ({tUnit})</Label>
-                <span className="text-xs font-mono font-bold text-primary">{displayTemp}</span>
-              </div>
-              <Input
-                id="pvt-t"
-                type="number"
-                value={temperature}
-                onChange={(e) => setTemperature(Number(e.target.value))}
-                className={temperature <= -459.67 ? "border-red-500 focus-visible:ring-red-500" : ""}
-              />
-              <p className="text-[10px] text-muted-foreground">Zero absoluto: -459.67 °F / -273.15 °C</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="pvt-gammag">Densidade Relativa do Gás (γg - Ar=1.0)</Label>
-              <Input
-                id="pvt-gammag"
-                type="number"
-                step="0.01"
-                value={gammaG}
-                onChange={(e) => setGammaG(Number(e.target.value))}
-                className={gammaG < 0.5 || gammaG > 2.0 ? "border-amber-500" : ""}
-              />
-              <p className="text-[10px] text-muted-foreground">Faixa típica de hidrocarbonetos: 0.55 - 1.20</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="pvt-api">Grau API do Óleo (°API)</Label>
-              <Input
-                id="pvt-api"
-                type="number"
-                step="0.5"
-                value={api}
-                onChange={(e) => setApi(Number(e.target.value))}
-                className={api <= 0 || api > 100 ? "border-red-500" : ""}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="pvt-gor">Razão Gás-Óleo de Produção (GOR, scf/STB)</Label>
-              <Input
-                id="pvt-gor"
-                type="number"
-                step="10"
-                value={gor}
-                onChange={(e) => setGor(Number(e.target.value))}
-                className={gor < 0 ? "border-red-500" : ""}
-              />
-            </div>
-
+            <PVTInputForm
+              values={{
+                pressure,
+                temperature,
+                gasGravity: gammaG,
+                apiGravity: api,
+                gor,
+              }}
+              pressureUnit={pUnit}
+              temperatureUnit={tUnit}
+              canGenerateTable={validation.ok}
+              generatedRowCount={generatedTable.length}
+              onChange={updatePVTInput}
+              onGenerateTable={generatePVTTable}
+            />
             <div className="pt-2 space-y-2">
               <Button
                 variant="outline"
