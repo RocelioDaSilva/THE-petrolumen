@@ -25,7 +25,7 @@ const ReservoirSimulationView = lazy(() => import("@/components/visualizations/R
 const ReservoirCompressibilityView = lazy(() => import("@/components/visualizations/ReservoirCompressibilityView"));
 const ReservoirGrid3D = lazy(() => import("@/components/visualizations/ReservoirGrid3D"));
 const DeclineCurveAnalysis = lazy(() => import("@/components/visualizations/DeclineCurveAnalysis"));
-const PVTCalculator = lazy(() => import("@/components/visualizations/PVTCalculator"));
+const PVTAnalysisWorkflow = lazy(() => import("@/components/visualizations/PVTAnalysisWorkflow"));
 const NodalAnalysisView = lazy(() => import("@/components/visualizations/NodalAnalysisView"));
 const FlowingMaterialBalanceView = lazy(() => import("@/components/visualizations/FlowingMaterialBalanceView"));
 const EconomicsView = lazy(() => import("@/components/visualizations/EconomicsView"));
@@ -143,7 +143,7 @@ function MainApp() {
       case "production-dca":
         return wrap(<DeclineCurveAnalysis />);
       case "pvt":
-        return wrap(<PVTCalculator />);
+        return wrap(<PVTAnalysisWorkflow />);
       case "nodal":
         return wrap(<NodalAnalysisView />);
       case "rta":
