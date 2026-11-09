@@ -13,7 +13,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { calculatePVT, calculateZFactor, type PVTResults } from "@/lib/reservoirMath";
+import { calculatePVT, calculateZFactor } from "@/lib/reservoirMath";
 import { convert, UnitSystem } from "@/lib/units";
 import { sanitizePVT } from "@/lib/pvt/sanitize";
 import { Beaker, Droplets, Activity, Zap, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -26,6 +26,7 @@ import {
   type PVTFormValues,
   type PVTTableRange,
 } from "./pvt/PVTInputForm";
+import { PVTResults, type PVTTableRow } from "./pvt/PVTResults";
 
 interface ComponentEntry {
   name: string;
@@ -40,9 +41,7 @@ export default function PVTCalculator() {
   const { unitSystem, setUnitSystem } = useUnit();
   const { activeScenario, updateActiveParameters } = useSessionRegistry();
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const [generatedTable, setGeneratedTable] = useState<
-    Array<{ pressure: number; results: PVTResults }>
-  >([]);
+  const [generatedTable, setGeneratedTable] = useState<PVTTableRow[]>([]);
 
   const [pressure, setPressure] = useState<number>(activeScenario?.parameters?.reservoirPressurePsia ?? 3200); // psia
   const [temperature, setTemperature] = useState<number>(activeScenario?.parameters?.reservoirTempF ?? 180); // °F
@@ -187,12 +186,13 @@ export default function PVTCalculator() {
   };
 
   const generatePVTTable = ({ start, end, step }: PVTTableRange) => {
-    const table: Array<{ pressure: number; results: PVTResults }> = [];
+    const table: PVTTableRow[] = [];
     const count = Math.floor((end - start) / step) + 1;
     for (let index = 0; index < count; index += 1) {
       const tablePressure = start + index * step;
       table.push({
         pressure: tablePressure,
+        temperature,
         results: calculatePVT({
           pressure: tablePressure,
           temperature,
@@ -203,6 +203,17 @@ export default function PVTCalculator() {
       });
     }
     setGeneratedTable(table);
+  };
+
+  const downloadPVTTable = (csv: string) => {
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "pvt-results.csv";
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -453,6 +464,8 @@ export default function PVTCalculator() {
           </div>
         </div>
       </div>
+
+      <PVTResults rows={generatedTable} onExportCsv={downloadPVTTable} />
 
       {/* Fluid Composition Editor Table */}
       <Card className="shadow-sm">

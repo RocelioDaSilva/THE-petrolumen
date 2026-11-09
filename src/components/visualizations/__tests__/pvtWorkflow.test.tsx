@@ -17,6 +17,11 @@ import {
   PVTInputForm,
   type PVTFormValues,
 } from "../pvt/PVTInputForm";
+import {
+  formatPVTResultsCsv,
+  PVTResults,
+  type PVTTableRow,
+} from "../pvt/PVTResults";
 
 vi.stubGlobal(
   "ResizeObserver",
@@ -177,5 +182,34 @@ describe("PVT workflow", () => {
       end: 6000,
       step: 500,
     });
+  });
+
+  it("test_pvt_results_export renders rows and exports property values", () => {
+    const rows: PVTTableRow[] = [
+      {
+        pressure: 1000,
+        temperature: 180,
+        results: {
+          zFactor: 0.9,
+          bg: 0.01,
+          bo: 1.2,
+          rs: 300,
+          pb: 2500,
+          oilViscosity: 2.5,
+          gasViscosity: 0.02,
+          oilDensity: 50,
+        },
+      },
+    ];
+    const onExportCsv = vi.fn();
+
+    render(<PVTResults rows={rows} onExportCsv={onExportCsv} />);
+    expect(screen.getByText("1000.00")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+
+    const csv = formatPVTResultsCsv(rows);
+    expect(onExportCsv).toHaveBeenCalledWith(csv);
+    expect(csv).toContain("Pressure (psia),Temperature (°F),Z-factor");
+    expect(csv).toContain("1000.000000,180.0000000,0.9000000000");
   });
 });
