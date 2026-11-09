@@ -6,9 +6,86 @@ estimation based on P/Z straight-line methods.
 
 from __future__ import annotations
 
+import math
 from typing import TypedDict
 
 from .pvt import calculate_z_factor_hall_yarborough
+
+
+def _hydrocarbon_pore_volume_ac_ft(
+    area_acres: float,
+    net_pay_ft: float,
+    porosity: float,
+    water_saturation: float,
+) -> float:
+    for name, value in (
+        ("area_acres", area_acres),
+        ("net_pay_ft", net_pay_ft),
+        ("porosity", porosity),
+        ("water_saturation", water_saturation),
+    ):
+        if not math.isfinite(value):
+            raise ValueError(f"{name} must be finite.")
+    if area_acres <= 0 or net_pay_ft <= 0:
+        raise ValueError("Area and net pay must be positive.")
+    if not 0 < porosity <= 1:
+        raise ValueError("Porosity must be greater than zero and at most one.")
+    if not 0 <= water_saturation < 1:
+        raise ValueError("Water saturation must be at least zero and less than one.")
+
+    pore_volume = area_acres * net_pay_ft * porosity * (1 - water_saturation)
+    if not math.isfinite(pore_volume):
+        raise ValueError("Calculated hydrocarbon pore volume must be finite.")
+    return pore_volume
+
+
+def calculate_volumetric_ogip(
+    area_acres: float,
+    net_pay_ft: float,
+    porosity: float,
+    water_saturation: float,
+    gas_fvf_ft3_scf: float,
+) -> float:
+    """Calculate volumetric OGIP in MMscf from field-unit reservoir inputs.
+
+    Converts hydrocarbon pore volume from acre-feet to cubic feet, divides by
+    gas FVF in ft^3/scf, then converts scf to MMscf.
+    """
+    pore_volume_ac_ft = _hydrocarbon_pore_volume_ac_ft(
+        area_acres, net_pay_ft, porosity, water_saturation
+    )
+    if not math.isfinite(gas_fvf_ft3_scf) or gas_fvf_ft3_scf <= 0:
+        raise ValueError("Gas FVF must be finite and positive in ft^3/scf.")
+
+    ogip_mmscf = pore_volume_ac_ft * 43_560.0 / gas_fvf_ft3_scf / 1_000_000.0
+    if not math.isfinite(ogip_mmscf):
+        raise ValueError("Calculated OGIP must be finite.")
+    return float(ogip_mmscf)
+
+
+def calculate_volumetric_stoiip(
+    area_acres: float,
+    net_pay_ft: float,
+    porosity: float,
+    water_saturation: float,
+    oil_fvf_rb_stb: float,
+) -> float:
+    """Calculate volumetric STOIIP in MMstb from field-unit reservoir inputs.
+
+    Converts hydrocarbon pore volume from acre-feet to reservoir barrels,
+    divides by oil FVF in rb/STB, then converts STB to MMstb.
+    """
+    pore_volume_ac_ft = _hydrocarbon_pore_volume_ac_ft(
+        area_acres, net_pay_ft, porosity, water_saturation
+    )
+    if not math.isfinite(oil_fvf_rb_stb) or oil_fvf_rb_stb <= 0:
+        raise ValueError("Oil FVF must be finite and positive in rb/STB.")
+
+    reservoir_volume_rb = pore_volume_ac_ft * 7_758.367
+    stoiip_mmstb = reservoir_volume_rb / oil_fvf_rb_stb / 1_000_000.0
+    if not math.isfinite(stoiip_mmstb):
+        raise ValueError("Calculated STOIIP must be finite.")
+    return float(stoiip_mmstb)
 
 
 class RTAPoint(TypedDict):
