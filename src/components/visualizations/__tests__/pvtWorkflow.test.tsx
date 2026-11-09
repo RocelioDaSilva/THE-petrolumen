@@ -13,6 +13,10 @@ import {
   PhaseEnvelope,
   type PhaseEnvelopePoint,
 } from "../pvt/PhaseEnvelope";
+import {
+  PVTInputForm,
+  type PVTFormValues,
+} from "../pvt/PVTInputForm";
 
 vi.stubGlobal(
   "ResizeObserver",
@@ -127,5 +131,51 @@ describe("PVT workflow", () => {
     expect(screen.getByText("Cricondenbar")).toBeInTheDocument();
     expect(screen.getByText("1200.0 psia")).toBeInTheDocument();
     expect(screen.getByText("220.0 °F, 1150.0 psia")).toBeInTheDocument();
+  });
+
+  it("test_pvt_input_form_workflow validates and submits table ranges", () => {
+    const values: PVTFormValues = {
+      pressure: 3200,
+      temperature: 180,
+      gasGravity: 0.72,
+      apiGravity: 34.5,
+      gor: 650,
+    };
+    const onChange = vi.fn();
+    const onGenerateTable = vi.fn();
+    render(
+      <PVTInputForm
+        values={values}
+        pressureUnit="psia"
+        temperatureUnit="°F"
+        canGenerateTable
+        generatedRowCount={0}
+        onChange={onChange}
+        onGenerateTable={onGenerateTable}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Gas specific gravity (air = 1.0)"), {
+      target: { value: "0.8" },
+    });
+    expect(onChange).toHaveBeenCalledWith("gasGravity", 0.8);
+
+    fireEvent.change(screen.getByLabelText("Pressure step"), {
+      target: { value: "0" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Generate 0 table points" }),
+    ).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Pressure step"), {
+      target: { value: "500" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Generate 12 table points" }),
+    );
+    expect(onGenerateTable).toHaveBeenCalledWith({
+      start: 500,
+      end: 6000,
+      step: 500,
+    });
   });
 });
