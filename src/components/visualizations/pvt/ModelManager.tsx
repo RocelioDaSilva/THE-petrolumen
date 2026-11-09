@@ -1,13 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
-
-export type PVTModelType = "black_oil" | "compositional";
-
-export interface PVTModelSummary {
-  id: string;
-  name: string;
-  type: PVTModelType;
-  createdAt: string;
-}
+import type { PVTModelSummary, PVTModelType } from "@/lib/pvt/types";
+export type { PVTModelSummary, PVTModelType } from "@/lib/pvt/types";
 
 interface ModelManagerProps {
   models: PVTModelSummary[];
