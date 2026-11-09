@@ -393,13 +393,13 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | `thepetrolumen\petrolumen\app\pages\Dashboard.tsx` | frontend | `src/components/visualizations/DashboardOverview.tsx` | keep-current | Legacy page returns only a title placeholder; current App.tsx registers DashboardOverview. | `test_dashboard_overview_registered` (to add) |
 | `thepetrolumen\petrolumen\app\pages\EconomicAnalysis.tsx` | frontend | `src/components/visualizations/EconomicsView.tsx` | keep-current | Legacy page returns only a title placeholder; current App.tsx registers EconomicsView. | `test_economics_view_registered` (to add) |
 | `thepetrolumen\petrolumen\app\pages\Integration.tsx` | frontend | `src/components/visualizations/ConnectorsView.tsx` | keep-current | Legacy page returns only a title placeholder; current App.tsx registers ConnectorsView. | `test_connectors_view_registered` (to add) |
-| `thepetrolumen\petrolumen\app\pages\Modeling.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. | `test_modeling_page_has_no_feature_implementation` (to add) |
-| `thepetrolumen\petrolumen\app\pages\Optimization.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. | `test_optimization_page_has_no_feature_implementation` (to add) |
+| `thepetrolumen\petrolumen\app\pages\Modeling.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. Deferred until modeling scope is defined. | `test_modeling_page_feature` (to add) |
+| `thepetrolumen\petrolumen\app\pages\Optimization.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. Deferred until optimization scope is defined. | `test_optimization_page_feature` (to add) |
 | `thepetrolumen\petrolumen\app\pages\ProductionAnalysis.tsx` | frontend | `src/components/visualizations/DeclineCurveAnalysis.tsx` | keep-current | Legacy page returns only a title placeholder; current production UI includes decline-curve and nodal analysis. | `test_production_analysis_view_registered` (to add) |
 | `thepetrolumen\petrolumen\app\pages\ReservoirSimulation.tsx` | frontend | `src/components/visualizations/ReservoirSimulationView.tsx` | keep-current | Legacy page returns only a title placeholder; current App.tsx registers ReservoirSimulationView and ReservoirGrid3D. | `test_reservoir_simulation_view_registered` (to add) |
-| `thepetrolumen\petrolumen\app\pages\Uncertainty.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. | `test_uncertainty_page_has_no_feature_implementation` (to add) |
-| `thepetrolumen\petrolumen\app\pages\Visualization.tsx` | frontend | `none (no equivalent general React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. | `test_visualization_page_has_no_feature_implementation` (to add) |
-| `thepetrolumen\petrolumen\app\pages\WellTesting.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. | `test_well_testing_page_has_no_feature_implementation` (to add) |
+| `thepetrolumen\petrolumen\app\pages\Uncertainty.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. Deferred until uncertainty UI scope is defined. | `test_uncertainty_page_feature` (to add) |
+| `thepetrolumen\petrolumen\app\pages\Visualization.tsx` | frontend | `none (no equivalent general React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. Deferred until visualization scope is defined. | `test_visualization_page_feature` (to add) |
+| `thepetrolumen\petrolumen\app\pages\WellTesting.tsx` | frontend | `none (no equivalent React page)` | rebuild | One-line title placeholder; no feature implementation exists to absorb. Deferred until well-testing UI scope is defined. | `test_well_testing_page_feature` (to add) |
 | `thepetrolumen\petrolumen\backend\__init__.py` | backend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\petrolumen\backend\main.py` | backend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\petrolumen\components\app-sidebar.tsx` | frontend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
@@ -664,9 +664,9 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | `thepetrolumen\thepetrolumen_new\petrolumen\src-tauri\src\main.rs` | data | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src-tauri\tauri.conf.json` | data | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src-tauri\Tauri.toml` | config | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
-| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\FluidCompositionEditor.jsx` | frontend | `src/components/visualizations/pvt/FluidCompositionEditor.tsx` | absorbed | Adds/removes mixture components, edits properties and normalizes mole fractions. | `test_pvt_fluid_composition_editor` |
-| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\ModelManager.jsx` | frontend | `src/components/visualizations/pvt/ModelManager.tsx` | absorbed | Creates, selects and deletes named black-oil or compositional models. | `test_pvt_model_manager` |
-| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PhaseEnvelope.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Fetches and charts model-specific envelope data and critical/extreme points; current PVTCalculator draws a local bubble-point curve only. | `test_pvt_phase_envelope` (to add) |
+| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\FluidCompositionEditor.jsx` | frontend | `src/components/visualizations/pvt/FluidCompositionEditor.tsx` | absorbed | Adds/removes mixture components and edits mole fractions; the current UI includes the editor and validates normalized fractions. | `test_pvt_fluid_composition_editor` |
+| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\ModelManager.jsx` | frontend | `src/components/visualizations/pvt/ModelManager.tsx` | absorbed | Creates, selects and deletes black-oil/compositional models; current UI provides the functional model-list and selection callbacks. | `test_pvt_model_manager` |
+| `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PhaseEnvelope.jsx` | frontend | `src/components/visualizations/pvt/PhaseEnvelope.tsx` | absorbed | Current chart plots typed bubble/dew points and reports critical point, cricondentherm and cricondenbar; app wires its existing Standing bubble-point curve without synthesizing dew data. | `test_pvt_phase_envelope` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTInputForm.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Provides single-point and table input forms by model type; current PVTCalculator is a single calculator without tabular API workflow. | `test_pvt_input_form_workflow` (to add) |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTResults.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Renders calculation/table results and CSV export; current PVTCalculator shows charts/values without table export. | `test_pvt_results_export` (to add) |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\pages\pvt-analysis.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Integrates input, composition, model management, result and phase-envelope tabs; current PVTCalculator is a single local workflow. | `test_pvt_analysis_workflow` (to add) |
@@ -787,29 +787,26 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | Verdict | Count |
 |---|---:|
 | keep-current | 151 |
-| absorb-legacy | 5 |
+| absorb-legacy | 4 |
 | absorb-and-improve | 0 |
 | rebuild | 6 |
-| absorbed | 2 |
 | delete | 603 |
+| absorbed | 3 |
 
 ## Summary B: Absorb priority
 
 | Priority | Legacy path | Current target | Effort (S/M/L) | Test file to add |
 |---:|---|---|---|---|
 | 1 | `thepetrolumen\thepetrolumen_new\petrolumen\src\pages\pvt-analysis.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_analysis_workflow`) |
-| 2 | `thepetrolumen\thepetrolumen_new\petrolumen\src\pages\pvt-analysis.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_analysis_workflow`) |
-| 3 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PhaseEnvelope.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_phase_envelope`) |
-| 4 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTInputForm.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_input_form_workflow`) |
-| 5 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTResults.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_results_export`) |
-| 6 | `thepetrolumen\thepetrolumen_new\petrolumen\src\services\pvtService.js` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_service_calls`) |
-| 13 | `reservoir_engineering\flow_simulation\reservoir_simulator.py` | `backend/app/engines/reservoir/simulation/` | L | `backend/tests/test_reservoir_simulator.py` (`test_rebuilt_reservoir_simulator_grid_validation`) |
+| 2 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTInputForm.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_input_form_workflow`) |
+| 3 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTResults.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_results_export`) |
+| 4 | `thepetrolumen\thepetrolumen_new\petrolumen\src\services\pvtService.js` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_service_calls`) |
+| 5 | `reservoir_engineering\flow_simulation\reservoir_simulator.py` | `backend/app/engines/reservoir/simulation/` | L | `backend/tests/test_reservoir_simulator.py` (`test_rebuilt_reservoir_simulator_grid_validation`) |
 
 ## Summary C: Requires human decision
 
 | Legacy path | Question | Options |
 |---|---|---|
-| `thepetrolumen\petrolumen\app\pages\{Modeling,Optimization,Uncertainty,Visualization,WellTesting}.tsx` | These are one-line placeholders, not implementations. What concrete functionality is intended before rebuilding? | Specify one feature per page; keep as deferred; drop pages with no defined scope. |
 | `reservoir_engineering\flow_simulation\reservoir_simulator.py` | What is the acceptable solver scope before rebuilding this incomplete prototype? | Minimal grid/flow solver; broader multiphase solver; defer rebuild and deletion. |
 | `mini oil and gas projects\production_lstm\train_lstm.py` | Current code already trains an LSTM, but no focused training-pipeline test exists. Is a test-only improvement warranted? | Add focused test after approval; keep current implementation without added test. |
 | `reservoir_engineering\geostatistics\geostatistics.py` | Current geostatistics module exists but no focused test was found. Should coverage be added, or should the current code remain unchanged? | Add variogram/kriging test after approval; no change. |

@@ -17,10 +17,11 @@ import { Badge } from "@/components/ui/badge";
 import { calculatePVT, calculateZFactor } from "@/lib/reservoirMath";
 import { convert, UnitSystem } from "@/lib/units";
 import { sanitizePVT } from "@/lib/pvt/sanitize";
-import { Beaker, Droplets, Flame, Activity, Zap, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Beaker, Droplets, Activity, Zap, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import { useSessionRegistry } from "@/lib/sessionRegistry";
 import { useUnit } from "@/lib/unitContext";
+import { PhaseEnvelope } from "./pvt/PhaseEnvelope";
 
 interface ComponentEntry {
   name: string;
@@ -453,45 +454,23 @@ export default function PVTCalculator() {
             </CardContent>
           </Card>
 
-          {/* Phase Envelope (P-T Diagram) */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-amber-500" />
-                  Curva de Ponto de Bolha vs Temperatura (Standing 1947)
-                </CardTitle>
-                <ProvenanceBadge kind="calculated" source="Standing Pb(T)" />
-              </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <ProvenanceBadge kind="calculated" source="Standing Pb(T)" />
               <Badge variant="outline" className="text-[11px] bg-emerald-500/10 text-emerald-600">
                 Pb @ {displayTemp}{tUnit}: {results.pb} {pUnit}
               </Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[220px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={phaseEnvelopeData} margin={{ top: 5, right: 20, left: 0, bottom: 15 }}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis
-                      dataKey="temp"
-                      label={{ value: `Temperatura (${tUnit})`, position: "insideBottom", offset: -8 }}
-                    />
-                    <YAxis label={{ value: `Pressão (${pUnit})`, angle: -90, position: "insideLeft", offset: 10 }} />
-                    <Tooltip />
-                    <Legend verticalAlign="top" height={30} />
-                    <Line
-                      type="monotone"
-                      dataKey="bubblePoint"
-                      name={`Ponto de Bolha Standing (Pb)`}
-                      stroke="#ef4444"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <PhaseEnvelope
+              points={phaseEnvelopeData.map((point) => ({
+                temperature: point.temp,
+                pressure: point.bubblePoint,
+                type: "bubble" as const,
+              }))}
+              temperatureUnit={tUnit}
+              pressureUnit={pUnit}
+            />
+          </div>
         </div>
       </div>
 
