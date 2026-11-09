@@ -762,3 +762,15 @@
 | 8 | `legacy_archive\thepetrolumen\thepetrolumen_new\SECURITY.md` | obsolete | git history preserves original. |
 | 8 | `legacy_archive\thepetrolumen\thepetrolumen_new\setup.py` | obsolete | git history preserves original. |
 | 10 | `legacy_archive\` (remove directory after all file batches pass) | obsolete | All included files are removed and their batch tests pass; rebuild candidates are excluded. |
+
+## Scheduled file counts by top-level location
+
+| Location | Files scheduled |
+|---|---:|
+| `mini oil and gas projects` | 70 |
+| `petrolumen` | 83 |
+| `reservoir_engineering` | 79 |
+| `THE-petrolumen-cafa105c2124580e244b9abca798a163d4588449 (2)` | 115 |
+| `thepetrolumen` | 402 |
+| Archive root | 12 |
+| Total | 761 |
