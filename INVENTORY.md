@@ -186,7 +186,7 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | `reservoir_engineering\data_management\__init__.py` | backend | `backend/app/api/__init__.py` | keep-current | SHA-256 content exactly matches the current file at the listed path. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\data_management\__pycache__\__init__.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\data_management\__pycache__\data_uploader.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
-| `reservoir_engineering\data_management\data_uploader.py` | backend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
+| `reservoir_engineering\data_management\data_uploader.py` | backend | `backend/app/engines/production/data_uploader.py` | absorbed | Adds reusable well-production CSV validation, aggregation, preview, and statistics; database export was an unimplemented stub. | `test_data_uploader_combines_previews_and_summarizes_well_data` |
 | `reservoir_engineering\database\__init__.py` | backend | `backend/app/api/__init__.py` | keep-current | SHA-256 content exactly matches the current file at the listed path. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\database\__pycache__\__init__.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\database\__pycache__\db_manager.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
@@ -790,8 +790,8 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | absorb-legacy | 0 |
 | absorb-and-improve | 0 |
 | rebuild | 6 |
-| delete | 603 |
-| absorbed | 7 |
+| delete | 602 |
+| absorbed | 8 |
 
 ## Summary B: Absorb priority
 
