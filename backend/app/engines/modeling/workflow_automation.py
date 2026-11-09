@@ -2,27 +2,13 @@ import numpy as np
 import pandas as pd
 from typing import Any, Dict, List, Tuple, Optional, Union
 import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime
 import os
 import json
 import yaml
 from pathlib import Path
 import logging
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-import schedule as scheduler
 import time
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from docx import Document
-from docx.shared import Inches as DocxInches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-import jinja2
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
 
 class WorkflowAutomation:
     def __init__(self, config_path: str = None):
@@ -107,6 +93,8 @@ class WorkflowAutomation:
         }
         
         if schedule_time:
+            import schedule as scheduler
+
             scheduler.every().day.at(schedule_time).do(self.run_workflow, name)
             
     def run_workflow(self, name: str):
@@ -216,8 +204,12 @@ class WorkflowAutomation:
         if not os.path.exists(template_path):
             raise FileNotFoundError(f"Template path not found: {template_path}")
         if template_type == 'pptx':
+            from pptx import Presentation
+
             template = Presentation(template_path)
         elif template_type == 'docx':
+            from docx import Document
+
             template = Document(template_path)
         elif template_type == 'html':
             with open(template_path, 'r', encoding='utf-8') as f:
@@ -250,6 +242,8 @@ class WorkflowAutomation:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         
         if template['type'] == 'pptx':
+            from pptx import Presentation
+
             presentation = (
                 Presentation(template['path'])
                 if 'path' in template
@@ -257,6 +251,8 @@ class WorkflowAutomation:
             )
             self._generate_pptx_report(presentation, data, output_path)
         elif template['type'] == 'docx':
+            from docx import Document
+
             document = (
                 Document(template['path'])
                 if 'path' in template
@@ -267,7 +263,7 @@ class WorkflowAutomation:
             self._generate_html_report(template['template'], data, output_path)
             
     def _generate_pptx_report(self,
-                            template: Presentation,
+                            template,
                             data: Dict,
                             output_path: str):
         """
@@ -302,7 +298,7 @@ class WorkflowAutomation:
         prs.save(output_path)
         
     def _generate_docx_report(self,
-                            template: Document,
+                            template,
                             data: Dict,
                             output_path: str):
         """
@@ -349,6 +345,8 @@ class WorkflowAutomation:
             output_path: Caminho de saída
         """
         # Criar ambiente Jinja2
+        import jinja2
+
         env = jinja2.Environment(loader=jinja2.BaseLoader())
         template = env.from_string(template)
         
@@ -389,6 +387,8 @@ class WorkflowAutomation:
         plt.close()
         
         # Adicionar ao slide
+        from pptx.util import Inches
+
         slide.shapes.add_picture(temp_path, Inches(1), Inches(1))
         
         # Remover arquivo temporário
@@ -426,6 +426,9 @@ class WorkflowAutomation:
             patterns: Padrões de arquivo
             callback: Função a ser chamada
         """
+        from watchdog.events import FileSystemEventHandler
+        from watchdog.observers import Observer
+
         class FileHandler(FileSystemEventHandler):
             def on_created(self, event):
                 if not event.is_directory:
@@ -452,6 +455,11 @@ class WorkflowAutomation:
             attachments: Lista de anexos
         """
         # Criar mensagem
+        import smtplib
+        from email.mime.application import MIMEApplication
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
         msg = MIMEMultipart()
         msg['From'] = self.config.get('email', {}).get('from', '')
         msg['To'] = ', '.join(recipients)
@@ -479,6 +487,8 @@ class WorkflowAutomation:
             
     def run_scheduled_tasks(self):
         """Executa tarefas agendadas."""
+        import schedule as scheduler
+
         while True:
             scheduler.run_pending()
             time.sleep(60) 

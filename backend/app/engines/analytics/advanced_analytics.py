@@ -5,7 +5,6 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
 import tensorflow as tf
 from typing import Dict, List, Optional, Tuple, Union
-import xgboost as xgb
 from scipy.stats import gaussian_kde
 
 class AdvancedDataAnalysis:
@@ -187,6 +186,8 @@ class AdvancedDataAnalysis:
         )
         
         # Treinar XGBoost
+        import xgboost as xgb
+
         model = xgb.XGBRegressor(
             objective="reg:squarederror",
             n_estimators=100,

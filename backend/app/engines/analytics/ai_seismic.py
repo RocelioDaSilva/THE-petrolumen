@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from typing import Dict, List, Optional, Tuple, Union
-import segyio
 from sklearn.preprocessing import StandardScaler
 from scipy.signal import hilbert
 from scipy.ndimage import gaussian_filter
@@ -19,6 +18,13 @@ class AISeismicAnalysis:
         
     def load_seismic(self, filename: str):
         """Carrega dados sísmicos"""
+        try:
+            import segyio
+        except ImportError as error:
+            raise ImportError(
+                "Loading SEG-Y data requires the optional 'segyio' dependency."
+            ) from error
+
         with segyio.open(filename, "r", ignore_geometry=True) as f:
             # Carregar dados
             self.seismic_data = np.array([trace for trace in f.trace])
@@ -69,24 +75,42 @@ class AISeismicAnalysis:
         
     def _compute_coherency(self, window_size: int = 3):
         """Calcula atributo de coerência"""
+        if self.seismic_data is None:
+            raise ValueError("Dados sísmicos não carregados")
+        if window_size < 1:
+            raise ValueError("window_size must be positive.")
+        if self.seismic_data.ndim not in (2, 3):
+            raise ValueError("Seismic data must be 2D or 3D.")
+
         coherency = np.zeros_like(self.seismic_data)
-        
+
         for i in range(window_size, self.seismic_data.shape[0] - window_size):
             for j in range(window_size, self.seismic_data.shape[1] - window_size):
-                # Extrair janela
-                window = self.seismic_data[
-                    i-window_size:i+window_size+1,
-                    j-window_size:j+window_size+1
-                ]
-                
-                # Calcular matriz de covariância
-                cov = np.cov(window.reshape(-1, 1))
-                
-                # Eigenvalues
-                eigenvals = np.linalg.eigvals(cov)
-                
-                # Coerência como razão dos eigenvalues
-                coherency[i,j] = eigenvals.min() / eigenvals.max()
+                if self.seismic_data.ndim == 2:
+                    window = self.seismic_data[
+                        i - window_size:i + window_size + 1,
+                        j - window_size:j + window_size + 1,
+                    ]
+                    traces = window
+                else:
+                    window = self.seismic_data[
+                        i - window_size:i + window_size + 1,
+                        j - window_size:j + window_size + 1,
+                        :,
+                    ]
+                    traces = window.reshape(-1, window.shape[-1])
+
+                if traces.shape[0] < 2 or traces.shape[1] < 2:
+                    continue
+                covariance = np.atleast_2d(np.cov(traces, rowvar=True))
+                eigenvalues = np.maximum(np.linalg.eigvalsh(covariance), 0.0)
+                total_variance = eigenvalues.sum()
+                value = (
+                    eigenvalues[-1] / total_variance
+                    if total_variance > 0
+                    else 1.0
+                )
+                coherency[i, j] = value
                 
         return coherency
     

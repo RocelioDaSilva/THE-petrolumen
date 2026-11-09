@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Tuple, Dict  # noqa: F401 (Dict is used)
@@ -5,10 +7,7 @@ import logging
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.svm import SVR
-from xgboost import XGBRegressor
 from sklearn.metrics import r2_score, mean_squared_error
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import joblib
 from pathlib import Path
 
@@ -92,6 +91,8 @@ class AIPrediction:
             X_test: Features de teste
             y_test: Target de teste
         """
+        from xgboost import XGBRegressor
+
         # Define parâmetros para Grid Search
         svr_params = {
             "kernel": ["rbf", "linear"],
@@ -244,6 +245,9 @@ class AIPrediction:
         Returns:
             Figura do Plotly
         """
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+
         fig = make_subplots(
             rows=2, cols=1, subplot_titles=("Previsões vs Real", "Resíduos")
         )
@@ -336,6 +340,8 @@ class AIPrediction:
         Returns:
             Figura do Plotly or None if no importance data
         """
+        import plotly.graph_objects as go
+
         if self.feature_importance is None or self.feature_importance.empty:
             self.logger.warning("Importância das features não calculada ou vazia.")
             return None

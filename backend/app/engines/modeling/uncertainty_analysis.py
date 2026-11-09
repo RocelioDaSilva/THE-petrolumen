@@ -3,10 +3,7 @@ import pandas as pd
 from scipy.optimize import differential_evolution, minimize
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
-import seaborn as sns
 from typing import Dict, List, Tuple, Optional
-from SALib.sample import saltelli
-from SALib.analyze import sobol
 
 class UncertaintyAnalysis:
     def __init__(self, history_matching):
@@ -45,6 +42,9 @@ class UncertaintyAnalysis:
         Returns:
             Dicionário com resultados da análise
         """
+        from SALib.analyze import sobol
+        from SALib.sample import saltelli
+
         # Definir problema
         problem = self.define_parameter_ranges()
         

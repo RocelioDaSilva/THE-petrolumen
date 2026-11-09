@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Union
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans

@@ -1,7 +1,5 @@
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
 from typing import Dict, List, Optional, Tuple
 
 class AdvancedVisualization:
@@ -18,6 +16,9 @@ class AdvancedVisualization:
         
     def create_production_dashboard(self):
         """Cria dashboard de produção"""
+        import plotly.express as px
+        import plotly.graph_objects as go
+
         if "production" not in self.data:
             raise ValueError("Dados de produção não encontrados")
             
@@ -74,6 +75,9 @@ class AdvancedVisualization:
         
     def create_well_analysis_dashboard(self):
         """Cria dashboard de análise de poços"""
+        import plotly.express as px
+        import plotly.graph_objects as go
+
         if "well_data" not in self.data:
             raise ValueError("Dados de poço não encontrados")
             
@@ -130,6 +134,9 @@ class AdvancedVisualization:
         
     def create_reservoir_dashboard(self):
         """Cria dashboard de análise de reservatório"""
+        import plotly.express as px
+        import plotly.graph_objects as go
+
         if "reservoir" not in self.data:
             raise ValueError("Dados de reservatório não encontrados")
             
