@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import {
   FluidCompositionEditor,
   type PVTComponent,
@@ -9,6 +9,21 @@ import {
   ModelManager,
   type PVTModelSummary,
 } from "../pvt/ModelManager";
+import {
+  PhaseEnvelope,
+  type PhaseEnvelopePoint,
+} from "../pvt/PhaseEnvelope";
+
+vi.stubGlobal(
+  "ResizeObserver",
+  class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+);
+
+afterAll(() => vi.unstubAllGlobals());
 
 const methane: PVTComponent = {
   name: "Methane",
@@ -89,5 +104,28 @@ describe("PVT workflow", () => {
     expect(onSelect).toHaveBeenCalledWith(model);
     fireEvent.click(screen.getByRole("button", { name: "Delete Reservoir fluid" }));
     expect(onDelete).toHaveBeenCalledWith(model.id);
+  });
+
+  it("test_pvt_phase_envelope identifies critical and limiting points", () => {
+    const points: PhaseEnvelopePoint[] = [
+      { temperature: 100, pressure: 900, type: "bubble" },
+      { temperature: 200, pressure: 1200, type: "bubble" },
+      { temperature: 250, pressure: 1100, type: "dew" },
+      { temperature: 220, pressure: 1150, type: "critical" },
+    ];
+
+    render(
+      <PhaseEnvelope
+        points={points}
+        temperatureUnit="°F"
+        pressureUnit="psia"
+      />,
+    );
+
+    expect(screen.getByText("Cricondentherm")).toBeInTheDocument();
+    expect(screen.getByText("250.0 °F")).toBeInTheDocument();
+    expect(screen.getByText("Cricondenbar")).toBeInTheDocument();
+    expect(screen.getByText("1200.0 psia")).toBeInTheDocument();
+    expect(screen.getByText("220.0 °F, 1150.0 psia")).toBeInTheDocument();
   });
 });
