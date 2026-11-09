@@ -1,15 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
-
-export interface PVTComponent {
-  name: string;
-  molecularWeight: number;
-  criticalPressure: number;
-  criticalTemperature: number;
-  acentricFactor: number;
-  criticalVolume: number;
-  parachor: number;
-  moleFraction: number;
-}
+import type { PVTComponent } from "@/lib/pvt/types";
+export type { PVTComponent } from "@/lib/pvt/types";
 
 interface FluidCompositionEditorProps {
   composition: PVTComponent[];

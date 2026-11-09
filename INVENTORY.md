@@ -670,7 +670,7 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTInputForm.jsx` | frontend | `src/components/visualizations/pvt/PVTInputForm.tsx` | absorbed | Provides controlled single-point inputs and bounded pressure-range table generation; the current form wires validated inputs to the existing calculation engine. | `test_pvt_input_form_workflow` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\components\pvt\PVTResults.jsx` | frontend | `src/components/visualizations/pvt/PVTResults.tsx` | absorbed | Renders generated PVT properties in a table and exports the rows as CSV. | `test_pvt_results_export` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\src\pages\pvt-analysis.jsx` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Integrates input, composition, model management, result and phase-envelope tabs; current PVTCalculator is a single local workflow. | `test_pvt_analysis_workflow` (to add) |
-| `thepetrolumen\thepetrolumen_new\petrolumen\src\services\pvtService.js` | frontend | `src/components/visualizations/PVTCalculator.tsx` | absorb-legacy | Wraps model, calculation, table and phase-envelope API calls; current PVTCalculator computes client-side and has no equivalent workflow service. | `test_pvt_service_calls` (to add) |
+| `thepetrolumen\thepetrolumen_new\petrolumen\src\services\pvtService.js` | frontend | `src/lib/pvt/service.ts` | absorbed | Provides typed local model persistence with explicit malformed-storage errors and CRUD operations; current workflow stores models locally instead of relying on unavailable legacy endpoints. | `test_pvt_service_calls` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\stores\appStore.ts` | frontend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\tailwind.config.ts` | frontend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `thepetrolumen\thepetrolumen_new\petrolumen\tsconfig.json` | config | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
@@ -787,19 +787,18 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | Verdict | Count |
 |---|---:|
 | keep-current | 151 |
-| absorb-legacy | 2 |
+| absorb-legacy | 1 |
 | absorb-and-improve | 0 |
 | rebuild | 6 |
 | delete | 603 |
-| absorbed | 5 |
+| absorbed | 6 |
 
 ## Summary B: Absorb priority
 
 | Priority | Legacy path | Current target | Effort (S/M/L) | Test file to add |
 |---:|---|---|---|---|
 | 1 | `thepetrolumen\thepetrolumen_new\petrolumen\src\pages\pvt-analysis.jsx` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_analysis_workflow`) |
-| 2 | `thepetrolumen\thepetrolumen_new\petrolumen\src\services\pvtService.js` | `src/components/visualizations/PVTCalculator.tsx` | L | `src/components/visualizations/__tests__/pvtWorkflow.test.tsx` (`test_pvt_service_calls`) |
-| 3 | `reservoir_engineering\flow_simulation\reservoir_simulator.py` | `backend/app/engines/reservoir/simulation/` | L | `backend/tests/test_reservoir_simulator.py` (`test_rebuilt_reservoir_simulator_grid_validation`) |
+| 2 | `reservoir_engineering\flow_simulation\reservoir_simulator.py` | `backend/app/engines/reservoir/simulation/` | L | `backend/tests/test_reservoir_simulator.py` (`test_rebuilt_reservoir_simulator_grid_validation`) |
 
 ## Summary C: Requires human decision
 

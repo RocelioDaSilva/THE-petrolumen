@@ -22,6 +22,13 @@ import {
   PVTResults,
   type PVTTableRow,
 } from "../pvt/PVTResults";
+import {
+  deletePVTModel,
+  getSavedPVTModels,
+  PVT_MODELS_STORAGE_KEY,
+  savePVTModel,
+} from "@/lib/pvt/service";
+import type { SavedPVTModel } from "@/lib/pvt/types";
 
 vi.stubGlobal(
   "ResizeObserver",
@@ -211,5 +218,32 @@ describe("PVT workflow", () => {
     expect(onExportCsv).toHaveBeenCalledWith(csv);
     expect(csv).toContain("Pressure (psia),Temperature (°F),Z-factor");
     expect(csv).toContain("1000.000000,180.0000000,0.9000000000");
+  });
+
+  it("test_pvt_service_calls persists, updates, and deletes models", () => {
+    const model: SavedPVTModel = {
+      id: "model-1",
+      name: "Reservoir fluid",
+      type: "compositional",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      components: [methane],
+    };
+
+    expect(savePVTModel(model)).toEqual([model]);
+    expect(getSavedPVTModels()).toEqual([model]);
+    expect(
+      savePVTModel({ ...model, name: "Updated fluid" }),
+    ).toEqual([{ ...model, name: "Updated fluid" }]);
+    expect(deletePVTModel(model.id)).toBe(true);
+    expect(deletePVTModel(model.id)).toBe(false);
+    expect(getSavedPVTModels()).toEqual([]);
+  });
+
+  it("test_pvt_service_rejects_malformed_storage", () => {
+    window.localStorage.setItem(PVT_MODELS_STORAGE_KEY, "{");
+
+    expect(() => getSavedPVTModels()).toThrow(
+      "Saved PVT models contain invalid JSON.",
+    );
   });
 });
