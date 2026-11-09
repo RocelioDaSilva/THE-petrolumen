@@ -111,6 +111,68 @@ class DatabaseManager:
                 for w in wells
             ]
 
+    def get_field_data(
+        self,
+        field_name: str,
+        start_date: datetime.date | datetime.datetime | None = None,
+        end_date: datetime.date | datetime.datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        if not field_name.strip():
+            raise ValueError("Field name must not be empty.")
+        start = _coerce_date(start_date) if start_date is not None else None
+        end = _coerce_date(end_date) if end_date is not None else None
+        if start_date is not None and start is None:
+            raise ValueError("Invalid start date.")
+        if end_date is not None and end is None:
+            raise ValueError("Invalid end date.")
+        if start is not None and end is not None and start > end:
+            raise ValueError("Start date must not be after end date.")
+
+        statement = (
+            select(ProductionData, Well.name, Well.field)
+            .join(Well, ProductionData.well_id == Well.id)
+            .where(Well.field == field_name)
+        )
+        if start is not None:
+            statement = statement.where(ProductionData.date >= start)
+        if end is not None:
+            statement = statement.where(ProductionData.date <= end)
+
+        with self.session() as s:
+            rows = s.execute(statement.order_by(Well.name, ProductionData.date)).all()
+            return [
+                {
+                    "well_id": production.well_id,
+                    "well_name": well_name,
+                    "field_name": field,
+                    "date": production.date,
+                    "oil_rate": production.oil_rate,
+                    "gas_rate": production.gas_rate,
+                    "water_rate": production.water_rate,
+                }
+                for production, well_name, field in rows
+            ]
+
+    def update_well(
+        self,
+        well_id: int,
+        field: str | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
+    ) -> bool:
+        with self.session() as s:
+            well = s.get(Well, well_id)
+            if well is None:
+                return False
+            if field is not None:
+                well.field = field
+            if latitude is not None:
+                well.latitude = latitude
+            if longitude is not None:
+                well.longitude = longitude
+            s.commit()
+            return True
+
     def insert_production_data(self, well_id: int, records: list[dict[str, Any]]) -> int:
         """Insert production rows, skipping duplicates on (well_id, date).
 

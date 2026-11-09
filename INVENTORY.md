@@ -190,7 +190,7 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | `reservoir_engineering\database\__init__.py` | backend | `backend/app/api/__init__.py` | keep-current | SHA-256 content exactly matches the current file at the listed path. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\database\__pycache__\__init__.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\database\__pycache__\db_manager.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
-| `reservoir_engineering\database\db_manager.py` | backend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
+| `reservoir_engineering\database\db_manager.py` | backend | `backend/app/persistence/database.py` | absorbed | Adds typed field-level production-data queries and well updates to the current SQLAlchemy persistence layer. | `test_database_manager_field_data_filters_dates_and_sorts_wells` |
 | `reservoir_engineering\decline_analysis\__init__.py` | backend | `backend/app/api/__init__.py` | keep-current | SHA-256 content exactly matches the current file at the listed path. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\decline_analysis\__pycache__\__init__.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\decline_analysis\__pycache__\decline_analysis.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
@@ -790,8 +790,8 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | absorb-legacy | 0 |
 | absorb-and-improve | 0 |
 | rebuild | 6 |
-| delete | 602 |
-| absorbed | 8 |
+| delete | 601 |
+| absorbed | 9 |
 
 ## Summary B: Absorb priority
 
