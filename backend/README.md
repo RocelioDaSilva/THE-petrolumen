@@ -99,7 +99,7 @@ pip install -e ".[dev]"
 Alternatively, install the core requirements directly:
 
 ```bash
-pip install fastapi pydantic pytest numpy scipy pandas scikit-learn
+pip install fastapi pydantic pytest numpy scipy pandas scikit-learn sqlalchemy
 ```
 
 ## Running Tests
