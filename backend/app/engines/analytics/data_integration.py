@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
 import lasio
-import segyio
 import matplotlib.pyplot as plt
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Any, Dict, List, Tuple, Optional, Union
 import json
 import os
 import tempfile
@@ -18,6 +17,7 @@ class DataIntegration:
         self.maps = {}
         self.grid_data = None
         self.simulation_data = None
+        self.eclipse_properties = {}
         
     def import_petrel_data(self, file_path: str, data_type: str):
         """
@@ -40,23 +40,78 @@ class DataIntegration:
             # Importar mapas
             self._import_maps(file_path)
             
-    def import_eclipse_data(self, file_path: str, data_type: str):
+    def import_eclipse_data(
+        self,
+        file_path: str,
+        data_type: str,
+        property_names: List[str] | None = None,
+    ):
         """
         Importa dados do Eclipse.
         
         Args:
             file_path: Caminho do arquivo
-            data_type: Tipo de dado ('grid', 'restart', 'summary')
+            data_type: Tipo de dado ('grid', 'properties', 'restart', 'summary')
         """
         if data_type == 'grid':
-            # Importar malha GRDECL
-            self._import_grdectl(file_path)
+            return self.import_eclipse_grid(file_path)
+        elif data_type == 'properties':
+            return self.import_eclipse_properties(file_path, property_names)
         elif data_type == 'restart':
             # Importar arquivo de restart
             self._import_restart_file(file_path)
         elif data_type == 'summary':
             # Importar arquivo de sumário
             self._import_summary_file(file_path)
+
+    def import_eclipse_grid(self, file_path: str) -> Dict[str, Any]:
+        """Import an Eclipse grid through the optional libecl package."""
+        path = Path(file_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Eclipse grid file not found: {file_path}")
+        try:
+            from libecl import EclGrid
+        except ImportError as exc:
+            raise ImportError(
+                "libecl is required to import Eclipse grids; install it to enable this feature."
+            ) from exc
+
+        grid = EclGrid(str(path))
+        grid_data = {
+            "grid": grid,
+            "dimensions": tuple(grid.dims),
+            "active_cells": grid.get_num_active(),
+            "total_cells": grid.get_num_global(),
+        }
+        self.grid_data = grid_data
+        return grid_data
+
+    def import_eclipse_properties(
+        self,
+        file_path: str,
+        property_names: List[str] | None = None,
+    ) -> Dict[str, Any]:
+        """Import selected Eclipse INIT/UNRST properties through optional libecl."""
+        path = Path(file_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Eclipse property file not found: {file_path}")
+        try:
+            from libecl import EclFile
+        except ImportError as exc:
+            raise ImportError(
+                "libecl is required to import Eclipse properties; install it to enable this feature."
+            ) from exc
+
+        ecl_file = EclFile(str(path))
+        available_names = list(ecl_file.keys())
+        requested_names = available_names if property_names is None else property_names
+        missing_names = [name for name in requested_names if name not in available_names]
+        if missing_names:
+            raise KeyError(f"Eclipse properties not found: {', '.join(missing_names)}")
+
+        properties = {name: ecl_file[name][0] for name in requested_names}
+        self.eclipse_properties.update(properties)
+        return properties
             
     def import_tnavigator_data(self, file_path: str, data_type: str):
         """
@@ -131,6 +186,11 @@ class DataIntegration:
         Args:
             file_path: Caminho do arquivo
         """
+        try:
+            import segyio
+        except ImportError as exc:
+            raise ImportError("segyio is required to import SEG-Y files.") from exc
+
         # Abrir arquivo SEG-Y
         with segyio.open(file_path, 'r') as f:
             # Ler dados
@@ -257,6 +317,11 @@ class DataIntegration:
             file_path: Caminho do arquivo de saída
         """
         if self.seismic_data is not None:
+            try:
+                import segyio
+            except ImportError as exc:
+                raise ImportError("segyio is required to export SEG-Y files.") from exc
+
             # Criar arquivo SEG-Y
             with segyio.open(file_path, 'w', self.seismic_data['header']) as f:
                 # Escrever dados

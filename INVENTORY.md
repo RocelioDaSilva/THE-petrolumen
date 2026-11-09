@@ -205,7 +205,7 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | `reservoir_engineering\flow_simulation\__pycache__\flow_simulator.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\flow_simulation\__pycache__\reservoir_simulator.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\flow_simulation\__pycache__\tnavigator_python.cpython-314.pyc` | generated | `generated artifact` | delete | Generated build/cache output; it is reproducible and is not a current source module. | `test_archive_removal_is_safe` |
-| `reservoir_engineering\flow_simulation\eclipse_simulator.py` | backend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
+| `reservoir_engineering\flow_simulation\eclipse_simulator.py` | backend | `backend/app/engines/analytics/data_integration.py` | absorbed | Optional libecl grid/property import is wired into the current data integration API. | `test_import_eclipse_grid_uses_optional_libecl` |
 | `reservoir_engineering\flow_simulation\flow_simulator.py` | backend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
 | `reservoir_engineering\flow_simulation\reservoir_simulator.py` | backend | `backend/app/engines/reservoir/simulation/` | rebuild | Legacy grid/import/export path contains pass and explicitly incomplete format methods; it is not safe to port as-is. | `test_rebuilt_reservoir_simulator_grid_validation` (to add) |
 | `reservoir_engineering\flow_simulation\tnavigator_python.py` | backend | `none (not mapped to a current target)` | delete | No file-specific current implementation was verified; this is an archived snapshot candidate, not an import target. | `test_archive_removal_is_safe` |
@@ -790,8 +790,8 @@ Subfolder coverage: 5 of 5 subfolders represented below.
 | absorb-legacy | 0 |
 | absorb-and-improve | 0 |
 | rebuild | 6 |
-| delete | 601 |
-| absorbed | 9 |
+| delete | 600 |
+| absorbed | 10 |
 
 ## Summary B: Absorb priority
 

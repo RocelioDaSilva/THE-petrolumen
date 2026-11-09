@@ -191,7 +191,7 @@
 | 1 | `legacy_archive\reservoir_engineering\flow_simulation\__pycache__\flow_simulator.cpython-314.pyc` | generated | INVENTORY row `reservoir_engineering\flow_simulation\__pycache__\flow_simulator.cpython-314.pyc`: generated build/cache output. |
 | 1 | `legacy_archive\reservoir_engineering\flow_simulation\__pycache__\reservoir_simulator.cpython-314.pyc` | generated | INVENTORY row `reservoir_engineering\flow_simulation\__pycache__\reservoir_simulator.cpython-314.pyc`: generated build/cache output. |
 | 1 | `legacy_archive\reservoir_engineering\flow_simulation\__pycache__\tnavigator_python.cpython-314.pyc` | generated | INVENTORY row `reservoir_engineering\flow_simulation\__pycache__\tnavigator_python.cpython-314.pyc`: generated build/cache output. |
-| 5 | `legacy_archive\reservoir_engineering\flow_simulation\eclipse_simulator.py` | obsolete | git history preserves original. |
+| 5 | `legacy_archive\reservoir_engineering\flow_simulation\eclipse_simulator.py` | absorbed | INVENTORY row `reservoir_engineering\flow_simulation\eclipse_simulator.py`: optional Eclipse grid/property import now has a tested current implementation; git history preserves the remaining prototype. |
 | 5 | `legacy_archive\reservoir_engineering\flow_simulation\flow_simulator.py` | obsolete | git history preserves original. |
 | 5 | `legacy_archive\reservoir_engineering\flow_simulation\tnavigator_python.py` | obsolete | git history preserves original. |
 | 5 | `legacy_archive\reservoir_engineering\geological_integration\__init__.py` | duplicate | INVENTORY row `reservoir_engineering\geological_integration\__init__.py`: equivalent current implementation is retained. |
