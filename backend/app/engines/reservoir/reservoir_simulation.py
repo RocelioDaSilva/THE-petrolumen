@@ -1,10 +1,11 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Union
 import matplotlib.pyplot as plt
 from scipy.special import exp1
 from scipy.optimize import curve_fit
-from scipy.sparse import csr_matrix, spsolve
+from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import spsolve
 import tensorflow as tf
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -12,7 +13,7 @@ from sklearn.model_selection import train_test_split
 class ReservoirSimulation:
     def __init__(self, model_type: str = 'black_oil'):
         """
-        Inicializa o simulador de reservatório.
+        Inicializa o simulador de reservatÃ³rio.
         
         Args:
             model_type: Tipo do modelo ('black_oil', 'compositional', 'thermal')
@@ -35,11 +36,11 @@ class ReservoirSimulation:
                    dz: float,
                    grid_type: str = 'structured'):
         """
-        Cria malha de simulação.
+        Cria malha de simulaÃ§Ã£o.
         
         Args:
-            nx, ny, nz: Dimensões da malha
-            dx, dy, dz: Tamanho das células
+            nx, ny, nz: DimensÃµes da malha
+            dx, dy, dz: Tamanho das cÃ©lulas
             grid_type: Tipo da malha ('structured', 'unstructured')
         """
         if grid_type == 'structured':
@@ -57,7 +58,7 @@ class ReservoirSimulation:
                 'z': np.arange(0, nz*dz, dz)
             }
         else:
-            # Implementar malha não estruturada
+            # Implementar malha nÃ£o estruturada
             pass
             
     def setup_pvt_model(self, pvt_data: Dict):
@@ -101,7 +102,7 @@ class ReservoirSimulation:
         }
         
     def _setup_thermal_pvt(self, pvt_data: Dict):
-        """Configura modelo PVT térmico."""
+        """Configura modelo PVT tÃ©rmico."""
         self.pvt_data = {
             'temperature': pvt_data['temperature'],
             'pressure': pvt_data['pressure'],
@@ -124,13 +125,13 @@ class ReservoirSimulation:
                 completion: List[Tuple[int, int, int]],
                 constraints: Dict):
         """
-        Adiciona poço ao modelo.
+        Adiciona poÃ§o ao modelo.
         
         Args:
-            well_name: Nome do poço
-            well_type: Tipo do poço ('producer', 'injector')
-            completion: Lista de células de completação
-            constraints: Restrições do poço
+            well_name: Nome do poÃ§o
+            well_type: Tipo do poÃ§o ('producer', 'injector')
+            completion: Lista de cÃ©lulas de completaÃ§Ã£o
+            constraints: RestriÃ§Ãµes do poÃ§o
         """
         self.wells[well_name] = {
             'type': well_type,
@@ -143,12 +144,12 @@ class ReservoirSimulation:
                              temperature: float,
                              saturations: Dict[str, float]):
         """
-        Define condições iniciais.
+        Define condiÃ§Ãµes iniciais.
         
         Args:
-            pressure: Pressão inicial
+            pressure: PressÃ£o inicial
             temperature: Temperatura inicial
-            saturations: Saturações iniciais
+            saturations: SaturaÃ§Ãµes iniciais
         """
         self.initial_conditions = {
             'pressure': pressure,
@@ -161,12 +162,12 @@ class ReservoirSimulation:
                       dt: float,
                       use_gpu: bool = False):
         """
-        Executa simulação.
+        Executa simulaÃ§Ã£o.
         
         Args:
-            timesteps: Número de passos de tempo
+            timesteps: NÃºmero de passos de tempo
             dt: Tamanho do passo de tempo
-            use_gpu: Usar GPU para simulação
+            use_gpu: Usar GPU para simulaÃ§Ã£o
         """
         if use_gpu and self.gpu_available:
             self._run_gpu_simulation(timesteps, dt)
@@ -179,7 +180,7 @@ class ReservoirSimulation:
                 self._run_thermal_simulation(timesteps, dt)
                 
     def _run_black_oil_simulation(self, timesteps: int, dt: float):
-        """Executa simulação black-oil."""
+        """Executa simulaÃ§Ã£o black-oil."""
         nx, ny, nz = self.grid['nx'], self.grid['ny'], self.grid['nz']
         cells = self.grid['cells']
         
@@ -189,7 +190,7 @@ class ReservoirSimulation:
         so = np.ones(cells) * self.initial_conditions['saturations']['oil']
         sg = np.ones(cells) * self.initial_conditions['saturations']['gas']
         
-        # Propriedades do reservatório
+        # Propriedades do reservatÃ³rio
         kx = np.ones(cells) * 100  # md
         ky = np.ones(cells) * 100
         kz = np.ones(cells) * 10
@@ -214,7 +215,7 @@ class ReservoirSimulation:
             dp = spsolve(A, b)
             pressure += dp
             
-            # Atualizar saturações
+            # Atualizar saturaÃ§Ãµes
             sw, so, sg = self._update_saturations(pressure, sw, so, sg, dt)
             
             # Armazenar resultados
@@ -225,7 +226,7 @@ class ReservoirSimulation:
             self.simulation_results['time'][t] = (t + 1) * dt
             
     def _run_compositional_simulation(self, timesteps: int, dt: float):
-        """Executa simulação composicional."""
+        """Executa simulaÃ§Ã£o composicional."""
         nx, ny, nz = self.grid['nx'], self.grid['ny'], self.grid['nz']
         cells = self.grid['cells']
         components = self.pvt_data['components']
@@ -235,9 +236,9 @@ class ReservoirSimulation:
         pressure = np.ones(cells) * self.initial_conditions['pressure']
         temperature = np.ones(cells) * self.initial_conditions['temperature']
         composition = np.zeros((cells, nc))
-        saturation = np.zeros((cells, 2))  # óleo e gás
+        saturation = np.zeros((cells, 2))  # Ã³leo e gÃ¡s
         
-        # Propriedades do reservatório
+        # Propriedades do reservatÃ³rio
         kx = np.ones(cells) * 100  # md
         ky = np.ones(cells) * 100
         kz = np.ones(cells) * 10
@@ -254,7 +255,7 @@ class ReservoirSimulation:
         
         # Loop temporal
         for t in range(timesteps):
-            # Calcular equilíbrio de fases
+            # Calcular equilÃ­brio de fases
             for i in range(cells):
                 # Flash calculation usando EOS
                 z = composition[i]
@@ -267,10 +268,10 @@ class ReservoirSimulation:
                 # Flash calculation
                 beta, x, y = self._flash_calculation(z, K)
                 
-                # Atualizar composições e saturações
+                # Atualizar composiÃ§Ãµes e saturaÃ§Ãµes
                 composition[i] = z
-                saturation[i,0] = beta  # saturação de óleo
-                saturation[i,1] = 1 - beta  # saturação de gás
+                saturation[i,0] = beta  # saturaÃ§Ã£o de Ã³leo
+                saturation[i,1] = 1 - beta  # saturaÃ§Ã£o de gÃ¡s
             
             # Construir matriz de coeficientes
             A = self._build_compositional_matrix(pressure, temperature, composition, saturation)
@@ -279,7 +280,7 @@ class ReservoirSimulation:
             # Resolver sistema linear
             dx = spsolve(A, b)
             
-            # Atualizar variáveis
+            # Atualizar variÃ¡veis
             pressure += dx[:cells]
             temperature += dx[cells:2*cells]
             composition += dx[2*cells:].reshape(cells, nc)
@@ -292,22 +293,22 @@ class ReservoirSimulation:
             self.simulation_results['time'][t] = (t + 1) * dt
             
     def _run_thermal_simulation(self, timesteps: int, dt: float):
-        """Executa simulação térmica."""
+        """Executa simulaÃ§Ã£o tÃ©rmica."""
         nx, ny, nz = self.grid['nx'], self.grid['ny'], self.grid['nz']
         cells = self.grid['cells']
         
         # Inicializar arrays
         pressure = np.ones(cells) * self.initial_conditions['pressure']
         temperature = np.ones(cells) * self.initial_conditions['temperature']
-        saturation = np.zeros((cells, 3))  # água, óleo, vapor
+        saturation = np.zeros((cells, 3))  # Ã¡gua, Ã³leo, vapor
         
-        # Propriedades do reservatório
+        # Propriedades do reservatÃ³rio
         kx = np.ones(cells) * 100  # md
         ky = np.ones(cells) * 100
         kz = np.ones(cells) * 10
         phi = np.ones(cells) * 0.2
         
-        # Propriedades térmicas
+        # Propriedades tÃ©rmicas
         rock_heat_capacity = self.pvt_data['rock_heat_capacity']
         rock_thermal_conductivity = self.pvt_data['rock_thermal_conductivity']
         
@@ -323,7 +324,7 @@ class ReservoirSimulation:
         for t in range(timesteps):
             # Calcular fluxos de calor
             for i in range(cells):
-                # Condução de calor
+                # ConduÃ§Ã£o de calor
                 qx = rock_thermal_conductivity * (
                     temperature[i+1] - 2*temperature[i] + temperature[i-1]
                 ) / self.grid['dx']**2
@@ -337,17 +338,17 @@ class ReservoirSimulation:
                 # Atualizar temperatura
                 temperature[i] += dt * (qx + qy + qz) / (rock_heat_capacity * phi[i])
                 
-                # Calcular saturações
-                if temperature[i] > 212:  # Ponto de ebulição da água
-                    # Vaporização
-                    saturation[i,0] *= 0.9  # Reduzir água
+                # Calcular saturaÃ§Ãµes
+                if temperature[i] > 212:  # Ponto de ebuliÃ§Ã£o da Ã¡gua
+                    # VaporizaÃ§Ã£o
+                    saturation[i,0] *= 0.9  # Reduzir Ã¡gua
                     saturation[i,2] += 0.1  # Aumentar vapor
                 else:
-                    # Condensação
-                    saturation[i,0] += 0.1  # Aumentar água
+                    # CondensaÃ§Ã£o
+                    saturation[i,0] += 0.1  # Aumentar Ã¡gua
                     saturation[i,2] *= 0.9  # Reduzir vapor
                 
-                # Normalizar saturações
+                # Normalizar saturaÃ§Ãµes
                 total = np.sum(saturation[i])
                 saturation[i] /= total
             
@@ -358,7 +359,7 @@ class ReservoirSimulation:
             # Resolver sistema linear
             dx = spsolve(A, b)
             
-            # Atualizar variáveis
+            # Atualizar variÃ¡veis
             pressure += dx[:cells]
             temperature += dx[cells:2*cells]
             saturation += dx[2*cells:].reshape(cells, 3)
@@ -370,7 +371,7 @@ class ReservoirSimulation:
             self.simulation_results['time'][t] = (t + 1) * dt
             
     def _run_gpu_simulation(self, timesteps: int, dt: float):
-        """Executa simulação usando GPU."""
+        """Executa simulaÃ§Ã£o usando GPU."""
         # Converter dados para tensores
         if self.model_type == 'black_oil':
             pressure = tf.convert_to_tensor(self.initial_conditions['pressure'])
@@ -378,7 +379,7 @@ class ReservoirSimulation:
             so = tf.convert_to_tensor(self.initial_conditions['saturations']['oil'])
             sg = tf.convert_to_tensor(self.initial_conditions['saturations']['gas'])
             
-            # Propriedades do reservatório
+            # Propriedades do reservatÃ³rio
             kx = tf.convert_to_tensor(np.ones(self.grid['cells']) * 100)
             ky = tf.convert_to_tensor(np.ones(self.grid['cells']) * 100)
             kz = tf.convert_to_tensor(np.ones(self.grid['cells']) * 10)
@@ -391,10 +392,10 @@ class ReservoirSimulation:
                 qy = self._calculate_flux_gpu(pressure, ky, self.grid['dy'])
                 qz = self._calculate_flux_gpu(pressure, kz, self.grid['dz'])
                 
-                # Atualizar pressão
+                # Atualizar pressÃ£o
                 pressure += dt * (qx + qy + qz) / phi
                 
-                # Atualizar saturações
+                # Atualizar saturaÃ§Ãµes
                 sw, so, sg = self._update_saturations_gpu(pressure, sw, so, sg, dt)
                 
                 # Armazenar resultados
@@ -409,12 +410,12 @@ class ReservoirSimulation:
                         parameters: List[str],
                         bounds: Dict[str, Tuple[float, float]]):
         """
-        Realiza ajuste de histórico.
+        Realiza ajuste de histÃ³rico.
         
         Args:
-            history_data: Dados históricos
-            parameters: Lista de parâmetros a ajustar
-            bounds: Limites dos parâmetros
+            history_data: Dados histÃ³ricos
+            parameters: Lista de parÃ¢metros a ajustar
+            bounds: Limites dos parÃ¢metros
         """
         self.history_data = history_data
         
@@ -431,9 +432,9 @@ class ReservoirSimulation:
         
         # Avaliar modelo
         score = model.score(X_test, y_test)
-        print(f"R² score: {score:.3f}")
+        print(f"RÂ² score: {score:.3f}")
         
-        # Otimizar parâmetros
+        # Otimizar parÃ¢metros
         best_params = {}
         for param in parameters:
             param_range = np.linspace(bounds[param][0], bounds[param][1], 100)
@@ -452,15 +453,15 @@ class ReservoirSimulation:
                     timestep: int = -1,
                     well_name: Optional[str] = None):
         """
-        Plota resultados da simulação.
+        Plota resultados da simulaÃ§Ã£o.
         
         Args:
             property_name: Nome da propriedade
             timestep: Passo de tempo
-            well_name: Nome do poço
+            well_name: Nome do poÃ§o
         """
         if well_name is not None:
-            # Plotar histórico do poço
+            # Plotar histÃ³rico do poÃ§o
             well_data = self.simulation_results[property_name][:, self.wells[well_name]['completion']]
             time = self.simulation_results['time']
             
@@ -482,7 +483,7 @@ class ReservoirSimulation:
             plt.colorbar(label=property_name)
             plt.title(f'{property_name} - Timestep {timestep}')
             
-            # Plotar poços
+            # Plotar poÃ§os
             for well_name, well in self.wells.items():
                 for i, j, k in well['completion']:
                     plt.plot(j, i, 'ro')
@@ -499,7 +500,7 @@ class ReservoirSimulation:
                               ky: np.ndarray,
                               kz: np.ndarray,
                               phi: np.ndarray) -> csr_matrix:
-        """Constrói matriz de coeficientes para simulação black-oil."""
+        """ConstrÃ³i matriz de coeficientes para simulaÃ§Ã£o black-oil."""
         nx, ny, nz = self.grid['nx'], self.grid['ny'], self.grid['nz']
         cells = self.grid['cells']
         
@@ -581,11 +582,11 @@ class ReservoirSimulation:
                             so: np.ndarray,
                             sg: np.ndarray,
                             dt: float) -> np.ndarray:
-        """Constrói vetor de termos independentes para simulação black-oil."""
+        """ConstrÃ³i vetor de termos independentes para simulaÃ§Ã£o black-oil."""
         cells = self.grid['cells']
         b = np.zeros(cells)
         
-        # Adicionar termos fonte (poços)
+        # Adicionar termos fonte (poÃ§os)
         for well_name, well in self.wells.items():
             for i, j, k in well['completion']:
                 idx = i + j*self.grid['nx'] + k*self.grid['nx']*self.grid['ny']
@@ -602,7 +603,7 @@ class ReservoirSimulation:
                           so: np.ndarray,
                           sg: np.ndarray,
                           dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Atualiza saturações para simulação black-oil."""
+        """Atualiza saturaÃ§Ãµes para simulaÃ§Ã£o black-oil."""
         # Calcular mobilidades
         krw = sw**2
         kro = so**2
@@ -617,7 +618,7 @@ class ReservoirSimulation:
         lambda_g = krg / mu_g
         lambda_t = lambda_w + lambda_o + lambda_g
         
-        # Atualizar saturações
+        # Atualizar saturaÃ§Ãµes
         sw_new = sw + dt * lambda_w / lambda_t
         so_new = so + dt * lambda_o / lambda_t
         sg_new = 1 - sw_new - so_new
@@ -629,12 +630,12 @@ class ReservoirSimulation:
                                   temperature: np.ndarray,
                                   composition: np.ndarray,
                                   saturation: np.ndarray) -> csr_matrix:
-        """Constrói matriz de coeficientes para simulação composicional."""
+        """ConstrÃ³i matriz de coeficientes para simulaÃ§Ã£o composicional."""
         nx, ny, nz = self.grid['nx'], self.grid['ny'], self.grid['nz']
         cells = self.grid['cells']
         nc = composition.shape[1]
         
-        # Propriedades do reservatório
+        # Propriedades do reservatÃ³rio
         kx = np.ones(cells) * 100  # md
         ky = np.ones(cells) * 100
         kz = np.ones(cells) * 10
@@ -700,12 +701,12 @@ class ReservoirSimulation:
                                composition: np.ndarray,
                                saturation: np.ndarray,
                                dt: float) -> np.ndarray:
-        """Constrói vetor de termos independentes para simulação composicional."""
+        """ConstrÃ³i vetor de termos independentes para simulaÃ§Ã£o composicional."""
         cells = self.grid['cells']
         nc = composition.shape[1]
         b = np.zeros(cells * (2 + nc))
         
-        # Adicionar termos fonte (poços)
+        # Adicionar termos fonte (poÃ§os)
         for well_name, well in self.wells.items():
             for i, j, k in well['completion']:
                 idx = i + j*self.grid['nx'] + k*self.grid['nx']*self.grid['ny']
@@ -720,11 +721,11 @@ class ReservoirSimulation:
                             pressure: np.ndarray,
                             temperature: np.ndarray,
                             saturation: np.ndarray) -> csr_matrix:
-        """Constrói matriz de coeficientes para simulação térmica."""
+        """ConstrÃ³i matriz de coeficientes para simulaÃ§Ã£o tÃ©rmica."""
         nx, ny, nz = self.grid['nx'], self.grid['ny'], self.grid['nz']
         cells = self.grid['cells']
         
-        # Propriedades térmicas
+        # Propriedades tÃ©rmicas
         rock_thermal_conductivity = self.pvt_data['rock_thermal_conductivity']
         
         # Construir matriz esparsa
@@ -737,7 +738,7 @@ class ReservoirSimulation:
                 for k in range(nz):
                     idx = i + j*nx + k*nx*ny
                     
-                    # Termos de condução de calor
+                    # Termos de conduÃ§Ã£o de calor
                     if i > 0:
                         tx = rock_thermal_conductivity * self.grid['dy'] * self.grid['dz'] / self.grid['dx']
                         rows.append(idx)
@@ -786,11 +787,11 @@ class ReservoirSimulation:
                           temperature: np.ndarray,
                           saturation: np.ndarray,
                           dt: float) -> np.ndarray:
-        """Constrói vetor de termos independentes para simulação térmica."""
+        """ConstrÃ³i vetor de termos independentes para simulaÃ§Ã£o tÃ©rmica."""
         cells = self.grid['cells']
-        b = np.zeros(cells * 3)  # pressão, temperatura, saturações
+        b = np.zeros(cells * 3)  # pressÃ£o, temperatura, saturaÃ§Ãµes
         
-        # Adicionar termos fonte (poços)
+        # Adicionar termos fonte (poÃ§os)
         for well_name, well in self.wells.items():
             for i, j, k in well['completion']:
                 idx = i + j*self.grid['nx'] + k*self.grid['nx']*self.grid['ny']
@@ -806,7 +807,7 @@ class ReservoirSimulation:
                           k: tf.Tensor,
                           dx: float) -> tf.Tensor:
         """Calcula fluxo usando GPU."""
-        # Calcular gradiente de pressão
+        # Calcular gradiente de pressÃ£o
         dp = tf.pad(pressure[1:] - pressure[:-1], [[0, 1]])
         
         # Calcular fluxo
@@ -820,7 +821,7 @@ class ReservoirSimulation:
                               so: tf.Tensor,
                               sg: tf.Tensor,
                               dt: float) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
-        """Atualiza saturações usando GPU."""
+        """Atualiza saturaÃ§Ãµes usando GPU."""
         # Calcular mobilidades
         krw = tf.square(sw)
         kro = tf.square(so)
@@ -835,7 +836,7 @@ class ReservoirSimulation:
         lambda_g = krg / mu_g
         lambda_t = lambda_w + lambda_o + lambda_g
         
-        # Atualizar saturações
+        # Atualizar saturaÃ§Ãµes
         sw_new = sw + dt * lambda_w / lambda_t
         so_new = so + dt * lambda_o / lambda_t
         sg_new = 1 - sw_new - so_new
@@ -850,29 +851,29 @@ class ReservoirSimulation:
         Calcula K-values usando EOS de Peng-Robinson.
         
         Args:
-            z: Composição global
-            p: Pressão (psia)
-            T: Temperatura (°R)
+            z: ComposiÃ§Ã£o global
+            p: PressÃ£o (psia)
+            T: Temperatura (Â°R)
             
         Returns:
             Array com K-values
         """
-        # Parâmetros críticos
+        # ParÃ¢metros crÃ­ticos
         pc = self.pvt_data['critical_pressure']
         Tc = self.pvt_data['critical_temperature']
         omega = self.pvt_data['acentric_factor']
         
         # Constantes
-        R = 10.73  # Constante dos gases (psia.ft³/lbmol.°R)
+        R = 10.73  # Constante dos gases (psia.ftÂ³/lbmol.Â°R)
         
-        # Calcular parâmetros da EOS
+        # Calcular parÃ¢metros da EOS
         kappa = 0.37464 + 1.54226*omega - 0.26992*omega**2
         alpha = (1 + kappa*(1 - np.sqrt(T/Tc)))**2
         
         a = 0.45724 * R**2 * Tc**2 * alpha / pc
         b = 0.07780 * R * Tc / pc
         
-        # Calcular parâmetros de mistura
+        # Calcular parÃ¢metros de mistura
         a_mix = 0
         b_mix = 0
         for i in range(len(z)):
@@ -887,12 +888,12 @@ class ReservoirSimulation:
             A = a_mix*p/(R**2*T**2)
             B = b_mix*p/(R*T)
             
-            # Coeficientes da equação cúbica
+            # Coeficientes da equaÃ§Ã£o cÃºbica
             c2 = B - 1
             c1 = A - 2*B - 3*B**2
             c0 = -A*B + B**2 + B**3
             
-            # Resolver equação cúbica
+            # Resolver equaÃ§Ã£o cÃºbica
             roots = np.roots([1, c2, c1, c0])
             Z = np.max(roots[roots.imag == 0].real)
             
@@ -910,26 +911,26 @@ class ReservoirSimulation:
                           tol: float = 1e-6,
                           max_iter: int = 100) -> Tuple[float, np.ndarray, np.ndarray]:
         """
-        Realiza cálculo de flash.
+        Realiza cÃ¡lculo de flash.
         
         Args:
-            z: Composição global
+            z: ComposiÃ§Ã£o global
             K: K-values
-            tol: Tolerância para convergência
-            max_iter: Número máximo de iterações
+            tol: TolerÃ¢ncia para convergÃªncia
+            max_iter: NÃºmero mÃ¡ximo de iteraÃ§Ãµes
             
         Returns:
-            Tuple com fração molar da fase líquida (beta),
-            composição da fase líquida (x) e composição da fase vapor (y)
+            Tuple com fraÃ§Ã£o molar da fase lÃ­quida (beta),
+            composiÃ§Ã£o da fase lÃ­quida (x) e composiÃ§Ã£o da fase vapor (y)
         """
         # Valores iniciais
-        beta = 0.5  # Fração molar da fase líquida
-        x = z.copy()  # Composição da fase líquida
-        y = K * x  # Composição da fase vapor
+        beta = 0.5  # FraÃ§Ã£o molar da fase lÃ­quida
+        x = z.copy()  # ComposiÃ§Ã£o da fase lÃ­quida
+        y = K * x  # ComposiÃ§Ã£o da fase vapor
         
-        # Iteração de Rachford-Rice
+        # IteraÃ§Ã£o de Rachford-Rice
         for i in range(max_iter):
-            # Calcular função objetivo
+            # Calcular funÃ§Ã£o objetivo
             f = np.sum(z * (K - 1) / (1 + beta * (K - 1)))
             
             # Calcular derivada
@@ -938,13 +939,13 @@ class ReservoirSimulation:
             # Atualizar beta
             beta_new = beta - f/df
             
-            # Verificar convergência
+            # Verificar convergÃªncia
             if abs(beta_new - beta) < tol:
                 break
                 
             beta = beta_new
             
-            # Atualizar composições
+            # Atualizar composiÃ§Ãµes
             x = z / (1 + beta * (K - 1))
             y = K * x
             
@@ -962,16 +963,16 @@ class ReservoirSimulation:
                        c2: np.ndarray,
                        s: np.ndarray) -> float:
         """
-        Calcula fluxo entre células.
+        Calcula fluxo entre cÃ©lulas.
         
         Args:
             k: Permeabilidade
-            p1, p2: Pressões nas células
-            c1, c2: Composições nas células
-            s: Saturações
+            p1, p2: PressÃµes nas cÃ©lulas
+            c1, c2: ComposiÃ§Ãµes nas cÃ©lulas
+            s: SaturaÃ§Ãµes
             
         Returns:
-            Fluxo entre as células
+            Fluxo entre as cÃ©lulas
         """
         # Propriedades dos fluidos
         mu_o = self.pvt_data['muo']
