@@ -405,37 +405,42 @@ function renderLasTable(payload) {
   const wellName = payload.well?.WELL || payload.well?.well || "Unknown";
   const rowCount = payload.row_count ?? 0;
   const curveCount = payload.curves.length;
-  summary.innerHTML = `Well: <span>${wellName}</span> | Curves: <span>${curveCount}</span> (${payload.curves.join(", ")}) | Rows: <span>${rowCount}</span>`;
+  const wellLabel = document.createElement("span");
+  wellLabel.textContent = String(wellName);
+  const curveLabel = document.createElement("span");
+  curveLabel.textContent = String(curveCount);
+  summary.append(
+    "Well: ",
+    wellLabel,
+    " | Curves: ",
+    curveLabel,
+    ` (${payload.curves.map(String).join(", ")}) | Rows: ${rowCount}`
+  );
   container.append(summary);
 
   const table = document.createElement("table");
   table.className = "las-table";
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th>Curve Name</th>
-        <th>Min</th>
-        <th>Max</th>
-        <th>Mean</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${payload.curves.map((curve) => {
-        const stats = payload.curve_stats[curve] || {};
-        const minVal = stats.min !== null && stats.min !== undefined ? (typeof stats.min === "number" ? stats.min.toFixed(4) : stats.min) : "—";
-        const maxVal = stats.max !== null && stats.max !== undefined ? (typeof stats.max === "number" ? stats.max.toFixed(4) : stats.max) : "—";
-        const meanVal = stats.mean !== null && stats.mean !== undefined ? (typeof stats.mean === "number" ? stats.mean.toFixed(4) : stats.mean) : "—";
-        return `
-          <tr>
-            <td><strong>${curve}</strong></td>
-            <td>${minVal}</td>
-            <td>${maxVal}</td>
-            <td>${meanVal}</td>
-          </tr>
-        `;
-      }).join("")}
-    </tbody>
-  `;
+  const header = table.createTHead().insertRow();
+  for (const label of ["Curve Name", "Min", "Max", "Mean"]) {
+    header.insertCell().textContent = label;
+  }
+  const body = table.createTBody();
+  for (const curve of payload.curves) {
+    const stats = payload.curve_stats[curve] || {};
+    const row = body.insertRow();
+    const curveCell = row.insertCell();
+    const strong = document.createElement("strong");
+    strong.textContent = String(curve);
+    curveCell.append(strong);
+    for (const value of [stats.min, stats.max, stats.mean]) {
+      const cell = row.insertCell();
+      cell.textContent = value === null || value === undefined
+        ? "—"
+        : typeof value === "number"
+          ? value.toFixed(4)
+          : String(value);
+    }
+  }
   container.append(table);
   output.replaceChildren(container);
 }

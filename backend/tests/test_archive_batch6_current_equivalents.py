@@ -195,7 +195,7 @@ def test_material_balance_oil_gas():
     balance.add_production_point(oil_prod=10000.0, gas_prod=50000.0)
 
     oil_error = balance.calculate_oil_mbal(
-        1_000_000.0, 0.0, 0.0, 0.0, 1.0, 1e-6, 1e-6, 0.2
+        1_000_000.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1e-6, 1e-6, 0.2
     )
     gas_error = balance.calculate_gas_mbal(
         1_000_000.0, 0.0, 0.0, 1.0, 1e-6, 1e-6, 0.2
@@ -291,7 +291,9 @@ def test_eor_simulator_current_api():
     simulator.setup_polymer_flood({"viscosity_multiplier": 4.0})
 
     assert simulator.eor_type == "polymer"
-    assert simulator.chemical_properties["polymer_concentration"].shape == (2, 1, 1)
+    assert simulator.chemical_properties["polymer_concentration"].shape == (
+        2,
+    )
     assert simulator.chemical_properties["viscosity_multiplier"] == 4.0
 
 

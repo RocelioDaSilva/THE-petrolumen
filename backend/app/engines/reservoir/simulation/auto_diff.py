@@ -21,6 +21,8 @@ class Variable:
             derivatives[var] = (self.value * other.derivatives.get(var, 0.0) +
                               other.value * self.derivatives.get(var, 0.0))
         return Variable(self.value * other.value, derivatives)
+
+    __rmul__ = __mul__
     
     def __truediv__(self, other):
         other = self._convert(other)

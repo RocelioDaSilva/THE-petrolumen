@@ -1,30 +1,32 @@
 # PetroLúmen Platform Module & Verification Status
 
-**Target Release:** PetroLúmen v1.0.0 (Production Master)
-**Status:** Certified Stable & Production Ready
-**Date:** November 2026
+**Target Release:** PetroLúmen v1.0.0 (verification target)
+**Status:** Provisional — under verification
+**Date:** November 11, 2026
 
 ---
 
 ## 1. Executive Summary
 
-PetroLúmen is an enterprise-grade, multi-discipline petroleum and reservoir engineering suite engineered with React 18, TypeScript 5, Vite, and FastAPI. The platform unites drilling, facilities, reservoir engineering, economics, and analytics under a rigorous, literature-backed computational architecture adhering strictly to published standards (Ahmed, Dake, Lee, Standing, Hall-Yarborough, Arps, Bourgoyne & Young, Arnold & Stewart, Archie, API 5C3).
+The application currently functions in the tested workflows. The recorded test runs pass (196 backend tests, 92 engineering benchmarks, and 37 frontend Vitest tests); these results do not certify every module or engineering use. Desktop packaging remains under verification because the Windows production build fails during esbuild temporary-file cleanup and did not produce a complete bundle. Backend deployment and bindings for the desktop product also remain under verification.
 
 ---
 
 ## 2. Multi-Discipline Module Verification Matrix
 
-| Module Domain | Literature / Governing Physics | Primary Components & Engines | Benchmark Status | Bilingual (PT/EN) | Method Panel / Worked Solutions |
+| Module Domain | Literature / Governing Physics | Primary Components & Engines | Verification Status | Bilingual (PT/EN) | Method Panel / Worked Solutions |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Reservoir Physics & PVT** | Standing, Hall-Yarborough, Lee-Gonzalez-Eakin, Papay | `src/lib/reservoirMath.ts`, `PVTCalculator.tsx` | 100% Passed (7/7 tests) | Fully Integrated | Active & Verified |
-| **Well Testing & RTA** | Theis Drawdown, Cooper-Jacob, Horner ($k, s, p^*, p_{1\text{hr}}$), Bourdet $L=0.1$ | `src/lib/reservoirMath.ts`, `FlowingMaterialBalanceView.tsx` | 100% Passed | Fully Integrated | Active & Verified |
-| **Material Balance & Simulation** | Havlena-Odeh, P/Z Straight-Line, 1D Two-Phase IMPES, CFL limit | `ReservoirSimulationView.tsx`, `flow_simulation.py` | 100% Passed | Fully Integrated | Active & Verified |
-| **Drilling Hydraulics & Casing** | Bourgoyne et al. (1986), API Bulletin 5C3, Teale (1965) MSE | `DrillingHydraulicsView.tsx`, `casingDesign.ts`, `bitsAndPower.ts` | 100% Passed (15/15 tests) | Fully Integrated | Active & Verified |
-| **Well Control & Tripping** | Carter et al. (5th Ed., 2023), Cormack (2017) | `WellControlView.tsx`, `carterWellControlGoldenTests.ts` | 100% Passed (22/22 tests) | Fully Integrated | Active & Verified |
-| **Surface Facilities & Vessels** | Arnold & Stewart (2008) 2-Phase/3-Phase Separators, FWKO | `SurfaceFacilitiesView.tsx`, `twoPhaseSeparation.ts` | 100% Passed (10/10 tests) | Fully Integrated | Active & Verified |
-| **Production Nodal & DCA** | Vogel IPR, Fetkovich, Beggs-Brill VLP, Arps, Duong Unconventional | `NodalAnalysisView.tsx`, `DeclineCurveAnalysis.tsx` | 100% Passed | Fully Integrated | Active & Verified |
-| **Fiscal Economics & Sensitivity** | DCF, NPV, IRR, Payback, ROI, PSC Sharing, Automated Tornado | `EconomicsView.tsx`, `src/lib/reservoirMath.ts` | 100% Passed | Fully Integrated | Active & Verified |
-| **Petrophysics & LAS** | Archie ($S_w$), Larionov ($V_{sh}$), Porosity, Net Pay cutoffs | `lasParser.ts`, `WellDataViewer.tsx` | 100% Passed | Fully Integrated | Active & Verified |
+| **Reservoir Physics & PVT** | Standing, Hall-Yarborough, Lee-Gonzalez-Eakin, Papay | `src/lib/reservoirMath.ts`, `PVTCalculator.tsx` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Well Testing & RTA** | Theis Drawdown, Cooper-Jacob, Horner ($k, s, p^*, p_{1\text{hr}}$), Bourdet $L=0.1$ | `src/lib/reservoirMath.ts`, `FlowingMaterialBalanceView.tsx` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Material Balance & Simulation** | Havlena-Odeh, P/Z Straight-Line, 1D Two-Phase IMPES, CFL limit | `ReservoirSimulationView.tsx`, `flow_simulation.py` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Drilling Hydraulics & Casing** | Bourgoyne et al. (1986), API Bulletin 5C3, Teale (1965) MSE | `DrillingHydraulicsView.tsx`, `casingDesign.ts`, `bitsAndPower.ts` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Well Control & Tripping** | Carter et al. (5th Ed., 2023), Cormack (2017) | `WellControlView.tsx`, `carterWellControlGoldenTests.ts` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Surface Facilities & Vessels** | Arnold & Stewart (2008) 2-Phase/3-Phase Separators, FWKO | `SurfaceFacilitiesView.tsx`, `twoPhaseSeparation.ts` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Production Nodal & DCA** | Vogel IPR, Fetkovich, Beggs-Brill VLP, Arps, Duong Unconventional | `NodalAnalysisView.tsx`, `DeclineCurveAnalysis.tsx` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Fiscal Economics & Sensitivity** | DCF, NPV, IRR, Payback, ROI, PSC Sharing, Automated Tornado | `EconomicsView.tsx`, `src/lib/reservoirMath.ts` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+| **Petrophysics & LAS** | Archie ($S_w$), Larionov ($V_{sh}$), Porosity, Net Pay cutoffs | `lasParser.ts`, `WellDataViewer.tsx` | Under verification; no standalone certification | Present; coverage not audited | Present; behavior under verification |
+
+This matrix is a capability inventory, not evidence that every listed module has been independently tested or certified. See [`TEST_REPORT.md`](../TEST_REPORT.md) for the recorded test and build results.
 
 ---
 
@@ -35,9 +37,8 @@ PetroLúmen is an enterprise-grade, multi-discipline petroleum and reservoir eng
    - Supported Metric/SI units: `kPa`, `MPa`, `bar`, `m`, `m³/day`, `kg/m³`, `°C`, `mPa·s`, `mm`, `m²`.
    - Synchronized across TypeScript (`src/lib/units.ts`) and Python (`backend/app/core/units.py`).
 
-2. **Bilingual Localization (100% Coverage):**
-   - Central dictionary in `src/lib/i18n.tsx` with dedicated translation trees for `categories`, `methodology`, `units`, and alert messages.
-   - Dynamic real-time switching without state loss or parameter resets.
+2. **Bilingual Localization:**
+   - Localization infrastructure is present in `src/lib/i18n.tsx`; translation coverage and runtime behavior have not been exhaustively verified.
 
 3. **Session & Versioned Snapshot Registry:**
    - State isolation via `SessionRegistryContext` protecting scenarios from cross-contamination.

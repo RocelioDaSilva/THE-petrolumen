@@ -107,34 +107,7 @@ class Geostatistics:
         if self.variogram is None:
             raise ValueError("Variograma não calculado")
             
-        # Definir modelo teórico
-        def spherical(h, c0, c, a):
-            if h == 0:
-                return 0
-            elif h >= a:
-                return c0 + c
-            else:
-                return c0 + c * (1.5 * h/a - 0.5 * (h/a)**3)
-                
-        def exponential(h, c0, c, a):
-            if h == 0:
-                return 0
-            else:
-                return c0 + c * (1 - np.exp(-3 * h/a))
-                
-        def gaussian(h, c0, c, a):
-            if h == 0:
-                return 0
-            else:
-                return c0 + c * (1 - np.exp(-3 * (h/a)**2))
-                
-        models = {
-            'spherical': spherical,
-            'exponential': exponential,
-            'gaussian': gaussian
-        }
-        
-        if model_type not in models:
+        if model_type not in self.variogram_models:
             raise ValueError(f"Modelo {model_type} não suportado")
             
         # Ajustar parâmetros
@@ -145,7 +118,9 @@ class Geostatistics:
             
         # Calcular modelo
         h = self.variogram['lags']
-        gamma_model = models[model_type](h, nugget, sill - nugget, range_param)
+        gamma_model = self.variogram_models[model_type](
+            h, sill - nugget, range_param, nugget
+        )
         
         self.variogram['model'] = {
             'type': model_type,
@@ -396,27 +371,35 @@ class Geostatistics:
                             sill: float, range_param: float,
                             nugget: float) -> np.ndarray:
         """Spherical variogram model"""
+        h = np.asarray(h, dtype=float)
         gamma = np.zeros_like(h)
-        mask = h <= range_param
-        
-        gamma[mask] = nugget + sill * (
-            1.5 * h[mask]/range_param - 
-            0.5 * (h[mask]/range_param)**3
+        nonzero = h > 0
+        within_range = nonzero & (h <= range_param)
+
+        gamma[within_range] = nugget + sill * (
+            1.5 * h[within_range] / range_param
+            - 0.5 * (h[within_range] / range_param) ** 3
         )
-        gamma[~mask] = nugget + sill
+        gamma[nonzero & ~within_range] = nugget + sill
         return gamma
         
     def _exponential_variogram(self, h: np.ndarray,
                               sill: float, range_param: float,
                               nugget: float) -> np.ndarray:
         """Exponential variogram model"""
-        return nugget + sill * (1 - np.exp(-3 * h/range_param))
+        h = np.asarray(h, dtype=float)
+        gamma = nugget + sill * (1 - np.exp(-3 * h / range_param))
+        return np.where(h == 0, 0.0, gamma)
         
     def _gaussian_variogram(self, h: np.ndarray,
                            sill: float, range_param: float,
                            nugget: float) -> np.ndarray:
         """Gaussian variogram model"""
-        return nugget + sill * (1 - np.exp(-3 * h**2/range_param**2))
+        h = np.asarray(h, dtype=float)
+        gamma = nugget + sill * (
+            1 - np.exp(-3 * h**2 / range_param**2)
+        )
+        return np.where(h == 0, 0.0, gamma)
         
     def _calc_kriging_weights(self, point: np.ndarray,
                              variogram_params: Dict) -> np.ndarray:

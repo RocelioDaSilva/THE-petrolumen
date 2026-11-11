@@ -11,6 +11,8 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 
+from .pvt import calculate_z_factor_hall_yarborough
+
 class PVTProperties:
     """Classe para cálculo de propriedades PVT."""
     
@@ -146,23 +148,9 @@ class PVTProperties:
         Returns:
             Fator de compressibilidade
         """
-        # Correlação de Hall-Yarborough
-        t = temperature + 460  # temperatura em Rankine
-        tpc = 168 + 325 * gas_specific_gravity - 12.5 * gas_specific_gravity**2
-        ppc = 677 + 15 * gas_specific_gravity - 37.5 * gas_specific_gravity**2
-        
-        tr = t / tpc
-        pr = pressure / ppc
-        
-        t1 = 0.06125 * pr * np.exp(-1.2 * (1 - 1/tr)**2)
-        t2 = 14.76 * tr - 9.76 * tr**2 + 4.58 * tr**3
-        t3 = 90.7 * tr - 242.2 * tr**2 + 42.4 * tr**3
-        t4 = 2.18 + 2.82 * tr
-        
-        y = t1 / (t2 + t3 + t4)
-        
-        z = 0.06125 * pr * np.exp(-1.2 * (1 - 1/tr)**2) / y
-        return z
+        return calculate_z_factor_hall_yarborough(
+            pressure, temperature, gas_specific_gravity
+        )
 
 class ReservoirSimulation:
     """Classe para simulação numérica de reservatórios."""

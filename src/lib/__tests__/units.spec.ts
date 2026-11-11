@@ -14,6 +14,11 @@ describe('Unit Conversion Engine', () => {
     expect(bar).toBeCloseTo(68.95, 1);
   });
 
+  it('distinguishes gauge psi from absolute psia', () => {
+    expect(convert(0, 'psi', 'psia')).toBeCloseTo(14.6959, 4);
+    expect(convert(14.6959, 'psia', 'psi')).toBeCloseTo(0, 4);
+  });
+
   it('converts temperature accurately between F and C', () => {
     // 212 F is 100 C
     const boilC = convert(212, 'F', 'C');

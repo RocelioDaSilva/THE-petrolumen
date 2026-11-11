@@ -5,8 +5,6 @@ from .compositional_simulator import CompositionalSimulator
 from .thermal_simulator import ThermalSimulator
 from .network_designer import NetworkDesigner
 from .parallel_engine import ParallelEngine
-from ..pvt.correlations import *
-from ..visualization.results_visualizer import ResultsVisualizer
 
 class SimulationController:
     """Master controller for reservoir simulation"""
@@ -17,7 +15,6 @@ class SimulationController:
         self.network = NetworkDesigner()
         self.parallel_engine = ParallelEngine()
         self.results_history = []
-        self.visualizer = ResultsVisualizer()
         
     def _create_simulator(self):
         """Create appropriate simulator instance"""
@@ -159,8 +156,11 @@ class SimulationController:
     
     def visualize_results(self, results: Dict):
         """Visualize simulation results"""
-        self.visualizer.load_results(results)
+        from ...visualization.results_visualizer import ResultsVisualizer
+
+        visualizer = ResultsVisualizer()
+        visualizer.load_results(results)
         # Create standard plots
-        pressure_map = self.visualizer.plot_pressure_map(layer=0)
-        rates = self.visualizer.plot_well_rates("PROD-1")
+        pressure_map = visualizer.plot_pressure_map(layer=0)
+        rates = visualizer.plot_well_rates("PROD-1")
         return pressure_map, rates

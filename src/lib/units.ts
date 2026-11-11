@@ -4,12 +4,21 @@ export const convert = (value: number, from: string, to: string): number => {
   if (from === to || !Number.isFinite(value)) return value;
 
   // Pressure
-  if ((from === 'psi' || from === 'psia') && to === 'kPa') return value * 6.89476;
-  if (from === 'kPa' && (to === 'psi' || to === 'psia')) return value / 6.89476;
-  if ((from === 'psi' || from === 'psia') && to === 'bar') return value * 0.0689476;
-  if (from === 'bar' && (to === 'psi' || to === 'psia')) return value / 0.0689476;
-  if ((from === 'psi' || from === 'psia') && to === 'MPa') return value * 0.00689476;
-  if (from === 'MPa' && (to === 'psi' || to === 'psia')) return value / 0.00689476;
+  const atmosphericPressurePsi = 14.6959;
+  // kPa, bar, and MPa retain the gauge reference used by psi in this API.
+  const pressureUnits = ['psi', 'psia', 'kPa', 'bar', 'MPa'];
+  const psiPerUnit: Record<string, number> = {
+    psi: 1,
+    psia: 1,
+    kPa: 1 / 6.89476,
+    bar: 1 / 0.0689476,
+    MPa: 1 / 0.00689476,
+  };
+  if (pressureUnits.includes(from) && pressureUnits.includes(to)) {
+    const sourceGaugePsi = value - (from === 'psia' ? atmosphericPressurePsi : 0);
+    const targetGaugePsi = sourceGaugePsi * psiPerUnit[from] / psiPerUnit[to];
+    return targetGaugePsi + (to === 'psia' ? atmosphericPressurePsi : 0);
+  }
 
   // Temperature
   if (from === 'F' && to === 'C') return ((value - 32) * 5) / 9;

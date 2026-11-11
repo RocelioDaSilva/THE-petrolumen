@@ -3,12 +3,12 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest'; // Vitest's mocking utility
 import { AuthStatusDisplay } from './AuthStatusDisplay';
-import { useAppStore, UserProfile } from '@/stores/appStore'; // Import the actual store
+import { useAppStore, type UserProfile } from '../../stores/appStore';
 
 // Mock the Zustand store
 // We need to mock the entire store module because it's used directly in the component.
 // The actual implementation of the store will be replaced by this mock.
-vi.mock('@/stores/appStore', () => {
+vi.mock('../../stores/appStore', () => {
   // Mock the store's state and actions
   const mockLogin = vi.fn();
   const mockLogout = vi.fn();

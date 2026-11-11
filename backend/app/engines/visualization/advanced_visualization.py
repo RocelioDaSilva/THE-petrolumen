@@ -56,7 +56,7 @@ class AdvancedVisualization:
             z=df.pivot_table(
                 values="oil_rate",
                 index="well",
-                columns=pd.Grouper(key="date", freq="M"),
+                columns=pd.Grouper(key="date", freq="ME"),
                 aggfunc="mean"
             )
         ))

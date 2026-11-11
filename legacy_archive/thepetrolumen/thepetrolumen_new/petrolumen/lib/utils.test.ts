@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn } from './utils'; // Assuming utils.ts is in the same directory or path is aliased
+import { cn } from '@/lib/utils';
 
 describe('cn utility function', () => {
   it('should concatenate class names correctly', () => {

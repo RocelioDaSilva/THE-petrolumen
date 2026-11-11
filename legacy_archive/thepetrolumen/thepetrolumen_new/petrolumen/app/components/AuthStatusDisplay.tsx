@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useAppStore, UserProfile } from '@/stores/appStore';
+import { useAppStore, type UserProfile } from '../../stores/appStore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

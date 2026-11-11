@@ -1,88 +1,30 @@
-# PetroLúmen Automated Test & Verification Report
+# PetroLúmen Test & Verification Report
 
-**Date of Verification:** November 2026
-**Execution Environment:** Linux x86_64, Node.js v22.22.1, Python 3.12.13
-**Status:** All 121 Automated Tests Green (100% Pass Rate)
+**Verification date:** November 11, 2026
+**Environment:** Windows 10.0.19045; Node.js v24.13.1; npm 11.8.0; Python 3.14.3
+**Status:** The recorded backend and frontend test suites pass. The production build remains under verification; no release-readiness or certification claim is made.
 
----
+## Verified test results
 
-## 1. Physical Engineering Benchmark Suites (92/92 Passed - 100%)
+| Suite | Command | Result |
+|---|---|---|
+| Backend | `python -m pytest backend/tests -q` | 196 passed, 8 skipped, 43 warnings |
+| Engineering benchmarks | Run by `npm test` (`npx tsx src/testRunner.ts`) | 92 passed across 11 suites |
+| Frontend Vitest | Run by `npm test` (`vitest run`) | 37 passed across 8 test files |
 
-The physical calculation engine was validated against published literature benchmarks and textbooks:
+These are runner totals for the executions recorded on November 11, 2026. Passing tests do not constitute certification of every module, input range, or engineering use.
 
-1. **Cormack (2017) [7/7 Passed]**
-   - Combined pump speed and mud weight laws
-   - Multiple annular section influx height calculation (DC-OH + DP-OH)
-   - Mandatory Kill Mud Weight round-up rule
-   - Conservative Maximum Mud Weight round-down rule
-   - Swab pressure trip margin
-   - Kill sheet volume roll-up
-   - PVT sanitization & thermodynamic boundary validation (fail-loudly)
+## Production build
 
-2. **Bourgoyne et al. (1986) [8/8 Passed]**
-   - Hoisting system loads (fast line tension and mast load)
-   - Duplex double-acting pump displacement factor and hydraulic horsepower
-   - Fann rotational viscometer rheology (PV, YP, Power-Law indices)
-   - Barite weight-up ideal mixing equations
-   - API Class G cement slurry design (yield and density)
-   - Bit jet pressure drop and hydraulic impact force
-   - API Barlow casing burst rating with 12.5% mill tolerance
-   - Minimum curvature directional survey and Dogleg Severity (DLS)
+The production build was attempted with output redirected to a temporary directory, including a retry with `ESBUILD_BINARY_PATH` set to the installed Windows esbuild executable.
 
-3. **API Bulletin 5C3 & Teale (1965) [7/7 Passed]**
-   - Casing collapse plastic regime (7" 29 lb/ft N-80, 9⅝" 47 lb/ft N-80)
-   - Standard grade D/t boundary limits (9⅝" 40 lb/ft J-55)
-   - Thick-walled yield collapse regime (Lamé thick-wall equations)
-   - Elastic Euler buckling collapse regime
-   - Teale (1965) Mechanical Specific Energy (MSE) bit efficiency
-   - Triplex single-acting pump displacement factor
+- TypeScript checking completed, and Vite transformed 2,549 modules.
+- The build command then failed with `remove C:\Users\rocel\AppData\Local\Temp\esbuild-<hash>: Access is denied`.
+- Inspection of the temporary output after the failure found only `placeholder-logo.svg`; there was no `index.html` or `assets` directory. Therefore, a usable production bundle was **not** produced by that run.
+- The error’s underlying cause (for example, transient Windows locking or security software) has not been established.
 
-4. **Arnold & Stewart (2008) [10/10 Passed]**
-   - Gas apparent molecular weight & specific gravity
-   - Sour gas Wichert-Aziz correction and compressibility factor
-   - Vertical two-phase separator sizing
-   - Horizontal two-phase separator sizing (with literature errata correction)
-   - Vertical three-phase separator sizing
-   - Horizontal three-phase separator sizing
-   - FWKO pressure vessel weight estimation (ASME Sec VIII Div 1)
-   - Gunbarrel external water leg height hydrostatic balance
-   - Horizontal heater-treater sizing & heat duty
-   - CPI plate separator droplet cutoff diameter
+## Remaining verification
 
-5. **Carter et al. (2023 - 5th Edition) [60/60 Passed]**
-   - Ch. 3 Well Control & Kick Sheets (15/15 tests)
-   - Ch. 4 Drilling Fluids & Retort Analysis (12/12 tests)
-   - Ch. 5 Cement Slurries & Plug Bumping (3/3 tests)
-   - Ch. 6 Drilling Hydraulics & ECD (7/7 tests)
-   - Ch. 2 Rig Capacity, Trip Time & Bit Wear (7/7 tests)
-   - Ch. 2.6 Stuck Pipe & Fishing Economics (6/6 tests)
-   - Phase 7 Formation Pressure & LOT (5/5 tests)
-   - Phase 8 Directional Surveying & DLS (5/5 tests)
-
----
-
-## 2. Frontend Unit & Integration Test Suite (18/18 Passed - 100%)
-
-Executed via Vitest:
-- `src/lib/__tests__/pvt.spec.ts` (7 tests): Standing correlations, Hall-Yarborough Z-factor, fail-loudly boundary checks.
-- `src/lib/__tests__/sessionRegistry.spec.tsx` (3 tests): Context isolation, session switching, error handling outside provider.
-- `src/components/__tests__/ErrorBoundary.spec.tsx` (2 tests): Render crash interception, localized error feedback, retry capability.
-- `src/lib/__tests__/lasParser.spec.ts` (2 tests): Standard LAS 2.0 parsing, track mapping, NaN-to-null sanitization.
-- `src/lib/__tests__/units.spec.ts` (4 tests): Bi-directional Field <-> SI conversions (pressure, length, rate, volume, density, viscosity).
-
----
-
-## 3. Backend Python Engine Tests (29/29 Passed - 100%)
-
-Executed via `pytest`:
-- `backend/tests/golden/test_carter_well_control.py` (15 tests): Well control equations parity with TypeScript implementation.
-- `backend/tests/test_engines.py` (14 tests): Math utilities, ECD, driller simulation, trajectory, ROP physics, Arps decline curve, petrophysics facies, and gas material balance.
-
----
-
-## 4. Code Quality & Static Typing
-
-- **TypeScript Typecheck:** `npm run lint` (`tsc --noEmit`) - 0 errors.
-- **Python Static Linting:** `ruff check backend/` - 0 errors.
-- **Python Type Safety:** `mypy --ignore-missing-imports backend/app/` - 0 errors.
-- **Production Bundle:** `npm run build` completed successfully.
+- Resolve the Windows esbuild temporary-file cleanup failure and produce a complete bundle.
+- Verify the canonical installed desktop workflow, including GUI presentation and API-backed operation.
+- Verify backend deployment and binding behavior for the desktop product.
