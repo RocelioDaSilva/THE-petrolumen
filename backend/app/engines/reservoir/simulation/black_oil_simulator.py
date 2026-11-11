@@ -7,14 +7,20 @@
 2. Saturation update: Water and gas saturations are solved independently via uncoupled linear
    rows without Darcy flux divergence coupling or capillary pressure (Pc). Values are clipped
    to [0, 1] and excess gas is subtracted, rather than enforcing mass conservation.
-3. Well handling: Wells are stored in a list, but `_apply_well_conditions` was never implemented
-   (calling with wells raises AttributeError). There is no Peaceman well index or BHP model.
+3. Well handling: BHP controls constrain pressure at perforated cells, and water/gas rate
+   controls update phase saturations using cell pore volume. This is a simplified control
+   approximation, not a Peaceman well-index or coupled wellbore model.
 Status: Physics is simplified and unphysical; documented in docstring.
 """
 
 import numpy as np
 from typing import Dict, List, Optional
 from .grid import Grid3D
+
+
+class WellControlError(ValueError):
+    """Raised when a well control cannot be represented by this simulator."""
+
 
 class BlackOilSimulator:
     """Advanced black-oil simulator supporting parallel computation"""
@@ -97,7 +103,6 @@ class BlackOilSimulator:
                     system_matrix[row, col] += flux
 
         for well in self.wells:
-            # TODO(physics): Implement Peaceman well model, well index (WI), and source/sink terms in matrix/rhs
             self._apply_well_conditions(well, system_matrix, rhs)
 
         try:
@@ -110,6 +115,7 @@ class BlackOilSimulator:
             solution = np.linalg.solve(system_matrix, rhs)
 
         self._update_reservoir_state(solution)
+        self._apply_well_rate_controls(dt)
         self._update_phase_velocities(trans)
 
     def _state_value(self, cell: int, phase: str) -> float:
@@ -148,6 +154,74 @@ class BlackOilSimulator:
         kr = self._relative_permeability(phase, cell)
         mu = self.props["pvt"][f"{phase}_viscosity"]
         return kr / mu
+
+    def _well_cells(self, well: Dict) -> List[int]:
+        i, j = well["location"]
+        return [
+            int(
+                np.ravel_multi_index(
+                    (i, j, layer),
+                    (self.grid.nx, self.grid.ny, self.grid.nz),
+                )
+            )
+            for layer in well["perfs"]
+        ]
+
+    def _apply_well_conditions(
+        self, well: Dict, matrix: np.ndarray, rhs: np.ndarray
+    ) -> None:
+        controls = well["controls"]
+        unsupported = set(controls) - {"bhp", "water_rate", "gas_rate"}
+        if unsupported:
+            raise WellControlError(
+                f"Well {well['name']!r} has unsupported controls: "
+                f"{sorted(unsupported)}."
+            )
+
+        bhp = controls.get("bhp")
+        if bhp is not None:
+            if not np.isfinite(bhp) or bhp <= 0:
+                raise WellControlError(
+                    f"Well {well['name']!r} BHP must be finite and positive."
+                )
+            for cell in self._well_cells(well):
+                row = self._get_equation_index(cell, "oil")
+                matrix[row, :] = 0.0
+                matrix[row, row] = 1.0
+                rhs[row] = bhp
+
+        for control in ("water_rate", "gas_rate"):
+            rate = controls.get(control, 0.0)
+            if not np.isfinite(rate) or rate < 0:
+                raise WellControlError(
+                    f"Well {well['name']!r} {control} must be finite and non-negative."
+                )
+
+    def _apply_well_rate_controls(self, dt: float) -> None:
+        cell_volume = self.grid.dx * self.grid.dy * self.grid.dz
+        for well in self.wells:
+            direction = 1.0 if well["type"] == "injector" else -1.0
+            cells = self._well_cells(well)
+            for phase in ("water", "gas"):
+                rate = well["controls"].get(f"{phase}_rate", 0.0)
+                if rate == 0:
+                    continue
+                saturation = self.saturations[phase]
+                for cell in cells:
+                    pore_volume = self.props["porosity"][cell] * cell_volume
+                    delta = direction * rate * dt / (len(cells) * pore_volume)
+                    updated = saturation[cell] + delta
+                    other_phase = "gas" if phase == "water" else "water"
+                    if (
+                        updated < 0
+                        or updated > 1
+                        or updated + self.saturations[other_phase][cell] > 1
+                    ):
+                        raise WellControlError(
+                            f"Well {well['name']!r} {phase} rate exceeds the "
+                            f"available pore volume in cell {cell}."
+                        )
+                    saturation[cell] = updated
     
     def _relative_permeability(self, phase: str, cell: int) -> float:
         """Calcula permeabilidade relativa de uma fase"""

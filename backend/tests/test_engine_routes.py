@@ -193,7 +193,7 @@ def test_black_oil_defaults_return_200():
     assert "wells" in payload
 
 
-def test_black_oil_with_wells_returns_422():
+def test_black_oil_with_bhp_control_returns_well_results():
     response = client.post(
         "/api/simulate/black-oil",
         json={
@@ -223,8 +223,54 @@ def test_black_oil_with_wells_returns_422():
         },
     )
 
-    assert response.status_code == 422
-    assert "Well handling not yet implemented" in response.json()["detail"]
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["wells"][0]["name"] == "PROD-1"
+    assert payload["pressure"][0] == 2000.0
+
+
+def test_black_oil_water_injector_updates_saturation():
+    base_payload = {
+        "grid": {"nx": 2, "ny": 2, "nz": 1, "dx": 50, "dy": 50, "dz": 10},
+        "porosity": [0.2, 0.2, 0.2, 0.2],
+        "permeability": [100, 100, 100, 100],
+        "rock_compressibility": 0,
+        "fluid_properties": {
+            "water_viscosity": 1,
+            "oil_viscosity": 2,
+            "gas_viscosity": 0.02,
+        },
+        "initial_pressure": 3000,
+        "initial_water_saturation": [0.2, 0.2, 0.2, 0.2],
+        "initial_gas_saturation": [0, 0, 0, 0],
+        "timesteps": [1],
+    }
+    baseline = client.post(
+        "/api/simulate/black-oil",
+        json={**base_payload, "wells": []},
+    )
+    injected = client.post(
+        "/api/simulate/black-oil",
+        json={
+            **base_payload,
+            "wells": [
+                {
+                    "name": "INJ-1",
+                    "i": 0,
+                    "j": 0,
+                    "perforation_layers": [0],
+                    "well_type": "injector",
+                    "controls": {"water_rate": 100.0},
+                }
+            ],
+        },
+    )
+
+    assert baseline.status_code == 200, baseline.text
+    assert injected.status_code == 200, injected.text
+    assert injected.json()["saturations"]["water"][0] > baseline.json()[
+        "saturations"
+    ]["water"][0]
 
 
 def test_compositional_route_is_marked_unimplemented():

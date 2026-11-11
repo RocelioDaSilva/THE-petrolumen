@@ -9,6 +9,7 @@ from ..engines.reservoir.simulation import (
     CompositionalSimulator,
     ThermalSimulator,
 )
+from ..engines.reservoir.simulation.black_oil_simulator import WellControlError
 from ..engines.reservoir.simulation.grid import Grid3D
 
 router = APIRouter()
@@ -107,6 +108,26 @@ class BlackOilInput(BaseModel):
                 raise ValueError(
                     f"Well {well.name!r} must have valid perforation layers."
                 )
+            supported_controls = {"bhp", "water_rate", "gas_rate"}
+            unsupported_controls = set(well.controls) - supported_controls
+            if unsupported_controls:
+                raise ValueError(
+                    f"Well {well.name!r} has unsupported controls: "
+                    f"{sorted(unsupported_controls)}."
+                )
+            if not well.controls:
+                raise ValueError(
+                    f"Well {well.name!r} must specify at least one supported control."
+                )
+            for control, value in well.controls.items():
+                if not np.isfinite(value) or (
+                    value <= 0 if control == "bhp" else value < 0
+                ):
+                    constraint = "positive" if control == "bhp" else "non-negative"
+                    raise ValueError(
+                        f"Well {well.name!r} {control} must be finite and "
+                        f"{constraint}."
+                    )
         return self
 
 
@@ -152,11 +173,6 @@ def _not_implemented(detail: str, tracking: str) -> NoReturn:
 
 @router.post("/simulate/black-oil", tags=["Simulation"], response_model=BlackOilResponse)
 def simulate_black_oil(payload: BlackOilInput) -> BlackOilResponse:
-    if payload.wells:
-        raise HTTPException(
-            status_code=422,
-            detail="Well handling not yet implemented — see # TODO in black_oil_simulator.py",
-        )
     simulator = BlackOilSimulator()
     simulator.setup_grid(
         payload.grid.nx,
@@ -191,7 +207,10 @@ def simulate_black_oil(payload: BlackOilInput) -> BlackOilResponse:
         },
     )
     for timestep in payload.timesteps:
-        simulator.run_timestep(timestep)
+        try:
+            simulator.run_timestep(timestep)
+        except WellControlError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
 
     pressure = np.asarray(simulator.pressure)
     water_saturation = np.asarray(simulator.saturations["water"])

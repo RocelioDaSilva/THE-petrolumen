@@ -65,13 +65,13 @@ def test_black_oil_pressure_decreases_with_production():
     assert sim.pressure[0] < initial_p
 
 
-@pytest.mark.skip(
-    reason="black_oil_simulator.py well handling is unimplemented — _apply_well_conditions raises AttributeError. See # TODO(physics) in simulator."
-)
 def test_black_oil_water_injector_increases_water_saturation():
     """Physical assertion: Adding a water-injector well increases water saturation locally."""
+    baseline = _build_default_simulator()
+    baseline.run_timestep(1.0)
+
     sim = _build_default_simulator()
     sim.add_well("INJ", 0, 0, [0], "injector", {"water_rate": 100.0})
-    initial_sw = float(sim.saturations["water"][0])
     sim.run_timestep(1.0)
-    assert sim.saturations["water"][0] > initial_sw
+
+    assert sim.saturations["water"][0] > baseline.saturations["water"][0]
