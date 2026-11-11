@@ -18,8 +18,33 @@ const tools = [
         ]
       },
       { name: "composition", type: "json", label: "Composition · object<string, number>", value: { C1: 0.85, C3: 0.15 } },
-      { name: "eos_type", type: "select", label: "EOS type · Literal['PR']", value: "PR", options: ["PR"] },
+      { name: "eos_type", type: "select", label: "EOS type", value: "PR", options: ["PR", "SRK"] },
       { name: "binary_interactions", type: "json", label: "Binary interactions · number[][] (optional)", value: null, optional: true }
+    ]
+  },
+  {
+    id: "pvt-flash",
+    group: "PVT",
+    title: "PVT Flash (Wilson K)",
+    endpoint: "/api/engine/pvt/flash",
+    chartMode: null,
+    description: "Wilson K-value / Rachford–Rice screening flash. K-values are not fugacity-iterated; provide optional positive initial K-values to override Wilson estimates.",
+    fields: [
+      { name: "pressure", type: "number", label: "Pressure (Pa)", value: 5_000_000, step: "any" },
+      { name: "temperature", type: "number", label: "Temperature (K)", value: 250, step: "any" },
+      {
+        name: "components",
+        type: "json",
+        label: "Components · EosComponentInput[]",
+        value: [
+          { name: "methane", critical_pressure: 4_599_000, critical_temperature: 190.56, acentric_factor: 0.011 },
+          { name: "propane", critical_pressure: 4_248_000, critical_temperature: 369.83, acentric_factor: 0.152 }
+        ]
+      },
+      { name: "composition", type: "json", label: "Composition · object<string, number>", value: { methane: 0.5, propane: 0.5 } },
+      { name: "eos_type", type: "select", label: "EOS type", value: "PR", options: ["PR", "SRK"] },
+      { name: "binary_interactions", type: "json", label: "Binary interactions · number[][] (optional)", value: null, optional: true },
+      { name: "initial_k_values", type: "json", label: "Initial K-values · number[] (optional)", value: [2, 0.5], optional: true }
     ]
   },
   {
@@ -649,7 +674,7 @@ function validateToolData(toolId, data) {
         throw new Error(`Water and gas saturation at cell ${i} sum to > 1 (${sw + sg}).`);
       }
     }
-  } else if (toolId === "pvt") {
+  } else if (toolId === "pvt" || toolId === "pvt-flash") {
     if (data.pressure <= 0 || data.temperature <= 0) {
       throw new Error("Pressure and temperature must be positive numbers.");
     }

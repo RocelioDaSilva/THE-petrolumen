@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -26,6 +27,67 @@ def test_eos_endpoint_calculates_peng_robinson_z_factor():
 
     assert response.status_code == 200
     assert response.json()["z_factor"] > 0
+
+
+def test_eos_endpoint_calculates_srk_z_factor():
+    response = client.post(
+        "/api/engine/pvt/eos",
+        json={
+            "pressure": 5_000_000.0,
+            "temperature": 250.0,
+            "components": [
+                {
+                    "name": "methane",
+                    "critical_pressure": 4_599_000.0,
+                    "critical_temperature": 190.56,
+                    "acentric_factor": 0.011,
+                }
+            ],
+            "composition": {"methane": 1.0},
+            "eos_type": "SRK",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["z_factor"] > 0
+
+
+def test_flash_endpoint_returns_two_phase_compositions():
+    response = client.post(
+        "/api/engine/pvt/flash",
+        json={
+            "pressure": 5_000_000.0,
+            "temperature": 250.0,
+            "components": [
+                {
+                    "name": "methane",
+                    "critical_pressure": 4_599_000.0,
+                    "critical_temperature": 190.56,
+                    "acentric_factor": 0.011,
+                },
+                {
+                    "name": "propane",
+                    "critical_pressure": 4_248_000.0,
+                    "critical_temperature": 369.83,
+                    "acentric_factor": 0.152,
+                },
+            ],
+            "composition": {"methane": 0.5, "propane": 0.5},
+            "initial_k_values": [2.0, 0.5],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["phase"] == "two_phase"
+    assert payload["vapor_fraction"] == 0.5
+    for component, overall in {"methane": 0.5, "propane": 0.5}.items():
+        recovered = (
+            (1 - payload["vapor_fraction"])
+            * payload["liquid_composition"][component]
+            + payload["vapor_fraction"] * payload["vapor_composition"][component]
+        )
+        assert recovered == pytest.approx(overall)
 
 
 def test_trajectory_endpoint_returns_minimum_curvature_coordinates():

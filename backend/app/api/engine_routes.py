@@ -55,7 +55,7 @@ class EosRequest(BaseModel):
     temperature: PositiveFloat = Field(description="Temperature in K.")
     components: list[EosComponentInput] = Field(min_length=1)
     composition: dict[str, float]
-    eos_type: Literal["PR"] = "PR"
+    eos_type: Literal["PR", "SRK"] = "PR"
     binary_interactions: list[list[float]] | None = None
 
     @model_validator(mode="after")
@@ -99,6 +99,18 @@ class EosRequest(BaseModel):
                     "the number of components."
                 )
         return self
+
+
+class FlashRequest(EosRequest):
+    initial_k_values: list[PositiveFloat] | None = None
+
+
+class FlashResponse(BaseModel):
+    phase: Literal["liquid", "vapor", "two_phase"]
+    vapor_fraction: float
+    liquid_composition: dict[str, float] | None
+    vapor_composition: dict[str, float] | None
+    K_values: dict[str, float]
 
 
 class SurveyInput(BaseModel):
@@ -193,6 +205,37 @@ def calculate_eos(payload: EosRequest) -> EosResponse:
             detail="The equation-of-state solver produced a non-physical Z-factor.",
         )
     return EosResponse(z_factor=float(z_factor))
+
+
+@router.post("/engine/pvt/flash", tags=["PVT"], response_model=FlashResponse)
+def calculate_flash(payload: FlashRequest) -> FlashResponse:
+    """Run a Wilson-K/Rachford-Rice screening flash."""
+    solver = EosSolver(eos_type=payload.eos_type)
+    for component in payload.components:
+        properties = component.model_dump(
+            exclude={"name", "molecular_weight"}, exclude_none=True
+        )
+        if component.molecular_weight is not None:
+            properties["molecular_weight"] = component.molecular_weight
+        solver.add_component(component.name, properties)
+
+    count = len(payload.components)
+    interactions = payload.binary_interactions
+    solver.set_binary_interactions(
+        np.zeros((count, count), dtype=float)
+        if interactions is None
+        else np.asarray(interactions, dtype=float)
+    )
+    try:
+        result = solver.flash_calculation(
+            payload.pressure,
+            payload.temperature,
+            payload.composition,
+            payload.initial_k_values,
+        )
+    except (ValueError, KeyError, FloatingPointError, ArithmeticError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return FlashResponse(**result)
 
 
 @router.post("/engine/drilling/trajectory", tags=["Drilling"], response_model=TrajectoryResponse)
