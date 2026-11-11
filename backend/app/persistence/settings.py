@@ -16,14 +16,14 @@ class Settings:
 
     @property
     def is_configured(self) -> bool:
-        return bool(self.secret_key)
+        return len(self.secret_key) >= 32
 
 
 def get_settings() -> Settings:
     """Build settings from the environment, failing loudly when unconfigured.
 
-    ``PETROLUMEN_SECRET_KEY`` is mandatory in production; the auth router will
-    raise a clear 500-style startup error if it is missing.
+    ``PETROLUMEN_SECRET_KEY`` must be at least 32 characters to enable
+    authentication and authenticated persistence endpoints.
     """
     return Settings(
         secret_key=os.getenv("PETROLUMEN_SECRET_KEY", ""),

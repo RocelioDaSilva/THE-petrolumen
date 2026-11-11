@@ -14,14 +14,14 @@ from __future__ import annotations
 import datetime
 import logging
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any, Generator
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from .models import Base, ProductionData, User, Well
+from .models import Base, ProductionData, SavedSimulation, User, Well
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class DatabaseManager:
         return True
 
     @contextmanager
-    def session(self) -> Iterator[Session]:
+    def session(self) -> Generator[Session, None, None]:
         if self._SessionLocal is None:
             raise ConnectionError("Database not connected; call connect() first.")
         s = self._SessionLocal()
@@ -252,6 +252,69 @@ class DatabaseManager:
             s.commit()
             return True
 
+    # --- Saved simulations --------------------------------------------------
+    def save_simulation(
+        self,
+        owner_id: int,
+        name: str,
+        simulation_type: str,
+        input_data: dict[str, Any],
+        result_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        with self.session() as s:
+            record = SavedSimulation(
+                owner_id=owner_id,
+                name=name,
+                simulation_type=simulation_type,
+                input_data=input_data,
+                result_data=result_data,
+            )
+            s.add(record)
+            s.commit()
+            s.refresh(record)
+            return _saved_simulation_data(record, include_payload=True)
+
+    def list_saved_simulations(
+        self, owner_id: int, limit: int = 50, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        with self.session() as s:
+            records = s.scalars(
+                select(SavedSimulation)
+                .where(SavedSimulation.owner_id == owner_id)
+                .order_by(SavedSimulation.created_at.desc(), SavedSimulation.id.desc())
+                .limit(limit)
+                .offset(offset)
+            ).all()
+            return [_saved_simulation_data(record) for record in records]
+
+    def get_saved_simulation(
+        self, simulation_id: int, owner_id: int
+    ) -> dict[str, Any] | None:
+        with self.session() as s:
+            record = s.scalar(
+                select(SavedSimulation).where(
+                    SavedSimulation.id == simulation_id,
+                    SavedSimulation.owner_id == owner_id,
+                )
+            )
+            if record is None:
+                return None
+            return _saved_simulation_data(record, include_payload=True)
+
+    def delete_saved_simulation(self, simulation_id: int, owner_id: int) -> bool:
+        with self.session() as s:
+            record = s.scalar(
+                select(SavedSimulation).where(
+                    SavedSimulation.id == simulation_id,
+                    SavedSimulation.owner_id == owner_id,
+                )
+            )
+            if record is None:
+                return False
+            s.delete(record)
+            s.commit()
+            return True
+
 
 def _coerce_date(value: Any) -> datetime.date | None:
     if isinstance(value, datetime.datetime):
@@ -271,3 +334,18 @@ def _float_or_none(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _saved_simulation_data(
+    record: SavedSimulation, include_payload: bool = False
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "id": record.id,
+        "name": record.name,
+        "simulation_type": record.simulation_type,
+        "created_at": record.created_at,
+    }
+    if include_payload:
+        result["input_data"] = record.input_data
+        result["result_data"] = record.result_data
+    return result

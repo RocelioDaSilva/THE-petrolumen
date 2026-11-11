@@ -41,13 +41,21 @@ def test_every_endpoint_has_documented_responses():
             if method.lower() not in {"get", "post", "put", "delete", "patch"}:
                 continue
             responses = operation.get("responses", {})
-            assert "200" in responses or "307" in responses or "501" in responses, (
+            success_codes = {code for code in responses if code.startswith("2")}
+            assert success_codes or "307" in responses or "501" in responses, (
                 f"{method.upper()} {path} missing standard response"
             )
             # Verify documented response schema exists
-            target_code = "501" if "501" in responses else ("200" if "200" in responses else list(responses.keys())[0])
+            target_code = (
+                "501"
+                if "501" in responses
+                else (sorted(success_codes)[0] if success_codes else list(responses.keys())[0])
+            )
             resp_obj = responses[target_code]
             content = resp_obj.get("content", {})
+            if target_code == "204":
+                assert not content, f"{method.upper()} {path} 204 response must not have content"
+                continue
             json_media = content.get("application/json", {})
             schema = json_media.get("schema", {})
             assert schema, f"{method.upper()} {path} response {target_code} has no schema"

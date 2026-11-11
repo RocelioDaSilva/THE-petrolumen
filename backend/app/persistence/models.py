@@ -9,7 +9,17 @@ from __future__ import annotations
 
 import datetime
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -81,5 +91,25 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime.date] = mapped_column(Date, default=datetime.date.today)
 
+    saved_simulations: Mapped[list["SavedSimulation"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> str:  # pragma: no cover - debug helper
         return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"
+
+
+class SavedSimulation(Base):
+    __tablename__ = "saved_simulations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    simulation_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    input_data: Mapped[dict] = mapped_column(JSON, nullable=False)
+    result_data: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.UTC)
+    )
+
+    owner: Mapped["User"] = relationship(back_populates="saved_simulations")

@@ -18,6 +18,27 @@
         </div>
         <div class="nav-label">TOOLS</div>
         <nav id="tool-nav" aria-label="Engineering tools"></nav>
+        <section class="persistence-panel" aria-label="Account and saved calculations">
+          <label>
+            <span>Username</span>
+            <input id="auth-username" autocomplete="username">
+          </label>
+          <label>
+            <span>Email for registration</span>
+            <input id="auth-email" type="email" autocomplete="email">
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="auth-password" type="password" autocomplete="current-password">
+          </label>
+          <div class="persistence-actions">
+            <button id="login-button" type="button">Sign in</button>
+            <button id="register-button" type="button">Register</button>
+          </div>
+          <button id="logout-button" type="button" hidden>Sign out</button>
+          <button id="save-result-button" type="button" disabled>Save last result</button>
+          <span id="persistence-status" role="status"></span>
+        </section>
         <div class="sidebar-footer">
           <span class="status-dot" id="footer-status-dot"></span>
           <span id="connection-status">Checking API status…</span>

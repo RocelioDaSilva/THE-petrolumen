@@ -317,6 +317,98 @@ const resultModeButtons = document.querySelectorAll(".result-mode");
 let selectedTool = tools[0];
 let apiPort = window.API_PORT || null;
 let currentResultMode = "chart";
+let accessToken = null;
+let lastRun = null;
+const saveResultButton = document.querySelector("#save-result-button");
+const persistenceStatus = document.querySelector("#persistence-status");
+
+function setPersistenceStatus(message, isError = false) {
+  persistenceStatus.textContent = message;
+  persistenceStatus.classList.toggle("error", isError);
+}
+
+async function postJson(path, payload, token = null) {
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`http://127.0.0.1:${apiPort}${path}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload)
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(`HTTP ${response.status} · ${formatError(body)}`);
+  return body;
+}
+
+async function login() {
+  const username = document.querySelector("#auth-username").value.trim();
+  const password = document.querySelector("#auth-password").value;
+  if (!username || !password) throw new Error("Enter your username and password.");
+  const token = await postJson("/api/auth/token", { username, password });
+  accessToken = token.access_token;
+  document.querySelector("#logout-button").hidden = false;
+  saveResultButton.disabled = !lastRun;
+  setPersistenceStatus(`Signed in as ${username}.`);
+}
+
+async function register() {
+  const username = document.querySelector("#auth-username").value.trim();
+  const email = document.querySelector("#auth-email").value.trim();
+  const password = document.querySelector("#auth-password").value;
+  if (!username || !email || !password) {
+    throw new Error("Enter a username, email, and password to register.");
+  }
+  await postJson("/api/auth/register", { username, email, password });
+  await login();
+}
+
+async function saveLastRun() {
+  if (!accessToken) throw new Error("Sign in before saving a result.");
+  if (!lastRun) throw new Error("Run a calculation before saving a result.");
+  const saved = await postJson(
+    "/api/saved-simulations",
+    lastRun,
+    accessToken
+  );
+  setPersistenceStatus(`Saved "${saved.name}" (ID ${saved.id}).`);
+}
+
+function bindPersistenceControls() {
+  document.querySelector("#login-button").addEventListener("click", async () => {
+    try {
+      await login();
+    } catch (error) {
+      setPersistenceStatus(error.message, true);
+    }
+  });
+  document.querySelector("#register-button").addEventListener("click", async () => {
+    try {
+      await register();
+    } catch (error) {
+      setPersistenceStatus(error.message, true);
+    }
+  });
+  document.querySelector("#logout-button").addEventListener("click", () => {
+    accessToken = null;
+    document.querySelector("#logout-button").hidden = true;
+    saveResultButton.disabled = true;
+    setPersistenceStatus("Signed out.");
+  });
+  saveResultButton.addEventListener("click", async () => {
+    saveResultButton.disabled = true;
+    try {
+      await saveLastRun();
+    } catch (error) {
+      if (error.message.includes("HTTP 401")) {
+        accessToken = null;
+        document.querySelector("#logout-button").hidden = true;
+      }
+      setPersistenceStatus(error.message, true);
+    } finally {
+      saveResultButton.disabled = !accessToken || !lastRun;
+    }
+  });
+}
 
 function updateResultModeButtons() {
   const hasChartMode = selectedTool && !selectedTool.disabled && Boolean(selectedTool.chartMode);
@@ -505,6 +597,8 @@ function setResultDisplay(payload) {
 
 function showTool(tool) {
   selectedTool = tool;
+  lastRun = null;
+  saveResultButton.disabled = true;
   currentResultMode = tool.chartMode ? tool.chartMode : "json";
   document.querySelector("#tool-group").textContent = tool.group;
   document.querySelector("#tool-title").textContent = tool.title;
@@ -722,6 +816,7 @@ async function runTool() {
     if (!apiPort) throw new Error("The local API port is not available yet.");
 
     let response;
+    let requestData = null;
     const started = performance.now();
 
     if (selectedTool.isOOIPWorkflow) {
@@ -787,6 +882,7 @@ async function runTool() {
       });
     } else {
       const body = getFormData();
+      requestData = body;
       const endpoint = currentResultMode === "chart" && selectedTool.chartMode ? `${selectedTool.endpoint}/chart` : selectedTool.endpoint;
       response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
         method: "POST",
@@ -807,6 +903,15 @@ async function runTool() {
     timing.textContent = `Response time: ${elapsedMs}ms`;
     status.textContent = response.ok ? `HTTP ${response.status}` : `HTTP ${response.status} · ${formatError(payload)}`;
     status.classList.toggle("error", !response.ok);
+    if (response.ok && requestData) {
+      lastRun = {
+        name: selectedTool.title,
+        simulation_type: selectedTool.id,
+        input_data: requestData,
+        result_data: payload
+      };
+      saveResultButton.disabled = !accessToken;
+    }
   } catch (error) {
     timing.textContent = "Response time: —";
     status.textContent = error.message;
@@ -852,6 +957,7 @@ function renderSidebarNav() {
 }
 
 renderSidebarNav();
+bindPersistenceControls();
 
 resultModeButtons.forEach((button) => {
   button.addEventListener("click", () => {

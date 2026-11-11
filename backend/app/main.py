@@ -1,4 +1,6 @@
 import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -20,6 +22,7 @@ from .api import (
     simulation_routes,
     workflow_routes,
 )
+from .persistence.routes import router as persistence_router
 
 
 class HealthResponse(BaseModel):
@@ -29,7 +32,15 @@ class HealthResponse(BaseModel):
 
 from app.api.reservoir_routes import router as reservoir_router
 
-app = FastAPI(title="PetroLumen API", version="0.1.0")
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
+    yield
+    database = getattr(application.state, "database_manager", None)
+    if database is not None:
+        database.close()
+
+
+app = FastAPI(title="PetroLumen API", version="0.1.0", lifespan=lifespan)
 
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
@@ -48,6 +59,7 @@ app.include_router(petrophysics_routes.router, prefix="/api")
 app.include_router(pvt_routes.router, prefix="/api")
 app.include_router(chart_routes.router, prefix="/api")
 app.include_router(workflow_routes.router, prefix="/api")
+app.include_router(persistence_router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -56,7 +68,7 @@ async def health():
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception(request, exc):
+async def unhandled_exception(request, _exc):
     logging.exception("Unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
