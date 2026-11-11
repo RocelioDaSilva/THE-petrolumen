@@ -1,9 +1,9 @@
 """Tests for CalculationResult, registry, validation."""
 import pytest
 
-from app.reservoir.common.calculation_result import (
+from app.common.calculation_result import (
     CalculationResult, Correlation)
-from app.reservoir.common import correlations, validation
+from app.common import correlations, validation
 
 
 def test_calc_result_constructs():
