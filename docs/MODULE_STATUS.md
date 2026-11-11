@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-The application currently functions in the tested workflows. The recorded test runs pass (196 backend tests, 92 engineering benchmarks, and 37 frontend Vitest tests); these results do not certify every module or engineering use. Desktop packaging remains under verification because the Windows production build fails during esbuild temporary-file cleanup and did not produce a complete bundle. Backend deployment and bindings for the desktop product also remain under verification.
+The application currently functions in the tested workflows. The recorded test runs pass (196 backend tests, 92 engineering benchmarks, and 37 frontend Vitest tests); these results do not certify every module or engineering use. The Windows production bundle build has been successfully verified: setting `TEMP` and `TMP` to the project-local `.temp/` directory avoids the esbuild temporary-file cleanup failure and generates `dist/index.html` plus `dist/assets`. The installed desktop workflow's GUI presentation and backend deployment/bindings remain under verification.
 
 ---
 

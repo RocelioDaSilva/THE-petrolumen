@@ -2,7 +2,7 @@
 
 **Verification date:** November 11, 2026
 **Environment:** Windows 10.0.19045; Node.js v24.13.1; npm 11.8.0; Python 3.14.3
-**Status:** The recorded backend and frontend test suites pass. The production build remains under verification; no release-readiness or certification claim is made.
+**Status:** The recorded backend and frontend test suites pass, and the production bundle build succeeds when `TEMP` and `TMP` point to the project-local `.temp/` directory. Desktop GUI presentation and backend deployment remain under verification; no release-readiness or certification claim is made.
 
 ## Verified test results
 
@@ -16,15 +16,21 @@ These are runner totals for the executions recorded on November 11, 2026. Passin
 
 ## Production build
 
-The production build was attempted with output redirected to a temporary directory, including a retry with `ESBUILD_BINARY_PATH` set to the installed Windows esbuild executable.
+The Windows production build was verified with the project-local temporary directory to avoid the esbuild temporary-file cleanup failure:
 
-- TypeScript checking completed, and Vite transformed 2,549 modules.
-- The build command then failed with `remove C:\Users\rocel\AppData\Local\Temp\esbuild-<hash>: Access is denied`.
-- Inspection of the temporary output after the failure found only `placeholder-logo.svg`; there was no `index.html` or `assets` directory. Therefore, a usable production bundle was **not** produced by that run.
-- The error’s underlying cause (for example, transient Windows locking or security software) has not been established.
+```powershell
+New-Item -ItemType Directory -Path ".\.temp" -Force | Out-Null
+$env:TEMP = (Resolve-Path ".\.temp").Path
+$env:TMP = $env:TEMP
+npm run build
+```
+
+- Result: **exit code 0**; TypeScript checking completed and Vite transformed 2,346 modules.
+- Output: `dist/index.html` and `dist/assets/` were generated; the assets directory contained 39 files.
+- The build emitted a non-fatal warning that some chunks exceed 500 kB after minification.
+- `.temp/` is ignored by Git. Using it for `TEMP`/`TMP` resolved the observed Windows esbuild cleanup failure for this build; the cause of the original system-temp lock was not independently established.
 
 ## Remaining verification
 
-- Resolve the Windows esbuild temporary-file cleanup failure and produce a complete bundle.
 - Verify the canonical installed desktop workflow, including GUI presentation and API-backed operation.
 - Verify backend deployment and binding behavior for the desktop product.
