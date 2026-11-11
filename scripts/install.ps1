@@ -12,28 +12,76 @@ Write-Host "=======================================================" -Foreground
 Write-Host ""
 
 $SourceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
-$DistSource = Join-Path $SourceRoot "dist"
+$BackendSource = Join-Path $SourceRoot "backend"
+$DesktopSource = Join-Path $SourceRoot "frontend_desktop"
 
-if (-not (Test-Path $DistSource)) {
-    Write-Host "[ERROR] 'dist' folder not found. Please run 'npm run build' first." -ForegroundColor Red
+if (-not (Test-Path (Join-Path $BackendSource "app\main.py")) -or
+    -not (Test-Path (Join-Path $DesktopSource "static\index.html"))) {
+    Write-Host "[ERROR] Backend or PyWebView application files are missing." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "[1/4] Preparing installation directory: $TargetDir" -ForegroundColor Yellow
+Write-Host "[1/5] Preparing installation directory: $TargetDir" -ForegroundColor Yellow
 if (-not (Test-Path $TargetDir)) {
     New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
 }
 
-Write-Host "[2/4] Copying application assets..." -ForegroundColor Yellow
-$TargetDist = Join-Path $TargetDir "dist"
-$TargetScripts = Join-Path $TargetDir "scripts"
+Write-Host "[2/4] Copying backend and desktop application..." -ForegroundColor Yellow
+$TargetBackend = Join-Path $TargetDir "backend"
+$TargetDesktop = Join-Path $TargetDir "frontend_desktop"
 
-if (Test-Path $TargetDist) { Remove-Item $TargetDist -Recurse -Force }
-if (Test-Path $TargetScripts) { Remove-Item $TargetScripts -Recurse -Force }
+if (Test-Path $TargetBackend) { Remove-Item $TargetBackend -Recurse -Force }
+if (Test-Path $TargetDesktop) { Remove-Item $TargetDesktop -Recurse -Force }
 
-Copy-Item -Path $DistSource -Destination $TargetDist -Recurse -Force
-Copy-Item -Path (Join-Path $SourceRoot "scripts") -Destination $TargetScripts -Recurse -Force
+Copy-Item -Path $BackendSource -Destination $TargetBackend -Recurse -Force
+Copy-Item -Path $DesktopSource -Destination $TargetDesktop -Recurse -Force
 Copy-Item -Path (Join-Path $SourceRoot "PetroLumen.cmd") -Destination $TargetDir -Force
+
+Write-Host "[3/5] Preparing the Python runtime..." -ForegroundColor Yellow
+$PythonLauncher = Get-Command py -ErrorAction SilentlyContinue
+if ($PythonLauncher) {
+    $PythonExe = $PythonLauncher.Source
+    $PythonArgs = @("-3")
+} else {
+    $PythonLauncher = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $PythonLauncher) {
+        Write-Host "[ERROR] Python 3.11 or newer is required to install the desktop application." -ForegroundColor Red
+        exit 1
+    }
+    $PythonExe = $PythonLauncher.Source
+    $PythonArgs = @()
+}
+
+$PythonVersionText = & $PythonExe @PythonArgs -c "import sys; print('.'.join(map(str, sys.version_info[:3])))"
+if ($LASTEXITCODE -ne 0 -or [version]$PythonVersionText -lt [version]"3.11") {
+    Write-Host "[ERROR] Python 3.11 or newer is required. Detected: $PythonVersionText" -ForegroundColor Red
+    exit 1
+}
+
+$VenvPath = Join-Path $TargetDir ".venv"
+if (Test-Path $VenvPath) { Remove-Item $VenvPath -Recurse -Force }
+& $PythonExe @PythonArgs -m venv $VenvPath
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Could not create the application's Python environment." -ForegroundColor Red
+    exit 1
+}
+
+$VenvPython = Join-Path $VenvPath "Scripts\python.exe"
+& $VenvPython -m pip install --upgrade pip
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Could not prepare pip in the application environment." -ForegroundColor Red
+    exit 1
+}
+& $VenvPython -m pip install $TargetBackend
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Could not install the backend dependencies." -ForegroundColor Red
+    exit 1
+}
+& $VenvPython -m pip install -r (Join-Path $TargetDesktop "requirements_desktop.txt")
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Could not install the PyWebView desktop dependencies." -ForegroundColor Red
+    exit 1
+}
 
 # Create Uninstaller script inside TargetDir
 $UninstallScriptPath = Join-Path $TargetDir "uninstall.ps1"
@@ -65,7 +113,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0uninstall.ps1"
 "@
 Set-Content -Path $UninstallBatPath -Value $UninstallBatContent
 
-Write-Host "[3/4] Creating Desktop shortcut..." -ForegroundColor Yellow
+Write-Host "[4/5] Creating Desktop shortcut..." -ForegroundColor Yellow
 $WshShell = New-Object -ComObject WScript.Shell
 $DesktopPath = [Environment]::GetFolderPath("Desktop")
 $DesktopShortcutPath = Join-Path $DesktopPath "PetroLúmen.lnk"
@@ -75,7 +123,7 @@ $Shortcut.WorkingDirectory = $TargetDir
 $Shortcut.Description = "PetroLúmen - Plataforma de Engenharia de Petróleo"
 $Shortcut.Save()
 
-Write-Host "[4/4] Creating Start Menu shortcuts..." -ForegroundColor Yellow
+Write-Host "[5/5] Creating Start Menu shortcuts..." -ForegroundColor Yellow
 $ProgramsFolder = [Environment]::GetFolderPath("Programs")
 $AppMenuFolder = Join-Path $ProgramsFolder "PetroLúmen"
 if (-not (Test-Path $AppMenuFolder)) {

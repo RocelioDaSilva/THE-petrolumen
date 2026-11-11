@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import secrets
 import socket
 import sys
 import threading
@@ -27,10 +29,12 @@ class DesktopApi:
 def main() -> None:
     repository_root = Path(__file__).resolve().parent.parent
     backend_path = repository_root / "backend"
-    sys.path.insert(0, str(repository_root))
     sys.path.insert(0, str(backend_path))
 
-    from backend.app.main import app
+    if "PETROLUMEN_SECRET_KEY" not in os.environ:
+        os.environ["PETROLUMEN_SECRET_KEY"] = secrets.token_urlsafe(48)
+
+    from app.main import app
 
     app.add_middleware(
         CORSMiddleware,

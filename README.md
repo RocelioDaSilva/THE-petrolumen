@@ -12,9 +12,16 @@ cd backend && pip install -r requirements.txt && python -m uvicorn app.main:app 
 ```
 
 ### 2. Desktop
-```bash
-cd frontend_desktop && pip install -r requirements_desktop.txt && python desktop_app.py
+```powershell
+python -m pip install .\backend
+python -m pip install -r frontend_desktop/requirements_desktop.txt
+python frontend_desktop/desktop_app.py
 ```
+The Windows installer creates an isolated Python environment and installs these
+dependencies automatically. `PetroLumen.cmd` then starts the embedded FastAPI
+server and opens the PyWebView desktop client without requiring Node.js.
+The desktop launcher creates an ephemeral authentication key when one is not
+provided; standalone API deployments must configure `PETROLUMEN_SECRET_KEY`.
 
 ### 3. Tests
 ```bash
@@ -60,8 +67,8 @@ The table below enumerates every endpoint currently returning 200 OK across the 
 - `/api/simulate/compositional` → Returns HTTP 501 Not Implemented (compositional flow solver stubbed).
 - `/api/simulate/thermal` → Returns HTTP 501 Not Implemented (thermal flow and heat-transfer solver stubbed).
 - `black_oil_simulator.py` is a toy model; see its docstring for the limitations (physics is documented, not verified). Specifically, pressure is solved via an ad-hoc linear surrogate without true compressibility coupling, saturations are uncoupled without Darcy flux divergence or capillary pressure, and well conditions (`_apply_well_conditions`) are not implemented.
-- No persistence layer (every run is stateless; results are held in memory during the request lifecycle only).
-- No authentication or authorization layer (open local workbench access).
+- Authenticated local accounts and saved simulation results are available; see
+  [docs/PERSISTENCE.md](docs/PERSISTENCE.md) for standalone API configuration.
 
 The reservoir calculation package is being expanded incrementally under
 `backend/app/engines/reservoir/`; see [backend/README.md](backend/README.md)
