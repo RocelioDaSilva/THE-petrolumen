@@ -138,7 +138,7 @@ prompt_toolkit==3.0.52
 proto-plus==1.28.0
 protobuf==7.35.0
 psutil==7.2.2
-pure_eval==0.2.3
+pure_eval==0.2.4
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pycparser==3.0
