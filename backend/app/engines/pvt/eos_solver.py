@@ -1,6 +1,5 @@
 import numpy as np
-from typing import Dict, List, Tuple, Optional
-from scipy.optimize import fsolve
+from typing import Dict, Optional
 
 class EosSolver:
     """Equation of State solver for compositional simulation"""
@@ -43,30 +42,10 @@ class EosSolver:
                          composition: Dict[str, float],
                          initial_K: Optional[np.ndarray] = None
                          ) -> Dict:
-        """Perform isothermal flash calculation"""
-        z = np.array([composition[c] for c in self.components])
-        
-        # Initial K-values if not provided
-        if initial_K is None:
-            initial_K = self._wilson_k_values(P, T)
-            
-        # Solve Rachford-Rice equation
-        def objective(v):
-            return self._rachford_rice(v, z, initial_K)
-            
-        v = fsolve(objective, 0.5)[0]
-        
-        # Calculate phase compositions
-        K = initial_K
-        x = z / (1 + v*(K - 1))  # liquid
-        y = K * x                # vapor
-        
-        return {
-            "vapor_fraction": v,
-            "liquid_composition": dict(zip(self.components.keys(), x)),
-            "vapor_composition": dict(zip(self.components.keys(), y)),
-            "K_values": dict(zip(self.components.keys(), K))
-        }
+        """Flash calculation is unavailable until phase behavior is validated."""
+        raise NotImplementedError(
+            "Isothermal flash calculations are not implemented or validated."
+        )
         
     def _peng_robinson_z(self, P: float, T: float,
                         z: np.ndarray) -> float:
@@ -142,12 +121,8 @@ class EosSolver:
             K[i] = (Pc/P) * np.exp(5.37*(1 + omega)*(1 - Tc/T))
         return K
         
-    def _rachford_rice(self, v: float, z: np.ndarray,
-                      K: np.ndarray) -> float:
-        """Rachford-Rice equation for flash calculations"""
-        return np.sum(z * (K - 1)/(1 + v*(K - 1)))
-        
     def _srk_z(self, P: float, T: float, z: np.ndarray) -> float:
-        """Solve Soave-Redlich-Kwong EoS"""
-        # Implementation similar to PR but with SRK parameters
-        pass
+        """SRK compressibility is unavailable until its implementation is validated."""
+        raise NotImplementedError(
+            "The Soave-Redlich-Kwong equation of state is not implemented or validated."
+        )
