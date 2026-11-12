@@ -21,7 +21,14 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from .models import Base, ProductionData, SavedSimulation, User, Well
+from .models import (
+    Base,
+    ProductionData,
+    SAVED_SIMULATION_OWNER_CREATED_INDEX,
+    SavedSimulation,
+    User,
+    Well,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +62,10 @@ class DatabaseManager:
         if self.engine is None:
             raise ConnectionError("Database not connected; call connect() first.")
         Base.metadata.create_all(bind=self.engine)
+        SAVED_SIMULATION_OWNER_CREATED_INDEX.create(
+            bind=self.engine,
+            checkfirst=True,
+        )
         logger.info("Database tables created (or already present).")
         return True
 

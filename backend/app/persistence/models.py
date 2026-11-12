@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -99,11 +100,20 @@ class User(Base):
         return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"
 
 
+SAVED_SIMULATION_OWNER_CREATED_INDEX = Index(
+    "ix_saved_simulations_owner_created_at_id",
+    "owner_id",
+    "created_at",
+    "id",
+)
+
+
 class SavedSimulation(Base):
     __tablename__ = "saved_simulations"
+    __table_args__ = (SAVED_SIMULATION_OWNER_CREATED_INDEX,)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     simulation_type: Mapped[str] = mapped_column(String(80), nullable=False)
     input_data: Mapped[dict] = mapped_column(JSON, nullable=False)

@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from sqlalchemy import inspect
 
 from app.persistence.database import DatabaseManager
 
@@ -61,3 +62,16 @@ def test_database_manager_updates_well_and_rejects_invalid_date_range(database_m
             start_date=datetime.date(2024, 2, 1),
             end_date=datetime.date(2024, 1, 1),
         )
+
+
+def test_saved_simulation_owner_listing_has_composite_index(database_manager):
+    indexes = {
+        index["name"]: index["column_names"]
+        for index in inspect(database_manager.engine).get_indexes("saved_simulations")
+    }
+
+    assert indexes["ix_saved_simulations_owner_created_at_id"] == [
+        "owner_id",
+        "created_at",
+        "id",
+    ]

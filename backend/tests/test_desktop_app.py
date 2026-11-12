@@ -30,7 +30,14 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch):
         with urllib.request.urlopen(request, timeout=3) as response:
             assert response.status == 200
             assert json.loads(response.read())["status"] == "ok"
-            assert response.headers["Access-Control-Allow-Origin"] == "*"
+            assert response.headers["Access-Control-Allow-Origin"] == "null"
+
+        external_origin = urllib.request.Request(
+            health_url,
+            headers={"Origin": "https://example.com"},
+        )
+        with urllib.request.urlopen(external_origin, timeout=3) as response:
+            assert "Access-Control-Allow-Origin" not in response.headers
 
         preflight = urllib.request.Request(
             health_url,
@@ -43,6 +50,7 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch):
         )
         with urllib.request.urlopen(preflight, timeout=3) as response:
             assert response.status == 200
+            assert response.headers["Access-Control-Allow-Origin"] == "null"
 
     webview_stub = types.ModuleType("webview")
     webview_stub.create_window = create_window
