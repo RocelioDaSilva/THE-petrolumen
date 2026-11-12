@@ -21,7 +21,6 @@ import {
   Activity,
   Wrench,
   Search,
-  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -298,7 +297,6 @@ interface SidebarProps {
   onSelectModule: (id: string) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  onOpenDocs?: () => void;
 }
 
 export default function Sidebar({
@@ -306,7 +304,6 @@ export default function Sidebar({
   onSelectModule,
   collapsed,
   onToggleCollapse,
-  onOpenDocs,
 }: SidebarProps) {
   const { t, isPt } = useI18n();
   const { activeScenario } = useSessionRegistry();
@@ -338,14 +335,15 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "relative flex flex-col bg-card border-r border-border transition-all duration-300 ease-in-out select-none",
-        collapsed ? "w-16" : "w-72"
+        "relative flex shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 ease-out select-none",
+        collapsed ? "w-[4.25rem]" : "w-64"
       )}
+      aria-label={isPt ? "Navegação principal" : "Primary navigation"}
     >
       {/* Sidebar Header & Collapse Toggle */}
-      <div className="flex items-center justify-between p-3 border-b border-border">
+      <div className="flex h-12 items-center justify-between border-b border-border px-3">
         {!collapsed && (
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-2">
+          <span className="px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {t.modulesTitle}
           </span>
         )}
@@ -353,8 +351,9 @@ export default function Sidebar({
           variant="ghost"
           size="icon"
           onClick={onToggleCollapse}
-          className="h-7 w-7 text-muted-foreground ml-auto"
+          className="ml-auto h-8 w-8 text-muted-foreground hover:text-foreground"
           title={collapsed ? "Expandir menu" : "Recolher menu"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
@@ -362,7 +361,7 @@ export default function Sidebar({
 
       {/* Search / Filter Input */}
       {!collapsed && (
-        <div className="p-2 border-b border-border/60">
+        <div className="border-b border-border/60 p-2.5">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -370,18 +369,18 @@ export default function Sidebar({
               placeholder={t.searchModules}
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              className="h-8 pl-8 text-xs bg-muted/40 border-border"
+              className="h-9 border-border bg-background pl-8 text-xs"
             />
           </div>
         </div>
       )}
 
       {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-2 py-3">
         {categories.map(([catName, mods]) => (
           <div key={catName} className="space-y-1">
             {!collapsed && (
-              <h3 className="px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1">
+              <h3 className="mb-1 px-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
                 {catName}
               </h3>
             )}
@@ -393,18 +392,20 @@ export default function Sidebar({
                   key={mod.id}
                   onClick={() => onSelectModule(mod.id)}
                   title={collapsed ? `${mod.defaultName} — ${mod.defaultDescription}` : undefined}
+                  aria-label={mod.defaultName}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "w-full flex items-center space-x-3 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors text-left",
+                    "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-primary/10 font-semibold text-primary ring-1 ring-inset ring-primary/20"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                   )}
                 >
-                  <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                  <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
                   {!collapsed && (
                     <div className="flex-1 overflow-hidden leading-tight">
                       <div className="truncate font-medium">{mod.defaultName}</div>
-                      <div className={cn("text-[10px] truncate mt-0.5", isActive ? "text-primary-foreground/80" : "text-muted-foreground/70")}>
+                      <div className="mt-0.5 truncate text-[10px] text-muted-foreground/80">
                         {mod.defaultDescription}
                       </div>
                     </div>
@@ -414,28 +415,20 @@ export default function Sidebar({
             })}
           </div>
         ))}
-      </div>
+        {categories.length === 0 && (
+          <p className="px-3 py-4 text-xs text-muted-foreground">{t.noModulesFound}</p>
+        )}
+      </nav>
 
       {/* Sidebar Footer with Active Scenario Indicator */}
       {!collapsed && (
-        <div className="p-3 border-t border-border bg-muted/20 text-xs space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span className="font-semibold uppercase tracking-wider text-[10px]">{t.activeScenario}</span>
-            <span className="text-[10px] text-indigo-500 font-medium truncate max-w-[120px]">
-              {activeScenario.name}
-            </span>
+        <div className="space-y-1.5 border-t border-border px-4 py-3 text-xs">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {t.activeScenario}
           </div>
-          {onOpenDocs && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenDocs}
-              className="w-full text-xs h-7.5 gap-1.5 border-border bg-card hover:bg-muted font-medium"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-primary" />
-              {t.docsButton} (11/11)
-            </Button>
-          )}
+          <div className="truncate text-[11px] font-medium text-foreground" title={activeScenario.name}>
+              {activeScenario.name}
+          </div>
         </div>
       )}
     </aside>

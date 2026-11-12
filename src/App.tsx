@@ -175,12 +175,11 @@ function MainApp() {
           onSelectModule={setActiveModule}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onOpenDocs={() => setIsDocsOpen(true)}
         />
 
         {/* Main Content View with Error Boundary */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-50/50 dark:bg-slate-950/40">
-          <div className="max-w-7xl mx-auto">
+        <main className="min-w-0 flex-1 overflow-y-auto bg-background p-4 sm:p-5 lg:p-6">
+          <div className="mx-auto max-w-[1600px]">
             <ErrorBoundary
               key={activeModule}
               fallbackTitle={`${t.moduleFailure}: ${activeModuleMeta.defaultName}`}
