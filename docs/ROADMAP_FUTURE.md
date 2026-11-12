@@ -23,6 +23,10 @@ skipping, and a React upload/preview/commit view.
   complete file before writing, performs parsing and database work off the
   async event loop, creates missing wells transactionally, and skips existing
   `(well_id, date)` observations.
+- Imported wells are assigned to the authenticated user. The authenticated
+  `GET /api/production/wells` endpoint lists only that user's wells. Existing
+  wells are migrated with a nullable owner field and remain unassigned until
+  explicitly claimed; they are not exposed in any user's catalog.
 - The response reports received, inserted, skipped-duplicate, and created-well
   counts. Invalid files are rejected without partially importing production
   rows.
@@ -37,10 +41,6 @@ performed.
   using imported rates in cross-project engineering calculations.
 - Add durable import-batch metadata, file digests, staged review/commit, and
   audit/rollback support.
-- `Well` names and production rows currently have no owner relationship. The
-  import endpoint requires authentication, but the existing well catalog is
-  shared; establish and enforce tenant ownership before multi-user production
-  history queries are introduced.
 - Add authenticated production-history query endpoints filtered by well and
   date range, then feed imported values into production trends, decline-curve
   analysis, and economics inputs. Keep sample/demo data visibly labeled.

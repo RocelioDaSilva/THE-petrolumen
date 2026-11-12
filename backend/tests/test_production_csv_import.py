@@ -29,19 +29,21 @@ def production_import_client(tmp_path, monkeypatch):
     manager.close()
 
 
-def _login(client: TestClient) -> dict[str, str]:
+def _login(
+    client: TestClient, username: str = "production-engineer"
+) -> dict[str, str]:
     registration = client.post(
         "/api/auth/register",
         json={
-            "username": "production-engineer",
-            "email": "production-engineer@example.com",
+            "username": username,
+            "email": f"{username}@example.com",
             "password": "secure-password",
         },
     )
     assert registration.status_code == 201, registration.text
     token = client.post(
         "/api/auth/token",
-        json={"username": "production-engineer", "password": "secure-password"},
+        json={"username": username, "password": "secure-password"},
     )
     assert token.status_code == 200, token.text
     return {"Authorization": f"Bearer {token.json()['access_token']}"}
@@ -149,3 +151,67 @@ def test_production_csv_import_enforces_upload_size_limit(production_import_clie
     )
 
     assert response.status_code == 413
+
+
+def test_production_well_listing_is_isolated_by_owner(production_import_client):
+    client, _manager = production_import_client
+    user_a = _login(client, "user-a")
+    user_b = _login(client, "user-b")
+
+    def import_well(headers: dict[str, str], well_name: str):
+        return client.post(
+            "/api/production/import/csv",
+            headers=headers,
+            files={
+                "file": (
+                    "production.csv",
+                    (
+                        "well_name,date,oil_rate\n"
+                        f"{well_name},2025-01-01,10\n"
+                    ).encode(),
+                    "text/csv",
+                )
+            },
+        )
+
+    assert import_well(user_a, "User A Well").status_code == 201
+    assert client.get("/api/production/wells", headers=user_b).json() == []
+    assert import_well(user_b, "User B Well").status_code == 201
+
+    wells_a = client.get("/api/production/wells", headers=user_a)
+    wells_b = client.get("/api/production/wells", headers=user_b)
+    assert wells_a.status_code == 200
+    assert wells_b.status_code == 200
+    assert [well["name"] for well in wells_a.json()] == ["User A Well"]
+    assert [well["name"] for well in wells_b.json()] == ["User B Well"]
+
+
+def test_user_cannot_import_production_into_another_users_well(
+    production_import_client,
+):
+    client, manager = production_import_client
+    user_a = _login(client, "well-owner")
+    user_b = _login(client, "other-user")
+
+    content = b"well_name,date,oil_rate\nShared Name,2025-01-01,10\n"
+    first_import = client.post(
+        "/api/production/import/csv",
+        headers=user_a,
+        files={"file": ("production.csv", content, "text/csv")},
+    )
+    assert first_import.status_code == 201, first_import.text
+
+    blocked_import = client.post(
+        "/api/production/import/csv",
+        headers=user_b,
+        files={"file": ("production.csv", content, "text/csv")},
+    )
+    assert blocked_import.status_code == 409
+    assert blocked_import.json()["detail"] == (
+        "One or more well names are unavailable for this account."
+    )
+    assert client.get("/api/production/wells", headers=user_b).json() == []
+
+    with manager.session() as session:
+        records = session.scalars(select(ProductionData)).all()
+    assert len(records) == 1

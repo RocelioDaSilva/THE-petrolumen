@@ -33,11 +33,15 @@ class Well(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
     field: Mapped[str | None] = mapped_column(String, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime.date] = mapped_column(Date, default=datetime.date.today)
 
+    owner: Mapped["User | None"] = relationship(back_populates="wells")
     production_data: Mapped[list["ProductionData"]] = relationship(
         back_populates="well", cascade="all, delete-orphan"
     )
@@ -95,6 +99,7 @@ class User(Base):
     saved_simulations: Mapped[list["SavedSimulation"]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
     )
+    wells: Mapped[list["Well"]] = relationship(back_populates="owner")
 
     def __repr__(self) -> str:  # pragma: no cover - debug helper
         return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"

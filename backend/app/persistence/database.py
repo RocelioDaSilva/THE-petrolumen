@@ -16,7 +16,7 @@ import logging
 from contextlib import contextmanager
 from typing import Any, Generator
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, inspect, or_, select, text
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -63,12 +63,37 @@ class DatabaseManager:
         if self.engine is None:
             raise ConnectionError("Database not connected; call connect() first.")
         Base.metadata.create_all(bind=self.engine)
+        self._ensure_well_owner_column()
         SAVED_SIMULATION_OWNER_CREATED_INDEX.create(
             bind=self.engine,
             checkfirst=True,
         )
         logger.info("Database tables created (or already present).")
         return True
+
+    def _ensure_well_owner_column(self) -> None:
+        if self.engine is None:
+            raise ConnectionError("Database not connected; call connect() first.")
+
+        columns = {
+            column["name"] for column in inspect(self.engine).get_columns("wells")
+        }
+        if "owner_id" not in columns:
+            with self.engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "ALTER TABLE wells ADD COLUMN owner_id "
+                        "INTEGER REFERENCES users (id)"
+                    )
+                )
+            logger.info("Added nullable owner_id to the existing wells table.")
+
+        owner_index = next(
+            index
+            for index in Well.__table__.indexes
+            if index.name == "ix_wells_owner_id"
+        )
+        owner_index.create(bind=self.engine, checkfirst=True)
 
     @contextmanager
     def session(self) -> Generator[Session, None, None]:
@@ -93,25 +118,38 @@ class DatabaseManager:
         field: str | None = None,
         latitude: float | None = None,
         longitude: float | None = None,
+        owner_id: int | None = None,
     ) -> int | None:
         with self.session() as s:
             try:
-                well = Well(name=name, field=field, latitude=latitude, longitude=longitude)
+                well = Well(
+                    name=name,
+                    field=field,
+                    latitude=latitude,
+                    longitude=longitude,
+                    owner_id=owner_id,
+                )
                 s.add(well)
                 s.commit()
                 return well.id
             except IntegrityError:
                 s.rollback()
-                existing = s.scalar(select(Well).where(Well.name == name))
+                statement = select(Well).where(Well.name == name)
+                if owner_id is not None:
+                    statement = statement.where(Well.owner_id == owner_id)
+                existing = s.scalar(statement)
                 return existing.id if existing else None
 
     def get_well_by_name(self, name: str) -> Well | None:
         with self.session() as s:
             return s.scalar(select(Well).where(Well.name == name))
 
-    def list_wells(self) -> list[dict[str, Any]]:
+    def list_wells(self, owner_id: int | None = None) -> list[dict[str, Any]]:
         with self.session() as s:
-            wells = s.scalars(select(Well)).all()
+            statement = select(Well)
+            if owner_id is not None:
+                statement = statement.where(Well.owner_id == owner_id)
+            wells = s.scalars(statement.order_by(Well.name)).all()
             return [
                 {
                     "id": w.id,
@@ -217,7 +255,7 @@ class DatabaseManager:
         return inserted
 
     def import_production_records(
-        self, records: list[dict[str, Any]]
+        self, owner_id: int, records: list[dict[str, Any]]
     ) -> tuple[int, int, int]:
         """Create missing wells and insert production rows, skipping duplicates.
 
@@ -243,10 +281,20 @@ class DatabaseManager:
         with self.session() as s:
             dialect = s.get_bind().dialect.name
             existing_wells: dict[str, int] = {}
+            conflicting_names: set[str] = set()
             for offset in range(0, len(well_names), 500):
                 name_batch = well_names[offset : offset + 500]
                 wells = s.scalars(select(Well).where(Well.name.in_(name_batch))).all()
-                existing_wells.update({well.name: well.id for well in wells})
+                for well in wells:
+                    if well.owner_id == owner_id:
+                        existing_wells[well.name] = well.id
+                    else:
+                        conflicting_names.add(well.name)
+
+            if conflicting_names:
+                raise ValueError(
+                    "One or more well names are unavailable for this account."
+                )
 
             missing_names = [
                 name for name in well_names if name not in existing_wells
@@ -254,20 +302,36 @@ class DatabaseManager:
             if missing_names and dialect == "sqlite":
                 result = s.execute(
                     sqlite_insert(Well)
-                    .values([{"name": name} for name in missing_names])
+                    .values(
+                        [
+                            {"name": name, "owner_id": owner_id}
+                            for name in missing_names
+                        ]
+                    )
                     .on_conflict_do_nothing(index_elements=["name"])
                 )
                 created_wells = max(result.rowcount or 0, 0)
             elif missing_names:
-                s.add_all(Well(name=name) for name in missing_names)
+                s.add_all(
+                    Well(name=name, owner_id=owner_id) for name in missing_names
+                )
                 s.flush()
                 created_wells = len(missing_names)
 
             well_ids: dict[str, int] = {}
             for offset in range(0, len(well_names), 500):
                 name_batch = well_names[offset : offset + 500]
-                wells = s.scalars(select(Well).where(Well.name.in_(name_batch))).all()
+                wells = s.scalars(
+                    select(Well).where(
+                        Well.name.in_(name_batch), Well.owner_id == owner_id
+                    )
+                ).all()
                 well_ids.update({well.name: well.id for well in wells})
+
+            if len(well_ids) != len(well_names):
+                raise ValueError(
+                    "One or more well names are unavailable for this account."
+                )
 
             records_by_well: dict[int, list[dict[str, Any]]] = {}
             for record in unique_records:

@@ -1,9 +1,10 @@
 import datetime
 
 import pytest
-from sqlalchemy import inspect
+from sqlalchemy import create_engine, inspect, select, text
 
 from app.persistence.database import DatabaseManager
+from app.persistence.models import Well
 
 
 @pytest.fixture
@@ -75,3 +76,50 @@ def test_saved_simulation_owner_listing_has_composite_index(database_manager):
         "created_at",
         "id",
     ]
+
+
+def test_create_all_adds_owner_column_to_existing_wells_table(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'legacy-database.db'}"
+    legacy_engine = create_engine(database_url)
+    with legacy_engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE TABLE users ("
+                "id INTEGER PRIMARY KEY, username VARCHAR, email VARCHAR, "
+                "hashed_password VARCHAR, full_name VARCHAR, role VARCHAR, "
+                "is_active BOOLEAN, created_at DATE)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE TABLE wells ("
+                "id INTEGER PRIMARY KEY, name VARCHAR NOT NULL UNIQUE, "
+                "field VARCHAR, latitude FLOAT, longitude FLOAT, created_at DATE)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO wells (id, name, created_at) "
+                "VALUES (1, 'Legacy well', '2025-01-01')"
+            )
+        )
+    legacy_engine.dispose()
+
+    manager = DatabaseManager(database_url)
+    assert manager.connect()
+    try:
+        manager.create_all()
+        columns = {
+            column["name"] for column in inspect(manager.engine).get_columns("wells")
+        }
+        assert "owner_id" in columns
+        assert any(
+            foreign_key["referred_table"] == "users"
+            for foreign_key in inspect(manager.engine).get_foreign_keys("wells")
+        )
+        with manager.session() as session:
+            legacy_well = session.scalar(select(Well).where(Well.id == 1))
+        assert legacy_well is not None
+        assert legacy_well.owner_id is None
+    finally:
+        manager.close()

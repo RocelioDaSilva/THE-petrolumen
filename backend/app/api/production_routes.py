@@ -37,6 +37,30 @@ class ProductionCsvImportResponse(BaseModel):
     wells_created: int
 
 
+class ProductionWellResponse(BaseModel):
+    id: int
+    name: str
+    field: str | None
+    latitude: float | None
+    longitude: float | None
+
+
+@router.get(
+    "/production/wells",
+    tags=["Production"],
+    response_model=list[ProductionWellResponse],
+)
+def list_production_wells(
+    user: dict[str, Any] = Depends(get_current_user),
+    database: DatabaseManager = Depends(get_database_manager),
+) -> list[ProductionWellResponse]:
+    """List only wells owned by the authenticated user."""
+    return [
+        ProductionWellResponse(**well)
+        for well in database.list_wells(owner_id=user["id"])
+    ]
+
+
 @router.post(
     "/production/import/csv",
     tags=["Production"],
@@ -45,7 +69,7 @@ class ProductionCsvImportResponse(BaseModel):
 )
 async def import_production_csv(
     file: UploadFile = File(...),
-    _user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(get_current_user),
     database: DatabaseManager = Depends(get_database_manager),
 ) -> ProductionCsvImportResponse:
     """Validate and import an authenticated production-history CSV."""
@@ -63,8 +87,13 @@ async def import_production_csv(
 
     try:
         imported, duplicates, wells_created = await run_in_threadpool(
-            database.import_production_records, records
+            database.import_production_records, user["id"], records
         )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except SQLAlchemyError as exc:
         logger.exception("Could not import production CSV data.")
         raise HTTPException(
