@@ -2,18 +2,14 @@ from typing import Literal, NoReturn
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, PositiveFloat, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, model_validator
 
-from ..engines.reservoir.simulation import (
-    BlackOilSimulator,
-    CompositionalSimulator,
-    ThermalSimulator,
-)
+from ..engines.reservoir.simulation import BlackOilSimulator
 from ..engines.reservoir.simulation.black_oil_simulator import WellControlError
 from ..engines.reservoir.simulation.grid import Grid3D
 
 router = APIRouter()
-MAX_BLACK_OIL_CELLS = 512
+MAX_SIMULATION_CELLS = 512
 
 
 class BlackOilResponse(BaseModel):
@@ -23,6 +19,8 @@ class BlackOilResponse(BaseModel):
 
 
 class GridInput(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     nx: int = Field(gt=0)
     ny: int = Field(gt=0)
     nz: int = Field(gt=0)
@@ -34,8 +32,18 @@ class GridInput(BaseModel):
     def cell_count(self) -> int:
         return self.nx * self.ny * self.nz
 
+    @model_validator(mode="after")
+    def validate_resource_bounds(self) -> "GridInput":
+        if self.cell_count > MAX_SIMULATION_CELLS:
+            raise ValueError(
+                f"Simulation grids are limited to {MAX_SIMULATION_CELLS} cells."
+            )
+        return self
+
 
 class WellInput(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     name: str
     i: int = Field(ge=0)
     j: int = Field(ge=0)
@@ -45,6 +53,8 @@ class WellInput(BaseModel):
 
 
 class BlackOilInput(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     grid: GridInput
     porosity: list[float]
     permeability: list[float]
@@ -59,11 +69,6 @@ class BlackOilInput(BaseModel):
     @model_validator(mode="after")
     def validate_grid_data(self) -> "BlackOilInput":
         cell_count = self.grid.cell_count
-        if cell_count > MAX_BLACK_OIL_CELLS:
-            raise ValueError(
-                f"Black-oil simulations are limited to {MAX_BLACK_OIL_CELLS} "
-                "grid cells because this solver allocates dense matrices."
-            )
         for name, values in (
             ("porosity", self.porosity),
             ("permeability", self.permeability),
@@ -132,6 +137,8 @@ class BlackOilInput(BaseModel):
 
 
 class ComponentInput(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     name: str
     mw: PositiveFloat
     tc: PositiveFloat
@@ -140,6 +147,8 @@ class ComponentInput(BaseModel):
 
 
 class CompositionalInput(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     grid: GridInput
     components: list[ComponentInput] = Field(min_length=1)
     rock_properties: dict[str, float]
@@ -149,6 +158,8 @@ class CompositionalInput(BaseModel):
 
 
 class ThermalPropertiesInput(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     rock_heat_capacity: PositiveFloat
     thermal_conductivity: PositiveFloat
     fluid_heat_capacity: PositiveFloat
@@ -211,6 +222,11 @@ def simulate_black_oil(payload: BlackOilInput) -> BlackOilResponse:
             simulator.run_timestep(timestep)
         except WellControlError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+        except (ArithmeticError, np.linalg.LinAlgError) as error:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Black-oil solver failed numerically: {error}",
+            ) from error
 
     pressure = np.asarray(simulator.pressure)
     water_saturation = np.asarray(simulator.saturations["water"])
@@ -248,18 +264,6 @@ def simulate_black_oil(payload: BlackOilInput) -> BlackOilResponse:
     tags=["Simulation"],
 )
 def simulate_compositional(payload: CompositionalInput) -> None:
-    simulator = CompositionalSimulator()
-    simulator.setup_components(
-        [component.model_dump() for component in payload.components]
-    )
-    simulator.set_grid_and_rock(
-        grid_from_input(payload.grid),
-        payload.rock_properties,
-    )
-    for well in payload.wells:
-        simulator.add_well(well)
-    simulator.initialize_composition(payload.initial_composition)
-    simulator.run_simulation(payload.timesteps)
     _not_implemented(
         "The compositional flow solver is not implemented; no simulation results were produced.",
         "app.engines.reservoir.simulation.compositional_simulator.CompositionalSimulator",
@@ -272,20 +276,6 @@ def simulate_compositional(payload: CompositionalInput) -> None:
     tags=["Simulation"],
 )
 def simulate_thermal(payload: ThermalInput) -> None:
-    simulator = ThermalSimulator()
-    simulator.setup_components(
-        [component.model_dump() for component in payload.components]
-    )
-    simulator.set_grid_and_rock(
-        grid_from_input(payload.grid),
-        payload.rock_properties,
-    )
-    simulator.set_thermal_properties(
-        payload.thermal_properties.model_dump()
-    )
-    simulator.initialize_temperature(payload.initial_temperature)
-    for timestep in payload.timesteps:
-        simulator.run_thermal_timestep(timestep)
     _not_implemented(
         "The thermal flow and heat-transfer solver is not implemented; no simulation results were produced.",
         "app.engines.reservoir.simulation.thermal_simulator.ThermalSimulator",

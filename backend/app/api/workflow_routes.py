@@ -12,7 +12,7 @@ from uuid import uuid4
 import lasio
 import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 router = APIRouter()
 
@@ -44,13 +44,21 @@ class OoipUploadResponse(BaseModel):
 
 
 class ArchieParams(BaseModel):
-    a: float = 1.0
-    m: float = 2.0
-    n: float = 2.0
-    Rw: float = Field(default=0.1, description="Formation water resistivity (ohm-m)")
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    a: float = Field(default=1.0, gt=0)
+    m: float = Field(default=2.0, gt=0)
+    n: float = Field(default=2.0, gt=0)
+    Rw: float = Field(
+        default=0.1,
+        gt=0,
+        description="Formation water resistivity (ohm-m)",
+    )
 
 
 class OoipRunRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     session_id: str
     area_acres: float = Field(gt=0, example=100.0)
     net_to_gross_cutoff: float = Field(default=0.5, ge=0, le=1)

@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -253,6 +255,102 @@ def test_black_oil_defaults_return_200():
     assert "pressure" in payload
     assert "saturations" in payload
     assert "wells" in payload
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("porosity", [float("nan"), 0.2, 0.2, 0.2]),
+        ("permeability", [100, float("inf"), 100, 100]),
+        ("porosity", [-0.1, 0.2, 0.2, 0.2]),
+        ("timesteps", [float("inf")]),
+    ],
+)
+def test_black_oil_rejects_non_finite_and_negative_numeric_inputs(field, value):
+    payload = {
+        "grid": {"nx": 2, "ny": 2, "nz": 1, "dx": 50, "dy": 50, "dz": 10},
+        "porosity": [0.2, 0.2, 0.2, 0.2],
+        "permeability": [100, 100, 100, 100],
+        "rock_compressibility": 0,
+        "fluid_properties": {
+            "water_viscosity": 1,
+            "oil_viscosity": 2,
+            "gas_viscosity": 0.02,
+        },
+        "initial_pressure": 3000,
+        "initial_water_saturation": [0.2, 0.2, 0.2, 0.2],
+        "initial_gas_saturation": [0, 0, 0, 0],
+        "wells": [],
+        "timesteps": [1],
+    }
+    payload[field] = value
+
+    response = client.post(
+        "/api/simulate/black-oil",
+        content=json.dumps(payload, allow_nan=True),
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "archie_params",
+    [
+        {"a": float("nan"), "m": 2.0, "n": 2.0, "Rw": 0.1},
+        {"a": 1.0, "m": -1.0, "n": 2.0, "Rw": 0.1},
+        {"a": 1.0, "m": 2.0, "n": 0.0, "Rw": 0.1},
+        {"a": 1.0, "m": 2.0, "n": 2.0, "Rw": -0.1},
+    ],
+)
+def test_ooip_run_rejects_invalid_archie_parameters(archie_params):
+    response = client.post(
+        "/api/workflow/ooip/run",
+        content=json.dumps(
+            {
+                "session_id": "unused",
+                "area_acres": 100.0,
+                "archie_params": archie_params,
+            },
+            allow_nan=True,
+        ),
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "route", ["/api/simulate/compositional", "/api/simulate/thermal"]
+)
+def test_unimplemented_simulation_rejects_oversized_grid(route):
+    payload = {
+        "grid": {"nx": 513, "ny": 1, "nz": 1, "dx": 50, "dy": 50, "dz": 10},
+        "components": [
+            {
+                "name": "methane",
+                "mw": 16.043,
+                "tc": 190.56,
+                "pc": 4599000,
+                "omega": 0.011,
+            }
+        ],
+        "rock_properties": {"porosity": 0.2},
+        "wells": [],
+        "initial_composition": {"methane": 1.0},
+        "timesteps": [1],
+    }
+    if route.endswith("thermal"):
+        payload["thermal_properties"] = {
+            "rock_heat_capacity": 900,
+            "thermal_conductivity": 2,
+            "fluid_heat_capacity": 4200,
+        }
+        payload["initial_temperature"] = 350
+
+    response = client.post(route, json=payload)
+
+    assert response.status_code == 422
 
 
 def test_black_oil_with_bhp_control_returns_well_results():
