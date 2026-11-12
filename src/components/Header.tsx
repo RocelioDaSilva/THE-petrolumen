@@ -12,12 +12,15 @@ import {
   Check,
   ShieldCheck,
   Settings2,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
 import { useUnit } from "@/lib/unitContext";
 import { useSessionRegistry } from "@/lib/sessionRegistry";
+import { useAuth } from "@/lib/authContext";
 
 interface HeaderProps {
   activeModuleTitle: string;
@@ -35,6 +38,7 @@ export default function Header({
   const { t, locale, toggleLocale, isPt } = useI18n();
   const { toggleUnitSystem, isMetric } = useUnit();
   const { activeScenario, scenarios, selectScenario, cloneScenario } = useSessionRegistry();
+  const { user, openAuthDialog, logout } = useAuth();
 
   const [isScenarioDropdownOpen, setIsScenarioDropdownOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -233,16 +237,30 @@ export default function Header({
             )}
           </div>
 
-          {/* User Avatar */}
-          <div className="hidden items-center gap-2 border-l border-border pl-2 sm:flex">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-bold text-primary">
-              PE
-            </div>
-            <div className="hidden text-left text-xs leading-none xl:block">
-              <p className="font-semibold text-foreground">{t.seniorEngineer}</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">{t.roleDescription}</p>
-            </div>
-          </div>
+          {user ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={logout}
+              className="h-9 gap-2 border-border bg-card px-2.5 text-xs"
+              title={isPt ? `Sair de ${user.username}` : `Sign out ${user.username}`}
+              aria-label={isPt ? `Sair de ${user.username}` : `Sign out ${user.username}`}
+            >
+              <span className="hidden max-w-24 truncate sm:inline">{user.username}</span>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openAuthDialog}
+              className="h-9 gap-2 border-primary/30 bg-primary/10 px-2.5 text-xs text-primary hover:bg-primary/15"
+              title={isPt ? "Entrar ou criar conta" : "Sign in or create account"}
+            >
+              <LogIn className="h-4 w-4" />
+              <span className="hidden sm:inline">{isPt ? "Entrar" : "Sign in"}</span>
+            </Button>
+          )}
         </div>
       </div>
     </header>

@@ -9,6 +9,7 @@ import { I18nProvider, useI18n } from "@/lib/i18n";
 import { UnitProvider } from "@/lib/unitContext";
 import { SessionRegistryProvider } from "@/lib/sessionRegistry";
 import { getInitialDarkMode } from "@/lib/theme";
+import { AuthProvider } from "@/lib/authContext";
 
 // ---------------------------------------------------------------------------
 // Code-split ALL heavy view modules via React.lazy so they are only fetched
@@ -204,11 +205,13 @@ function MainApp() {
 export default function App() {
   return (
     <I18nProvider>
-      <UnitProvider>
-        <SessionRegistryProvider>
-          <MainApp />
-        </SessionRegistryProvider>
-      </UnitProvider>
+      <AuthProvider>
+        <UnitProvider>
+          <SessionRegistryProvider>
+            <MainApp />
+          </SessionRegistryProvider>
+        </UnitProvider>
+      </AuthProvider>
     </I18nProvider>
   );
 }

@@ -19,14 +19,31 @@ const BASE_URL: string = resolveApiBaseUrl(
 );
 
 export type ApiError = { status: number; detail: string };
+let apiAuthToken: string | null = null;
+
+export function setApiAuthToken(token: string | null): void {
+  apiAuthToken = token;
+}
+
+export function getApiAuthToken(): string | null {
+  return apiAuthToken;
+}
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;
   let res: Response;
   try {
+    const headers = new Headers(init?.headers);
+    if (
+      !headers.has('Content-Type') &&
+      !(typeof FormData !== 'undefined' && init?.body instanceof FormData)
+    ) {
+      headers.set('Content-Type', 'application/json');
+    }
+    if (apiAuthToken) headers.set('Authorization', `Bearer ${apiAuthToken}`);
     res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
       ...init,
+      headers,
     });
   } catch (e) {
     throw { status: 0, detail: `Network error reaching ${url}: ${(e as Error).message}` } satisfies ApiError;
@@ -35,11 +52,95 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = body?.detail ?? JSON.stringify(body);
+      detail = typeof body?.detail === 'string'
+        ? body.detail
+        : JSON.stringify(body?.detail ?? body);
     } catch { /* keep statusText */ }
     throw { status: res.status, detail } satisfies ApiError;
   }
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  is_active: boolean;
+}
+
+interface AuthTokenResponse {
+  access_token: string;
+  token_type: 'bearer';
+}
+
+export interface SavedSimulationSummary {
+  id: number;
+  name: string;
+  simulation_type: string;
+  created_at: string;
+}
+
+export interface SavedSimulation extends SavedSimulationSummary {
+  input_data: Record<string, unknown>;
+  result_data: Record<string, unknown>;
+}
+
+export function registerAccount(input: {
+  username: string;
+  email: string;
+  password: string;
+  full_name?: string;
+}): Promise<AuthUser> {
+  return call<AuthUser>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function requestAuthToken(input: {
+  username: string;
+  password: string;
+}): Promise<AuthTokenResponse> {
+  return call<AuthTokenResponse>('/api/auth/token', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchCurrentUser(): Promise<AuthUser> {
+  return call<AuthUser>('/api/auth/me');
+}
+
+export function createSavedSimulation(input: {
+  name: string;
+  simulation_type: string;
+  input_data: Record<string, unknown>;
+  result_data: Record<string, unknown>;
+}): Promise<SavedSimulation> {
+  return call<SavedSimulation>('/api/saved-simulations', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchSavedSimulations(
+  limit = 50,
+  offset = 0,
+): Promise<SavedSimulationSummary[]> {
+  return call<SavedSimulationSummary[]>(
+    `/api/saved-simulations?limit=${limit}&offset=${offset}`,
+  );
+}
+
+export function fetchSavedSimulation(id: number): Promise<SavedSimulation> {
+  return call<SavedSimulation>(`/api/saved-simulations/${id}`);
+}
+
+export function removeSavedSimulation(id: number): Promise<void> {
+  return call<void>(`/api/saved-simulations/${id}`, { method: 'DELETE' });
 }
 
 export type RockType = 'sandstone' | 'limestone';
