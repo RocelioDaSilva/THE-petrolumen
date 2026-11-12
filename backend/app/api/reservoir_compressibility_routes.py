@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import APIModel as BaseModel
 
 from app.engines.reservoir.compressibility import (
     GasCompressibilityResult,

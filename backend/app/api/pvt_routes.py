@@ -6,7 +6,9 @@ import math
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
+
+from .base import APIModel as BaseModel
 
 from ..engines.pvt.mbal import MaterialBalance
 

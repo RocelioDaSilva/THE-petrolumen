@@ -14,7 +14,8 @@ import lasio
 import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from .base import APIModel as BaseModel
 
 router = APIRouter()
 
@@ -72,8 +73,6 @@ class OoipUploadResponse(BaseModel):
 
 
 class ArchieParams(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     a: float = Field(default=1.0, gt=0)
     m: float = Field(default=2.0, gt=0)
     n: float = Field(default=2.0, gt=0)
@@ -85,8 +84,6 @@ class ArchieParams(BaseModel):
 
 
 class OoipRunRequest(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     session_id: str
     area_acres: float = Field(gt=0, example=100.0)
     net_to_gross_cutoff: float = Field(default=0.5, ge=0, le=1)

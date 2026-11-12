@@ -11,7 +11,9 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import APIModel as BaseModel
 
 from app.engines.reservoir.ppes_bridge import (
     gilbert_choke, critical_ratio, q_sonic_gas, q_subsonic_gas,

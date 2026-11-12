@@ -12,7 +12,7 @@ import pandas as pd
 from fastapi import APIRouter
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-from pydantic import BaseModel
+from .base import APIModel as BaseModel
 
 from ..engines.drilling.trajectory import compute_trajectory_minimum_curvature
 from ..engines.geology.mesh import Grid3D

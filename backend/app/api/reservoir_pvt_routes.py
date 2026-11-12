@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
+
+from .base import APIModel as BaseModel
 
 from app.engines.reservoir.black_oil_pvt import (
     gas_viscosity,

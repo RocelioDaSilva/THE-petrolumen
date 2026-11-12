@@ -29,7 +29,9 @@ import lasio
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
+
+from .base import APIModel as BaseModel
 
 from ..engines.petrophysics.facies import predict_facies, train_facies_classifier
 

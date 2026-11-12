@@ -8,8 +8,9 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, PositiveFloat, model_validator
+from pydantic import Field, PositiveFloat, model_validator
 
+from .base import APIModel as BaseModel
 from ..engines.drilling.trajectory import (
     compute_trajectory_minimum_curvature,
 )

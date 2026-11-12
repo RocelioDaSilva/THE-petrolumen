@@ -9,7 +9,9 @@ HTTP via ppes_bridge. Mount in ``main.py``:
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import APIModel as BaseModel
 
 from app.engines.reservoir.ppes_bridge import (
     rs_standing, bo_standing,

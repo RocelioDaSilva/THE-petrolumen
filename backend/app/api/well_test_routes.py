@@ -10,7 +10,9 @@ field-unit equations.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import APIModel as BaseModel
 
 from app.engines.reservoir.well_test_analysis import analyze_buildup, analyze_drawdown
 

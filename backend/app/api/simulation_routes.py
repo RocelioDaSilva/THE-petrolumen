@@ -2,8 +2,9 @@ from typing import Literal, NoReturn
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, model_validator
+from pydantic import Field, PositiveFloat, model_validator
 
+from .base import APIModel as BaseModel
 from ..engines.reservoir.simulation import BlackOilSimulator
 from ..engines.reservoir.simulation.black_oil_simulator import WellControlError
 from ..engines.reservoir.simulation.grid import Grid3D
@@ -19,8 +20,6 @@ class BlackOilResponse(BaseModel):
 
 
 class GridInput(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     nx: int = Field(gt=0)
     ny: int = Field(gt=0)
     nz: int = Field(gt=0)
@@ -42,8 +41,6 @@ class GridInput(BaseModel):
 
 
 class WellInput(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     name: str
     i: int = Field(ge=0)
     j: int = Field(ge=0)
@@ -53,8 +50,6 @@ class WellInput(BaseModel):
 
 
 class BlackOilInput(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     grid: GridInput
     porosity: list[float]
     permeability: list[float]
@@ -137,8 +132,6 @@ class BlackOilInput(BaseModel):
 
 
 class ComponentInput(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     name: str
     mw: PositiveFloat
     tc: PositiveFloat
@@ -147,8 +140,6 @@ class ComponentInput(BaseModel):
 
 
 class CompositionalInput(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     grid: GridInput
     components: list[ComponentInput] = Field(min_length=1)
     rock_properties: dict[str, float]
@@ -158,8 +149,6 @@ class CompositionalInput(BaseModel):
 
 
 class ThermalPropertiesInput(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
-
     rock_heat_capacity: PositiveFloat
     thermal_conductivity: PositiveFloat
     fluid_heat_capacity: PositiveFloat

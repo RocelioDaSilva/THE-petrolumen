@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from app.engines.pvt import mbal as mbal_module
@@ -66,3 +68,23 @@ def test_mbal_non_convergence_is_returned_as_validation_error(monkeypatch):
 
     assert response.status_code == 422
     assert "did not converge" in response.json()["detail"]
+
+
+def test_mbal_rejects_non_finite_pvt_values():
+    payload = {
+        "reservoir_type": "gas",
+        "pressure_history": [4000.0, 3200.0],
+        "production_history": [{"gas_prod": 5_000_000.0}],
+        "pvt_data": [
+            {"pressure": 3200.0, "bg": float("inf"), "z": 0.84},
+            {"pressure": 4000.0, "bg": 0.00082, "z": 0.89},
+        ],
+    }
+
+    response = client.post(
+        "/api/engine/pvt/mbal",
+        content=json.dumps(payload, allow_nan=True),
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422

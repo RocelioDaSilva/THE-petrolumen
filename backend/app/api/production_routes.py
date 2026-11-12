@@ -5,7 +5,9 @@ from __future__ import annotations
 import math
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
+
+from .base import APIModel as BaseModel
 
 from ..engines.production.economic_analysis import EconomicAnalysis
 
