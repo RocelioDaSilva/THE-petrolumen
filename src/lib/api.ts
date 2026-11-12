@@ -1,9 +1,22 @@
 /**
  * Typed HTTP client for the ppes-backed reservoir API.
  */
-const BASE_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '') ??
-  'http://localhost:8000';
+export function resolveApiBaseUrl(search: string, configuredUrl?: string): string {
+  const configuredBaseUrl = configuredUrl?.replace(/\/+$/, '');
+  if (configuredBaseUrl) return configuredBaseUrl;
+
+  const apiPort = new URLSearchParams(search).get('api_port');
+  if (apiPort && /^\d+$/.test(apiPort)) {
+    const port = Number(apiPort);
+    if (port > 0 && port <= 65535) return `http://127.0.0.1:${port}`;
+  }
+  return 'http://localhost:8000';
+}
+
+const BASE_URL: string = resolveApiBaseUrl(
+  typeof window === 'undefined' ? '' : window.location.search,
+  import.meta.env.VITE_API_URL as string | undefined,
+);
 
 export type ApiError = { status: number; detail: string };
 

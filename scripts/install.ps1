@@ -14,10 +14,12 @@ Write-Host ""
 $SourceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $BackendSource = Join-Path $SourceRoot "backend"
 $DesktopSource = Join-Path $SourceRoot "frontend_desktop"
+$WebSource = Join-Path $SourceRoot "dist"
 
 if (-not (Test-Path (Join-Path $BackendSource "app\main.py")) -or
-    -not (Test-Path (Join-Path $DesktopSource "static\index.html"))) {
-    Write-Host "[ERROR] Backend or PyWebView application files are missing." -ForegroundColor Red
+    -not (Test-Path (Join-Path $DesktopSource "desktop_app.py")) -or
+    -not (Test-Path (Join-Path $WebSource "index.html"))) {
+    Write-Host "[ERROR] Backend, PyWebView application, or built React app is missing. Run npm run build first." -ForegroundColor Red
     exit 1
 }
 
@@ -29,12 +31,15 @@ if (-not (Test-Path $TargetDir)) {
 Write-Host "[2/4] Copying backend and desktop application..." -ForegroundColor Yellow
 $TargetBackend = Join-Path $TargetDir "backend"
 $TargetDesktop = Join-Path $TargetDir "frontend_desktop"
+$TargetWeb = Join-Path $TargetDir "dist"
 
 if (Test-Path $TargetBackend) { Remove-Item $TargetBackend -Recurse -Force }
 if (Test-Path $TargetDesktop) { Remove-Item $TargetDesktop -Recurse -Force }
+if (Test-Path $TargetWeb) { Remove-Item $TargetWeb -Recurse -Force }
 
 Copy-Item -Path $BackendSource -Destination $TargetBackend -Recurse -Force
 Copy-Item -Path $DesktopSource -Destination $TargetDesktop -Recurse -Force
+Copy-Item -Path $WebSource -Destination $TargetWeb -Recurse -Force
 Copy-Item -Path (Join-Path $SourceRoot "PetroLumen.cmd") -Destination $TargetDir -Force
 
 Write-Host "[3/5] Preparing the Python runtime..." -ForegroundColor Yellow

@@ -1,9 +1,11 @@
 import json
 import importlib.util
+import re
 import sys
 import types
 import urllib.request
 from pathlib import Path
+from urllib.parse import urljoin, urlsplit
 
 
 def test_desktop_launcher_starts_embedded_api(monkeypatch):
@@ -20,17 +22,32 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch):
 
     def create_window(title, uri, **kwargs):
         assert title == "PetroLumen"
-        assert Path(urllib.request.url2pathname(uri.removeprefix("file://"))).is_file()
+        parsed_uri = urlsplit(uri)
+        assert parsed_uri.path == "/ui/"
         state["port"] = kwargs["js_api"].get_port()
+        assert parsed_uri.port == state["port"]
+        assert parsed_uri.query == f"api_port={state['port']}"
+        state["uri"] = uri
         return Window()
 
     def start():
+        with urllib.request.urlopen(state["uri"], timeout=3) as response:
+            assert response.status == 200
+            html = response.read().decode("utf-8")
+            assert '<div id="root"></div>' in html
+        script_match = re.search(r'<script[^>]+src="([^"]+\.js)"', html)
+        assert script_match is not None
+        with urllib.request.urlopen(urljoin(state["uri"], script_match.group(1)), timeout=3) as response:
+            assert response.status == 200
+            assert len(response.read()) > 0
+
         health_url = f"http://127.0.0.1:{state['port']}/health"
-        request = urllib.request.Request(health_url, headers={"Origin": "null"})
+        desktop_origin = f"http://127.0.0.1:{state['port']}"
+        request = urllib.request.Request(health_url, headers={"Origin": desktop_origin})
         with urllib.request.urlopen(request, timeout=3) as response:
             assert response.status == 200
             assert json.loads(response.read())["status"] == "ok"
-            assert response.headers["Access-Control-Allow-Origin"] == "null"
+            assert response.headers["Access-Control-Allow-Origin"] == desktop_origin
 
         external_origin = urllib.request.Request(
             health_url,
@@ -43,14 +60,14 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch):
             health_url,
             method="OPTIONS",
             headers={
-                "Origin": "null",
+                "Origin": desktop_origin,
                 "Access-Control-Request-Method": "POST",
                 "Access-Control-Request-Headers": "authorization,content-type",
             },
         )
         with urllib.request.urlopen(preflight, timeout=3) as response:
             assert response.status == 200
-            assert response.headers["Access-Control-Allow-Origin"] == "null"
+            assert response.headers["Access-Control-Allow-Origin"] == desktop_origin
 
     webview_stub = types.ModuleType("webview")
     webview_stub.create_window = create_window

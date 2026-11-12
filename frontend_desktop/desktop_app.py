@@ -7,14 +7,17 @@ import sys
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlencode
 
 import uvicorn
 import webview
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 
 def _resource_path(relative_path: str) -> Path:
-    bundle_root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    bundle_root = Path(
+        getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent)
+    )
     return bundle_root / relative_path
 
 
@@ -36,12 +39,13 @@ def main() -> None:
 
     from app.main import app
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["null"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    web_root = _resource_path("dist")
+    index_path = web_root / "index.html"
+    if not index_path.is_file():
+        raise FileNotFoundError(
+            f"Built React app not found at {index_path}. Run `npm run build` first."
+        )
+    app.mount("/ui", StaticFiles(directory=web_root, html=True), name="desktop-ui")
 
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -80,7 +84,7 @@ def main() -> None:
     api = DesktopApi(port)
     window = webview.create_window(
         "PetroLumen",
-        _resource_path("static/index.html").as_uri(),
+        f"http://127.0.0.1:{port}/ui/?{urlencode({'api_port': port})}",
         js_api=api,
         width=1280,
         height=850,
