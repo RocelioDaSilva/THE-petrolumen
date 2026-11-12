@@ -32,6 +32,7 @@ const PVTAnalysisWorkflow = lazy(() => import("@/components/visualizations/PVTAn
 const NodalAnalysisView = lazy(() => import("@/components/visualizations/NodalAnalysisView"));
 const FlowingMaterialBalanceView = lazy(() => import("@/components/visualizations/FlowingMaterialBalanceView"));
 const EconomicsView = lazy(() => import("@/components/visualizations/EconomicsView"));
+const ProductionDataImportView = lazy(() => import("@/components/visualizations/ProductionDataImportView"));
 const MLDashboardView = lazy(() => import("@/components/visualizations/MLDashboardView"));
 const WellDataViewer = lazy(() => import("@/components/visualizations/WellDataViewer"));
 const ConnectorsView = lazy(() => import("@/components/visualizations/ConnectorsView"));
@@ -152,6 +153,8 @@ function MainApp() {
         return wrap(<ReservoirCompressibilityView />);
       case "production-dca":
         return wrap(<DeclineCurveAnalysis />);
+      case "production-data-import":
+        return wrap(<ProductionDataImportView />);
       case "pvt":
         return wrap(<PVTAnalysisWorkflow />);
       case "nodal":

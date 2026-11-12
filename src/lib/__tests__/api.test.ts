@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchCurrentUser,
   getApiAuthToken,
+  importProductionCsv,
   resolveApiBaseUrl,
   setApiAuthToken,
 } from '../api';
@@ -49,6 +50,35 @@ describe('API base URL resolution', () => {
 
     await expect(fetchCurrentUser()).resolves.toEqual(user);
     expect(getApiAuthToken()).toBe('test-token');
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('uploads production CSV as authenticated multipart form data', async () => {
+    const file = new File(['well_name,date,oil_rate\nWell A,2025-01-01,10\n'], 'production.csv', {
+      type: 'text/csv',
+    });
+    const result = {
+      rows_received: 1,
+      rows_imported: 1,
+      rows_skipped_duplicates: 0,
+      wells_created: 1,
+    };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get('Authorization')).toBe('Bearer upload-token');
+      expect(headers.has('Content-Type')).toBe(false);
+      expect(init?.body).toBeInstanceOf(FormData);
+      expect((init?.body as FormData).get('file')).toBe(file);
+      return {
+        ok: true,
+        status: 201,
+        json: async () => result,
+      } as Response;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    setApiAuthToken('upload-token');
+
+    await expect(importProductionCsv(file)).resolves.toEqual(result);
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

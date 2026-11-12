@@ -21,6 +21,7 @@ import {
   Activity,
   Wrench,
   Search,
+  FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,6 +218,16 @@ export const APP_MODULES: NavModule[] = [
     icon: TrendingDown,
     descriptionKey: "Modelos Arps, Duong & EUR",
     defaultDescription: "Modelos Arps, Duong & EUR",
+    categoryKey: "productionEng",
+    defaultCategory: "Engenharia de Produção",
+  },
+  {
+    id: "production-data-import",
+    nameKey: "Importação de Dados de Produção",
+    defaultName: "Importação de Dados de Produção",
+    icon: FileUp,
+    descriptionKey: "Importar histórico de produção em CSV",
+    defaultDescription: "Importar histórico de produção em CSV",
     categoryKey: "productionEng",
     defaultCategory: "Engenharia de Produção",
   },

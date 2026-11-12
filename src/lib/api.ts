@@ -143,6 +143,22 @@ export function removeSavedSimulation(id: number): Promise<void> {
   return call<void>(`/api/saved-simulations/${id}`, { method: 'DELETE' });
 }
 
+export interface ProductionCsvImportResponse {
+  rows_received: number;
+  rows_imported: number;
+  rows_skipped_duplicates: number;
+  wells_created: number;
+}
+
+export function importProductionCsv(file: File): Promise<ProductionCsvImportResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return call<ProductionCsvImportResponse>('/api/production/import/csv', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
 export type RockType = 'sandstone' | 'limestone';
 
 export interface RockCompressibilityRequest {

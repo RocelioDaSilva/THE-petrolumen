@@ -1,74 +1,56 @@
 # PetroLúmen Future Product & Distribution Roadmap
 
-This roadmap captures product work that is not yet implemented. It supplements
-the current platform inventory in [MODULE_STATUS.md](MODULE_STATUS.md) and
-should be updated as features are delivered.
+This roadmap captures upcoming product and distribution work. It supplements
+the current platform inventory in [MODULE_STATUS.md](MODULE_STATUS.md); completed
+items are marked so remaining work is clear.
 
-## Near term: Production CSV Import
+## Production CSV Import
 
-### Goal
+**Status: Baseline workflow implemented.** The current flow includes an
+authenticated CSV import endpoint, bounded parsing/validation, duplicate
+skipping, and a React upload/preview/commit view.
 
-Import time-series oil, gas, and water production observations into the existing
-`Well` and `ProductionData` tables, with a reviewable validation step and
-traceable persistence. Do not treat production-history CSV files as LAS curves.
+### Implemented contract
 
-### End-to-end workflow
+- The React sidebar has a Production Data Import view with drag-and-drop,
+  file browsing, a validated preview of up to 20 rows, row-level errors, and an
+  authenticated commit action.
+- `POST /api/production/import/csv` accepts multipart field `file` and requires
+  a bearer token. CSV headers are `well_name`, `date` (`YYYY-MM-DD`), and at
+  least one of `oil_rate`, `gas_rate`, or `water_rate`. Blank rate cells are
+  stored as null, but each row must contain at least one rate.
+- The API enforces a 10 MB file limit and 50,000-row limit, validates the
+  complete file before writing, performs parsing and database work off the
+  async event loop, creates missing wells transactionally, and skips existing
+  `(well_id, date)` observations.
+- The response reports received, inserted, skipped-duplicate, and created-well
+  counts. Invalid files are rejected without partially importing production
+  rows.
 
-1. **React upload and preview**
-   - Add a production-history import panel with drag-and-drop and file browsing.
-   - Restrict input to CSV and enforce a client-side file-size limit for fast
-     feedback; the API must independently enforce the authoritative limit.
-   - Preview parsed headers/sample rows and let users map date, well identity,
-     oil rate, gas rate, and water rate columns.
-   - Require explicit rate units and date interpretation. Display validation
-     errors by row and column before allowing commit.
-   - Show upload/validation progress and an import summary with accepted,
-     duplicate, and rejected row counts.
+Rate units are not currently represented in `ProductionData`; the UI warns users
+to confirm the project's rate convention before import. No unit conversion is
+performed.
 
-2. **FastAPI validation and staging**
-   - Add authenticated production-import preview and commit endpoints under the
-     production API.
-   - Stream the uploaded file with a hard byte limit; move blocking parsing and
-     validation off the async event loop.
-   - Validate encoding, headers, dates, finite non-negative rates, well
-     identity, declared units, and row-count/resource limits. Return bounded,
-     actionable row-level errors rather than silently dropping invalid rows.
-   - Stage a validated import under an import-batch identifier so the user can
-     review the exact records that will be written before committing.
-   - Include an idempotency key or file digest to detect accidental re-uploads.
+### Follow-up work
 
-3. **SQLAlchemy persistence**
-   - Resolve the target well and commit production rows transactionally.
-   - Use bulk insertion and the existing uniqueness constraint on
-     `(well_id, date)` rather than querying once per row.
-   - Make duplicate behavior explicit (initial default: skip existing
-     observations, report their count; add update/replace only as a deliberate
-     user choice).
-   - Record import batch metadata: owner, original filename, digest, declared
-     units, upload/commit timestamps, status, and accepted/duplicate/rejected
-     counts. Retain row-level errors so an import can be audited or rolled back.
-   - Decide and enforce data ownership before multi-user rollout. `Well` names
-     are currently globally unique and the model has no owner relationship;
-     imports must not accidentally expose one user's well data to another.
+- Add explicit unit selection, conversion, and persisted unit provenance before
+  using imported rates in cross-project engineering calculations.
+- Add durable import-batch metadata, file digests, staged review/commit, and
+  audit/rollback support.
+- `Well` names and production rows currently have no owner relationship. The
+  import endpoint requires authentication, but the existing well catalog is
+  shared; establish and enforce tenant ownership before multi-user production
+  history queries are introduced.
+- Add authenticated production-history query endpoints filtered by well and
+  date range, then feed imported values into production trends, decline-curve
+  analysis, and economics inputs. Keep sample/demo data visibly labeled.
 
-4. **Use imported history**
-   - Add authenticated production-history query endpoints filtered by well and
-     date range.
-   - Feed real imported values into production trends, decline-curve analysis,
-     and economics inputs. Keep sample/demo data visibly labeled and never
-     present it as imported field data.
+### Verification
 
-### Acceptance and tests
-
-- Valid CSV imports preview and commit; malformed dates, missing columns,
-  non-finite/negative rates, invalid units, oversized files, and duplicate
-  dates produce explicit outcomes.
-- A failed commit leaves no partial production rows. Repeating an import is
-  idempotent and reports duplicates.
-- Users can only preview, commit, query, and audit imports they own.
-- Frontend tests cover drag/drop, mapping, preview/error states, and success
-  counts; backend tests cover parsing, limits, authorization, duplicate policy,
-  transaction rollback, and ownership isolation.
+- Backend tests cover authorization, malformed dates/rates, upload size limits,
+  duplicate skipping, and transactional persistence.
+- Frontend tests cover CSV parsing, drag/drop, validation states, API upload,
+  and successful import summaries.
 
 ## Near term: PyInstaller Windows executable
 
