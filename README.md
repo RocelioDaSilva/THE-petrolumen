@@ -1,6 +1,6 @@
 # PetroLúmen
 
-PetroLumen is a FastAPI-based reservoir engineering workbench with a PyWebView desktop client. It provides engineering endpoints for PVT, drilling, geology, reservoir, production, petrophysics, and simulation, plus a LAS-to-OOIP workflow.
+PetroLúmen is a React and FastAPI petroleum engineering workbench with a PyWebView desktop application. The desktop launcher serves the built React frontend from `dist/` through the embedded FastAPI process and passes its dynamically selected API port to the UI. The interface uses a dark-first navy/teal design system with an explicit light-theme option. The platform provides engineering workflows for PVT, drilling, geology, reservoir, production, petrophysics, and simulation, plus a LAS-to-OOIP workflow.
 
 ---
 
@@ -13,10 +13,16 @@ cd backend && pip install -r requirements.txt && python -m uvicorn app.main:app 
 
 ### 2. Desktop
 ```powershell
+npm run build
 python -m pip install .\backend
 python -m pip install -r frontend_desktop/requirements_desktop.txt
 python frontend_desktop/desktop_app.py
 ```
+The build produces the React assets in `dist/`, which the desktop app serves
+locally; the UI and embedded API do not require a separate Node.js server at
+runtime. The Windows installer copies the built `dist/` directory along with
+the backend and desktop application, so build the frontend before running the
+installer.
 The Windows installer creates an isolated Python environment and installs these
 dependencies automatically. `PetroLumen.cmd` then starts the embedded FastAPI
 server and opens the PyWebView desktop client without requiring Node.js.
@@ -25,8 +31,14 @@ provided; standalone API deployments must configure `PETROLUMEN_SECRET_KEY`.
 
 ### 3. Tests
 ```bash
-cd backend && pytest tests/ -q
+python -m pytest backend/tests -q
+npm test
 ```
+Latest recorded results: **225 backend tests passed (7 skipped), 34 frontend
+Vitest tests passed, and all 92 engineering benchmarks passed.** The production
+build also passes using `npm run build`; on Windows, if esbuild encounters a
+temporary-file cleanup issue, set `TEMP` and `TMP` to the project-local
+`.temp/` directory for the build.
 
 ### 4. Interactive API Documentation (Swagger)
 Open your browser to:
@@ -66,7 +78,7 @@ The table below enumerates every endpoint currently returning 200 OK across the 
 
 - `/api/simulate/compositional` → Returns HTTP 501 Not Implemented (compositional flow solver stubbed).
 - `/api/simulate/thermal` → Returns HTTP 501 Not Implemented (thermal flow and heat-transfer solver stubbed).
-- `black_oil_simulator.py` is a toy model; see its docstring for the limitations (physics is documented, not verified). Specifically, pressure is solved via an ad-hoc linear surrogate without true compressibility coupling, saturations are uncoupled without Darcy flux divergence or capillary pressure, and well conditions (`_apply_well_conditions`) are not implemented.
+- `black_oil_simulator.py` is a simplified surrogate model; see its docstring for limitations (physics is documented, not verified). Specifically, pressure is solved without full compressibility coupling, saturations are uncoupled without Darcy flux divergence or capillary pressure, and the supported simplified well controls do not constitute a fully coupled well model.
 - Authenticated local accounts and saved simulation results are available; see
   [docs/PERSISTENCE.md](docs/PERSISTENCE.md) for standalone API configuration.
 
