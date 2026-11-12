@@ -2,16 +2,247 @@
 
 from __future__ import annotations
 
+import csv
+import datetime
+import io
+import logging
 import math
+import re
+from typing import Any, BinaryIO
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import Field, model_validator
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 
 from .base import APIModel as BaseModel
 
 from ..engines.production.economic_analysis import EconomicAnalysis
+from ..persistence.database import DatabaseManager
+from ..persistence.dependencies import get_current_user, get_database_manager
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+MAX_PRODUCTION_CSV_BYTES = 10 * 1024 * 1024
+MAX_PRODUCTION_CSV_ROWS = 50_000
+MAX_CSV_VALIDATION_ERRORS = 100
+_PRODUCTION_RATE_COLUMNS = ("oil_rate", "gas_rate", "water_rate")
+
+
+class ProductionCsvImportResponse(BaseModel):
+    rows_received: int
+    rows_imported: int
+    rows_skipped_duplicates: int
+    wells_created: int
+
+
+@router.post(
+    "/production/import/csv",
+    tags=["Production"],
+    response_model=ProductionCsvImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_production_csv(
+    file: UploadFile = File(...),
+    _user: dict[str, Any] = Depends(get_current_user),
+    database: DatabaseManager = Depends(get_database_manager),
+) -> ProductionCsvImportResponse:
+    """Validate and import an authenticated production-history CSV."""
+    if not (file.filename or "").lower().endswith(".csv"):
+        await file.close()
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Upload a .csv file.",
+        )
+
+    try:
+        records = await run_in_threadpool(_read_and_parse_production_csv, file.file)
+    finally:
+        await file.close()
+
+    try:
+        imported, duplicates, wells_created = await run_in_threadpool(
+            database.import_production_records, records
+        )
+    except SQLAlchemyError as exc:
+        logger.exception("Could not import production CSV data.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Production data could not be saved; no rows were imported.",
+        ) from exc
+
+    return ProductionCsvImportResponse(
+        rows_received=len(records),
+        rows_imported=imported,
+        rows_skipped_duplicates=duplicates,
+        wells_created=wells_created,
+    )
+
+
+def _read_and_parse_production_csv(file_obj: BinaryIO) -> list[dict[str, Any]]:
+    content = bytearray()
+    while True:
+        chunk = file_obj.read(64 * 1024)
+        if not chunk:
+            break
+        content.extend(chunk)
+        if len(content) > MAX_PRODUCTION_CSV_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=(
+                    "Production CSV exceeds the 10 MB upload limit."
+                ),
+            )
+
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CSV must use UTF-8 encoding.",
+        ) from exc
+
+    reader = csv.reader(io.StringIO(text, newline=""), strict=True)
+    try:
+        raw_headers = next(reader)
+    except StopIteration as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CSV is empty.",
+        ) from exc
+    except csv.Error as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Could not parse CSV header: {exc}",
+        ) from exc
+
+    headers = [header.strip().lower() for header in raw_headers]
+    if any(not header for header in headers) or len(headers) != len(set(headers)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CSV headers must be non-empty and unique.",
+        )
+
+    missing_headers = {"well_name", "date"} - set(headers)
+    if missing_headers:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "CSV is missing required columns: "
+                + ", ".join(sorted(missing_headers))
+                + "."
+            ),
+        )
+    if not set(_PRODUCTION_RATE_COLUMNS).intersection(headers):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "CSV must include at least one rate column: "
+                + ", ".join(_PRODUCTION_RATE_COLUMNS)
+                + "."
+            ),
+        )
+
+    records: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    total_errors = 0
+
+    def add_error(row_number: int, message: str) -> None:
+        nonlocal total_errors
+        total_errors += 1
+        if len(errors) < MAX_CSV_VALIDATION_ERRORS:
+            errors.append({"row": row_number, "message": message})
+
+    try:
+        for row_number, values in enumerate(reader, start=2):
+            if not any(value.strip() for value in values):
+                continue
+            if row_number - 1 > MAX_PRODUCTION_CSV_ROWS:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=(
+                        f"CSV exceeds the {MAX_PRODUCTION_CSV_ROWS:,}-row limit."
+                    ),
+                )
+            if len(values) != len(headers):
+                add_error(row_number, "Column count does not match the CSV header.")
+                continue
+
+            row = {
+                header: value.strip()
+                for header, value in zip(headers, values, strict=True)
+            }
+            well_name = row["well_name"]
+            date_text = row["date"]
+            row_errors: list[str] = []
+            if not well_name:
+                row_errors.append("well_name is required.")
+            elif len(well_name) > 120:
+                row_errors.append("well_name must be at most 120 characters.")
+
+            production_date: datetime.date | None = None
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
+                row_errors.append("date must use YYYY-MM-DD format.")
+            else:
+                try:
+                    production_date = datetime.date.fromisoformat(date_text)
+                except ValueError:
+                    row_errors.append("date is not a valid calendar date.")
+
+            rates: dict[str, float | None] = {}
+            for column in _PRODUCTION_RATE_COLUMNS:
+                value = row.get(column, "")
+                if not value:
+                    rates[column] = None
+                    continue
+                try:
+                    rate = float(value)
+                except ValueError:
+                    row_errors.append(f"{column} must be a finite non-negative number.")
+                    continue
+                if not math.isfinite(rate) or rate < 0:
+                    row_errors.append(f"{column} must be a finite non-negative number.")
+                    continue
+                rates[column] = rate
+
+            if not any(rate is not None for rate in rates.values()):
+                row_errors.append("At least one production rate is required per row.")
+
+            if row_errors:
+                for message in row_errors:
+                    add_error(row_number, message)
+                continue
+
+            records.append(
+                {
+                    "well_name": well_name,
+                    "date": production_date,
+                    **rates,
+                }
+            )
+    except csv.Error as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Could not parse CSV near row {reader.line_num}: {exc}",
+        ) from exc
+
+    if total_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Production CSV contains invalid rows.",
+                "errors": errors,
+                "total_errors": total_errors,
+                "errors_truncated": total_errors > len(errors),
+            },
+        )
+    if not records:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CSV contains no production records.",
+        )
+    return records
 
 
 class ProductionEconomicsRequest(BaseModel):

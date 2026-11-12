@@ -17,6 +17,7 @@ from contextlib import contextmanager
 from typing import Any, Generator
 
 from sqlalchemy import create_engine, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
@@ -214,6 +215,107 @@ class DatabaseManager:
                 inserted += 1
             s.commit()
         return inserted
+
+    def import_production_records(
+        self, records: list[dict[str, Any]]
+    ) -> tuple[int, int, int]:
+        """Create missing wells and insert production rows, skipping duplicates.
+
+        Each record must include ``well_name``, ``date``, and optional rate
+        values. The well and production rows are committed in one transaction.
+        Returns ``(inserted_rows, duplicate_rows, created_wells)``.
+        """
+        if not records:
+            return 0, 0, 0
+
+        unique_records: list[dict[str, Any]] = []
+        seen_records: set[tuple[str, datetime.date]] = set()
+        for record in records:
+            key = (record["well_name"], record["date"])
+            if key not in seen_records:
+                seen_records.add(key)
+                unique_records.append(record)
+
+        well_names = list(dict.fromkeys(record["well_name"] for record in unique_records))
+        inserted = 0
+        created_wells = 0
+
+        with self.session() as s:
+            dialect = s.get_bind().dialect.name
+            existing_wells: dict[str, int] = {}
+            for offset in range(0, len(well_names), 500):
+                name_batch = well_names[offset : offset + 500]
+                wells = s.scalars(select(Well).where(Well.name.in_(name_batch))).all()
+                existing_wells.update({well.name: well.id for well in wells})
+
+            missing_names = [
+                name for name in well_names if name not in existing_wells
+            ]
+            if missing_names and dialect == "sqlite":
+                result = s.execute(
+                    sqlite_insert(Well)
+                    .values([{"name": name} for name in missing_names])
+                    .on_conflict_do_nothing(index_elements=["name"])
+                )
+                created_wells = max(result.rowcount or 0, 0)
+            elif missing_names:
+                s.add_all(Well(name=name) for name in missing_names)
+                s.flush()
+                created_wells = len(missing_names)
+
+            well_ids: dict[str, int] = {}
+            for offset in range(0, len(well_names), 500):
+                name_batch = well_names[offset : offset + 500]
+                wells = s.scalars(select(Well).where(Well.name.in_(name_batch))).all()
+                well_ids.update({well.name: well.id for well in wells})
+
+            records_by_well: dict[int, list[dict[str, Any]]] = {}
+            for record in unique_records:
+                well_id = well_ids[record["well_name"]]
+                records_by_well.setdefault(well_id, []).append(
+                    {
+                        "well_id": well_id,
+                        "date": record["date"],
+                        "oil_rate": record.get("oil_rate"),
+                        "gas_rate": record.get("gas_rate"),
+                        "water_rate": record.get("water_rate"),
+                    }
+                )
+
+            for well_id, well_records in records_by_well.items():
+                for offset in range(0, len(well_records), 100):
+                    batch = well_records[offset : offset + 100]
+                    if dialect == "sqlite":
+                        result = s.execute(
+                            sqlite_insert(ProductionData)
+                            .values(batch)
+                            .on_conflict_do_nothing(
+                                index_elements=["well_id", "date"]
+                            )
+                        )
+                        inserted += max(result.rowcount or 0, 0)
+                        continue
+
+                    dates = [record["date"] for record in batch]
+                    existing_dates = set(
+                        s.scalars(
+                            select(ProductionData.date).where(
+                                ProductionData.well_id == well_id,
+                                ProductionData.date.in_(dates),
+                            )
+                        ).all()
+                    )
+                    new_records = [
+                        ProductionData(**record)
+                        for record in batch
+                        if record["date"] not in existing_dates
+                    ]
+                    s.add_all(new_records)
+                    inserted += len(new_records)
+
+            s.commit()
+
+        return inserted, len(records) - inserted, created_wells
 
     # --- User ---------------------------------------------------------------
     def create_user(
