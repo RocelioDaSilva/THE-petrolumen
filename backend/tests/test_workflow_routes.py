@@ -1,7 +1,10 @@
+import time
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api import workflow_routes
 from app.main import app
 
 client = TestClient(app)
@@ -91,3 +94,35 @@ def test_ooip_run_validates_area():
     }
     response = client.post("/api/workflow/ooip/run", json=run_payload)
     assert response.status_code == 422
+
+
+def test_ooip_upload_enforces_streamed_size_limit(monkeypatch):
+    monkeypatch.setattr(workflow_routes, "MAX_LAS_UPLOAD_BYTES", 16)
+    monkeypatch.setattr(
+        workflow_routes.lasio,
+        "read",
+        lambda *_args, **_kwargs: pytest.fail("Oversized upload must not be parsed."),
+    )
+
+    response = client.post(
+        "/api/workflow/ooip/upload",
+        files={"file": ("large.las", b"x" * 17, "application/octet-stream")},
+    )
+
+    assert response.status_code == 413
+
+
+def test_expired_upload_sessions_are_cleaned_during_app_lifespan(monkeypatch):
+    monkeypatch.setattr(
+        workflow_routes, "SESSION_CLEANUP_INTERVAL_SECONDS", 0.01
+    )
+    with workflow_routes._SESSIONS_LOCK:
+        workflow_routes.SESSIONS["expired-test-session"] = {
+            "created_at": time.time() - workflow_routes.SESSION_TTL_SECONDS - 1
+        }
+
+    with TestClient(app):
+        time.sleep(0.05)
+
+    with workflow_routes._SESSIONS_LOCK:
+        assert "expired-test-session" not in workflow_routes.SESSIONS

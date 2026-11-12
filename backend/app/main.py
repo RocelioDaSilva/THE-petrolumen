@@ -1,5 +1,6 @@
 import logging
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
@@ -36,10 +37,18 @@ from app.api.reservoir_routes import router as reservoir_router
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
-    yield
-    database = getattr(application.state, "database_manager", None)
-    if database is not None:
-        database.close()
+    session_cleanup_task = asyncio.create_task(
+        workflow_routes.cleanup_expired_sessions_periodically()
+    )
+    try:
+        yield
+    finally:
+        session_cleanup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await session_cleanup_task
+        database = getattr(application.state, "database_manager", None)
+        if database is not None:
+            database.close()
 
 
 app = FastAPI(title="PetroLumen API", version="0.1.0", lifespan=lifespan)

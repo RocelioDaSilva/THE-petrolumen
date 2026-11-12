@@ -2,34 +2,62 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
-import shutil
 import tempfile
+import threading
 import time
-from typing import Any, Literal
+from typing import Any, BinaryIO, Literal
 from uuid import uuid4
 
 import lasio
 import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field
 
 router = APIRouter()
 
 SESSIONS: dict[str, dict[str, Any]] = {}
 SESSION_TTL_SECONDS = 3600.0
+SESSION_CLEANUP_INTERVAL_SECONDS = 60.0
+MAX_LAS_UPLOAD_BYTES = 10 * 1024 * 1024
+UPLOAD_CHUNK_BYTES = 64 * 1024
+_SESSIONS_LOCK = threading.RLock()
 
 
 def _cleanup_expired_sessions() -> None:
     """Evict sessions that have exceeded the TTL."""
     now = time.time()
-    expired_keys = [
-        key
-        for key, session in SESSIONS.items()
-        if now - session.get("created_at", 0.0) > SESSION_TTL_SECONDS
-    ]
-    for key in expired_keys:
-        SESSIONS.pop(key, None)
+    with _SESSIONS_LOCK:
+        expired_keys = [
+            key
+            for key, session in SESSIONS.items()
+            if now - session.get("created_at", 0.0) > SESSION_TTL_SECONDS
+        ]
+        for key in expired_keys:
+            SESSIONS.pop(key, None)
+
+
+async def cleanup_expired_sessions_periodically() -> None:
+    while True:
+        await asyncio.sleep(SESSION_CLEANUP_INTERVAL_SECONDS)
+        _cleanup_expired_sessions()
+
+
+def _copy_upload_with_size_limit(source: BinaryIO, destination: BinaryIO) -> None:
+    total_bytes = 0
+    while True:
+        chunk = source.read(UPLOAD_CHUNK_BYTES)
+        if not chunk:
+            return
+        total_bytes += len(chunk)
+        if total_bytes > MAX_LAS_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"LAS uploads are limited to {MAX_LAS_UPLOAD_BYTES} bytes.",
+            )
+        destination.write(chunk)
 
 
 # ============================================================
@@ -103,10 +131,10 @@ async def upload_ooip_las(file: UploadFile = File(...)) -> OoipUploadResponse:
     try:
         with tempfile.NamedTemporaryFile(suffix=".las", delete=False) as tmp:
             temp_path = tmp.name
-            shutil.copyfileobj(file.file, tmp)
+            await run_in_threadpool(_copy_upload_with_size_limit, file.file, tmp)
 
         try:
-            las = lasio.read(temp_path)
+            las = await run_in_threadpool(lasio.read, temp_path)
         except Exception as exc:
             raise HTTPException(
                 status_code=422,
@@ -134,12 +162,13 @@ async def upload_ooip_las(file: UploadFile = File(...)) -> OoipUploadResponse:
             depth_range = [0.0, 0.0]
 
         session_id = uuid4().hex
-        SESSIONS[session_id] = {
-            "curves": curves_dict,
-            "depth": depth_array,
-            "well": well_metadata,
-            "created_at": time.time(),
-        }
+        with _SESSIONS_LOCK:
+            SESSIONS[session_id] = {
+                "curves": curves_dict,
+                "depth": depth_array,
+                "well": well_metadata,
+                "created_at": time.time(),
+            }
 
         return OoipUploadResponse(
             session_id=session_id,
@@ -166,7 +195,8 @@ def run_ooip_calculation(payload: OoipRunRequest) -> OoipRunResponse:
     """Execute volumetric OOIP calculation over stored session log data."""
     _cleanup_expired_sessions()
 
-    session = SESSIONS.get(payload.session_id)
+    with _SESSIONS_LOCK:
+        session = SESSIONS.get(payload.session_id)
     if session is None:
         raise HTTPException(
             status_code=404,
