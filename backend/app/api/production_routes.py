@@ -105,7 +105,9 @@ def _read_and_parse_production_csv(file_obj: BinaryIO) -> list[dict[str, Any]]:
 
     reader = csv.reader(io.StringIO(text, newline=""), strict=True)
     try:
-        raw_headers = next(reader)
+        raw_headers = next(
+            row for row in reader if any(value.strip() for value in row)
+        )
     except StopIteration as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -154,11 +156,14 @@ def _read_and_parse_production_csv(file_obj: BinaryIO) -> list[dict[str, Any]]:
         if len(errors) < MAX_CSV_VALIDATION_ERRORS:
             errors.append({"row": row_number, "message": message})
 
+    data_row_count = 0
     try:
-        for row_number, values in enumerate(reader, start=2):
+        for values in reader:
             if not any(value.strip() for value in values):
                 continue
-            if row_number - 1 > MAX_PRODUCTION_CSV_ROWS:
+            data_row_count += 1
+            row_number = data_row_count + 1
+            if data_row_count > MAX_PRODUCTION_CSV_ROWS:
                 raise HTTPException(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     detail=(

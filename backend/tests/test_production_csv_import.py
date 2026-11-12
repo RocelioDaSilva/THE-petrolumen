@@ -64,7 +64,7 @@ def test_production_csv_import_inserts_rows_and_skips_duplicates(
     client, manager = production_import_client
     headers = _login(client)
     content = (
-        "well_name,date,oil_rate,gas_rate,water_rate\n"
+        "\nwell_name,date,oil_rate,gas_rate,water_rate\n\n"
         "Well A,2025-01-01,10,,2\n"
         "Well A,2025-02-01,8,,3\n"
         "Well B,2025-01-01,,4,\n"
