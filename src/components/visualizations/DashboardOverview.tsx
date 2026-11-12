@@ -50,12 +50,15 @@ import { runAPI5C3GoldenTests, API5C3TestSuiteSummary } from "@/lib/drilling/__t
 import { formatFormulaAudit, CalculationAuditTrail } from "@/lib/math/engine";
 import { useSessionRegistry } from "@/lib/sessionRegistry";
 import { useUnit } from "@/lib/unitContext";
+import SavedRunsPanel from "@/components/SavedRunsPanel";
+import { SavedSimulation } from "@/lib/api";
 
 interface DashboardOverviewProps {
   onNavigate: (moduleId: string) => void;
+  onLoadSavedRun: (run: SavedSimulation) => boolean;
 }
 
-export default function DashboardOverview({ onNavigate }: DashboardOverviewProps) {
+export default function DashboardOverview({ onNavigate, onLoadSavedRun }: DashboardOverviewProps) {
   const { activeScenario } = useSessionRegistry();
   const { isMetric, formatPressure, formatDepth, formatDensity, formatRate } = useUnit();
 
@@ -461,6 +464,8 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
           </div>
         </div>
       </Card>
+
+      <SavedRunsPanel onLoad={onLoadSavedRun} />
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">

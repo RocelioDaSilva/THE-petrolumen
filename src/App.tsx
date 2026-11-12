@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense, lazy } from "react";
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
 import Header from "@/components/Header";
 import Sidebar, { APP_MODULES } from "@/components/Sidebar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -10,6 +10,7 @@ import { UnitProvider } from "@/lib/unitContext";
 import { SessionRegistryProvider } from "@/lib/sessionRegistry";
 import { getInitialDarkMode } from "@/lib/theme";
 import { AuthProvider } from "@/lib/authContext";
+import { SavedSimulation } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Code-split ALL heavy view modules via React.lazy so they are only fetched
@@ -51,6 +52,7 @@ function MainApp() {
 
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [loadedRun, setLoadedRun] = useState<SavedSimulation | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       return getInitialDarkMode(localStorage.getItem(THEME_KEY));
@@ -73,6 +75,12 @@ function MainApp() {
 
   const activeModuleMeta = APP_MODULES.find((m) => m.id === activeModule) || APP_MODULES[0];
   const activeCategory = (t.categories as Record<string, string>)[activeModuleMeta.categoryKey] || activeModuleMeta.defaultCategory;
+  const handleLoadSavedRun = useCallback((run: SavedSimulation) => {
+    if (run.simulation_type !== "reservoir-simulation") return false;
+    setLoadedRun(run);
+    setActiveModule("reservoir-simulation");
+    return true;
+  }, []);
 
   /** Shared Suspense loading fallback with skeleton styling. */
   const loadingFallback = <LoadingSkeleton label={t.loadingModule} />;
@@ -89,7 +97,12 @@ function MainApp() {
 
     switch (activeModule) {
       case "dashboard":
-        return wrap(<DashboardOverview onNavigate={setActiveModule} />);
+        return wrap(
+          <DashboardOverview
+            onNavigate={setActiveModule}
+            onLoadSavedRun={handleLoadSavedRun}
+          />,
+        );
       case "well-control":
         return wrap(<WellControlView />);
       case "drilling-hydraulics":
@@ -127,7 +140,7 @@ function MainApp() {
                 <TabsTrigger value="grid3d">Malha Geocelular 3D Interativa</TabsTrigger>
               </TabsList>
               <TabsContent value="impes" className="pt-2">
-                <ReservoirSimulationView />
+                <ReservoirSimulationView savedRun={loadedRun} />
               </TabsContent>
               <TabsContent value="grid3d" className="pt-2">
                 <ReservoirGrid3D />
@@ -154,10 +167,15 @@ function MainApp() {
       case "connectors":
         return wrap(<ConnectorsView />);
       default:
-        return wrap(<DashboardOverview onNavigate={setActiveModule} />);
+        return wrap(
+          <DashboardOverview
+            onNavigate={setActiveModule}
+            onLoadSavedRun={handleLoadSavedRun}
+          />,
+        );
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModule, t.loadingModule]);
+  }, [activeModule, t.loadingModule, loadedRun, handleLoadSavedRun]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">

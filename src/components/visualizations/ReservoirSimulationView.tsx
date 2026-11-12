@@ -26,6 +26,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { run1DReservoirSimulation } from "@/lib/reservoirMath";
 import { useSessionRegistry } from "@/lib/sessionRegistry";
+import {
+  createSavedSimulation,
+  SavedSimulation,
+} from "@/lib/api";
+import { useAuth } from "@/lib/authContext";
 
 const axisColor = "hsl(var(--muted-foreground))";
 const gridColor = "hsl(var(--border))";
@@ -36,9 +41,45 @@ const tooltipStyle: React.CSSProperties = {
   color: "hsl(var(--popover-foreground))",
 };
 
-export default function ReservoirSimulationView() {
+interface ReservoirSimulationViewProps {
+  savedRun?: SavedSimulation | null;
+}
+
+interface ReservoirSimulationInputs {
+  nx: number;
+  dx: number;
+  permeability: number;
+  porosity: number;
+  viscosity: number;
+  pi: number;
+  dt: number;
+  nSteps: number;
+  wellRate: number;
+}
+
+function isReservoirSimulationInputs(
+  input: Record<string, unknown>,
+): input is Record<string, unknown> & ReservoirSimulationInputs {
+  return [
+    input.nx,
+    input.dx,
+    input.permeability,
+    input.porosity,
+    input.viscosity,
+    input.pi,
+    input.dt,
+    input.nSteps,
+    input.wellRate,
+  ].every((value) => typeof value === "number" && Number.isFinite(value));
+}
+
+export default function ReservoirSimulationView({ savedRun = null }: ReservoirSimulationViewProps) {
   const { activeScenario, updateActiveParameters } = useSessionRegistry();
+  const { user, openAuthDialog } = useAuth();
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [savedRunMessage, setSavedRunMessage] = useState("");
+  const [saveRunError, setSaveRunError] = useState("");
+  const [isSavingRun, setIsSavingRun] = useState(false);
   const [nx, setNx] = useState(10);
   const [dx, setDx] = useState(120);
   const [permeability, setPermeability] = useState(
@@ -65,6 +106,28 @@ export default function ReservoirSimulationView() {
       if (parameters.reservoirPressurePsia) setPi(parameters.reservoirPressurePsia);
     }
   }, [activeScenario?.id]);
+
+  React.useEffect(() => {
+    if (!savedRun || savedRun.simulation_type !== "reservoir-simulation") return;
+    const values = savedRun.input_data;
+    if (!isReservoirSimulationInputs(values)) {
+      setSaveRunError("This saved run has incomplete or invalid model inputs.");
+      return;
+    }
+
+    setNx(values.nx);
+    setDx(values.dx);
+    setPermeability(values.permeability);
+    setPorosity(values.porosity);
+    setViscosity(values.viscosity);
+    setPi(values.pi);
+    setDt(values.dt);
+    setNSteps(values.nSteps);
+    setWellRate(values.wellRate);
+    setHasRun(true);
+    setSaveRunError("");
+    setSavedRunMessage(`Loaded saved run: ${savedRun.name}`);
+  }, [savedRun]);
 
   const handleSaveToScenario = () => {
     updateActiveParameters({
@@ -104,11 +167,50 @@ export default function ReservoirSimulationView() {
   }, [history, dx]);
 
   const handleRun = () => {
+    setSavedRunMessage("");
+    setSaveRunError("");
     setIsRunning(true);
     window.setTimeout(() => {
       setHasRun(true);
       setIsRunning(false);
     }, 350);
+  };
+
+  const handleSaveRun = async () => {
+    if (!user) {
+      openAuthDialog();
+      return;
+    }
+    setIsSavingRun(true);
+    setSaveRunError("");
+    try {
+      await createSavedSimulation({
+        name: `${activeScenario.name} • Reservoir run ${new Date().toLocaleString()}`.slice(0, 120),
+        simulation_type: "reservoir-simulation",
+        input_data: {
+          nx,
+          dx,
+          permeability,
+          porosity,
+          viscosity,
+          pi,
+          dt,
+          nSteps,
+          wellRate,
+          scenario: activeScenario.name,
+        },
+        result_data: {
+          history,
+          finalPressure,
+          pressureDrop,
+        },
+      });
+      setSavedRunMessage("Run saved. Find it in My Saved Runs on the dashboard.");
+    } catch (error) {
+      setSaveRunError(getApiError(error));
+    } finally {
+      setIsSavingRun(false);
+    }
   };
 
   const resetModel = () => {
@@ -153,6 +255,17 @@ export default function ReservoirSimulationView() {
           >
             {saveSuccess ? "Salvo no cenário" : "Salvar parâmetros"}
           </Button>
+          {hasRun && (
+            <Button
+              variant="outline"
+              onClick={() => void handleSaveRun()}
+              disabled={isSavingRun}
+              className="h-9 gap-2"
+            >
+              {isSavingRun && <LoaderCircle className="h-4 w-4 animate-spin" />}
+              {isSavingRun ? "Saving..." : "Save run"}
+            </Button>
+          )}
           <Button onClick={handleRun} disabled={isRunning} className="h-9 gap-2 shadow-sm">
             {isRunning ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -163,6 +276,17 @@ export default function ReservoirSimulationView() {
           </Button>
         </div>
       </div>
+
+      {savedRunMessage && (
+        <p role="status" className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-primary">
+          {savedRunMessage}
+        </p>
+      )}
+      {saveRunError && (
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {saveRunError}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(18rem,2fr)_minmax(0,3fr)]">
         <Card className="overflow-hidden">
@@ -465,4 +589,16 @@ export default function ReservoirSimulationView() {
       </div>
     </div>
   );
+}
+
+function getApiError(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "detail" in error &&
+    typeof error.detail === "string"
+  ) {
+    return error.detail;
+  }
+  return error instanceof Error ? error.message : "The saved run could not be stored.";
 }
