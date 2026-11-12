@@ -30,7 +30,9 @@ dashboard.
   explicitly claimed; they are not exposed in any user's catalog.
 - The dashboard's authenticated `GET /api/production/overview` endpoint returns
   daily aggregated rates and each owned well's latest rates. Production records
-  retain their import timestamp for the latest-import summary.
+  retain their import timestamp for the latest-import summary. Historical
+  records without a known import time remain untimestamped rather than being
+  assigned a misleading migration date.
 - The response reports received, inserted, skipped-duplicate, and created-well
   counts. Invalid files are rejected without partially importing production
   rows.

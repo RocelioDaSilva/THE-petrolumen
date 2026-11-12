@@ -16,7 +16,7 @@ import logging
 from contextlib import contextmanager
 from typing import Any, Generator
 
-from sqlalchemy import and_, create_engine, func, inspect, or_, select, text, update
+from sqlalchemy import and_, create_engine, func, inspect, or_, select, text
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -111,13 +111,8 @@ class DatabaseManager:
                         "ALTER TABLE production_data ADD COLUMN imported_at DATETIME"
                     )
                 )
-                connection.execute(
-                    update(ProductionData)
-                    .where(ProductionData.imported_at.is_(None))
-                    .values(imported_at=datetime.datetime.now(datetime.UTC))
-                )
             logger.info(
-                "Added import timestamps to existing production data records."
+                "Added nullable import timestamps; existing records remain untracked."
             )
 
     @contextmanager

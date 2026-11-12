@@ -98,6 +98,7 @@ def test_production_csv_import_inserts_rows_and_skips_duplicates(
         (datetime.date(2025, 2, 1), 8.0, None, 3.0),
         (datetime.date(2025, 1, 1), None, 4.0, None),
     ]
+    assert all(record.imported_at is not None for record in records)
 
     repeated = client.post(
         "/api/production/import/csv",

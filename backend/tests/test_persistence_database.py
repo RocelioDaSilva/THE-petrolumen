@@ -145,6 +145,6 @@ def test_create_all_adds_owner_column_to_existing_wells_table(tmp_path):
         assert legacy_well is not None
         assert legacy_well.owner_id is None
         assert legacy_record is not None
-        assert legacy_record.imported_at is not None
+        assert legacy_record.imported_at is None
     finally:
         manager.close()

@@ -270,6 +270,9 @@ export default function ProductionOverview({ onNavigate }: ProductionOverviewPro
                 <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
                   Production rates retain the units used in each CSV; unit provenance is not yet stored.
                 </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Legacy records may not have a recorded import timestamp.
+                </p>
               </CardContent>
             </Card>
           </div>
