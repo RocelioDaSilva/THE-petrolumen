@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 
-def test_desktop_launcher_starts_embedded_api(monkeypatch):
+def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
     state = {}
 
     class ClosedEvent:
@@ -69,6 +69,40 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch):
             assert response.status == 200
             assert response.headers["Access-Control-Allow-Origin"] == desktop_origin
 
+        auth_url = f"http://127.0.0.1:{state['port']}/api/auth/register"
+        registration = urllib.request.Request(
+            auth_url,
+            data=json.dumps(
+                {
+                    "username": "desktop-user",
+                    "email": "desktop-user@example.test",
+                    "password": "desktop-password",
+                }
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(registration, timeout=3) as response:
+            assert response.status == 201
+
+        token_request = urllib.request.Request(
+            f"http://127.0.0.1:{state['port']}/api/auth/token",
+            data=json.dumps(
+                {"username": "desktop-user", "password": "desktop-password"}
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(token_request, timeout=3) as response:
+            access_token = json.loads(response.read())["access_token"]
+
+        current_user = urllib.request.Request(
+            f"http://127.0.0.1:{state['port']}/api/auth/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        with urllib.request.urlopen(current_user, timeout=3) as response:
+            assert json.loads(response.read())["username"] == "desktop-user"
+
     webview_stub = types.ModuleType("webview")
     webview_stub.create_window = create_window
     webview_stub.start = start
@@ -87,6 +121,15 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch):
     desktop_app = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(desktop_app)
 
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.delenv("PETROLUMEN_SECRET_KEY", raising=False)
+    monkeypatch.delenv("PETROLUMEN_DATABASE_URL", raising=False)
     desktop_app.main()
 
     assert state["shutdown"].__name__ == "shutdown"
+    data_dir = tmp_path / "PetroLumen"
+    secret = (data_dir / "secret.key").read_text(encoding="utf-8")
+    assert len(secret) >= 32
+    assert sys.modules["app.main"].app.state.database_manager.db_url == (
+        f"sqlite:///{(data_dir / 'petrolumen.db').resolve().as_posix()}"
+    )

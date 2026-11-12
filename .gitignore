@@ -13,6 +13,7 @@ htmlcov/
 venv/
 frontend_desktop/build/
 frontend_desktop/dist/
+release/
 *.egg-info/
 _duplicates_for_review/
 petrolumen_duplicates_backup/

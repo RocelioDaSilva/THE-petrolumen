@@ -58,42 +58,53 @@ performed.
 - Frontend tests cover CSV parsing, drag/drop, validation states, API upload,
   and successful import summaries.
 
-## Near term: PyInstaller Windows executable
+## PyInstaller Windows executable
 
 The current desktop launcher starts the embedded FastAPI server and serves the
-React build from `dist/`. A single-file executable is a distribution target,
-not yet a verified artifact.
+React build from `dist/`. The `petrolumen_desktop.spec` and `build_exe.ps1`
+produce a verified onedir Windows application bundle. It is not a single-file
+installer and still requires the Microsoft Edge WebView2 Runtime and Windows'
+.NET Framework runtime for PyWebView.
 
 1. **Prepare reproducible inputs**
-   - Build the frontend with `npm run build` before packaging.
-   - Use a supported Python version and a clean packaging virtual environment.
-   - Add PyInstaller to a packaging-specific dependency set and maintain a
-     project `.spec` file. Keep runtime dependencies separate from build tools.
+   - Run `.\build_exe.ps1`; it builds the frontend and installs backend,
+     PyWebView, and packaging dependencies before collecting.
+   - The PyInstaller-only dependency is kept in
+     `frontend_desktop/requirements_packaging.txt`.
+   - Use a supported Python version and preferably a clean packaging virtual
+     environment for release builds.
 
 2. **Collect the application**
    - Analyze the backend with `backend/` on PyInstaller's import path so the
-     `app` package and its routes/engines are discovered.
+     `app` package and its routes/engines are discovered. The backend source
+     tree, excluding tests and caches, is bundled alongside the collected
+     Python modules.
    - Bundle the built `dist/` directory at the `_MEIPASS/dist` location
      expected by the desktop launcher.
+   - The onedir spec uses a flat contents layout and places
+     `PetroLumen.exe.config` next to the executable. That app-local .NET
+     configuration permits Python.NET to load its bundled managed assembly.
    - Add hidden imports/data only where runtime smoke tests show a dynamically
      loaded module or package resource is missing. Pay particular attention to
      scientific Python dependencies, SQLAlchemy drivers, and WebView resources.
-   - First produce and test an `onedir` build for diagnostics; switch to
-     `onefile` only after the directory build is reliable.
+   - Keep the `onedir` layout until a separate `onefile` build has been tested.
 
 3. **Make runtime data durable**
-   - Store the SQLite database and user configuration in a writable per-user
-     application-data directory, not the current working directory or the
-     temporary `_MEIPASS` extraction folder.
-   - Persist a protected signing secret per installation so authentication
-     tokens and accounts behave predictably across app restarts.
+   - The desktop launcher stores SQLite data and a persistent signing secret
+     in `%LOCALAPPDATA%\PetroLumen`, not the current directory or temporary
+     `_MEIPASS` extraction folder.
+   - The signing secret file is created in the user's LocalAppData directory;
+     protect that directory with the user's Windows account permissions.
    - Treat the Microsoft Edge WebView2 Runtime as a prerequisite or install it
      through the supported installer flow; the executable alone does not
      guarantee a compatible browser runtime on every Windows machine.
 
 4. **Build, verify, and distribute**
-   - Build the `.exe` from the maintained spec, then test on a clean Windows
-     environment without the source tree or development virtual environment.
+   - A Windows development-machine smoke test has verified the generated
+     window, `/health`, the React JavaScript asset, registration, and login.
+     The full backend suite also passes; this is not yet a clean-machine test.
+   - Before distribution, test on a clean Windows environment without the
+     source tree or development virtual environment.
    - Verify application startup, the dynamically selected local API port,
      `/health`, React JS/CSS assets, authentication, saved-run persistence,
      upload paths, and graceful shutdown.

@@ -21,6 +21,48 @@ def _resource_path(relative_path: str) -> Path:
     return bundle_root / relative_path
 
 
+def _configure_user_data() -> Path:
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        data_dir = Path(local_app_data) / "PetroLumen"
+    elif sys.platform == "win32":
+        data_dir = Path.home() / "AppData" / "Local" / "PetroLumen"
+    else:
+        data_dir = Path.home() / ".local" / "share" / "PetroLumen"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    database_path = data_dir / "petrolumen.db"
+    os.environ.setdefault(
+        "PETROLUMEN_DATABASE_URL",
+        f"sqlite:///{database_path.resolve().as_posix()}",
+    )
+
+    if "PETROLUMEN_SECRET_KEY" not in os.environ:
+        secret_path = data_dir / "secret.key"
+        try:
+            secret_fd = os.open(
+                secret_path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+        except FileExistsError:
+            secret = secret_path.read_text(encoding="utf-8").strip()
+        else:
+            secret = secrets.token_urlsafe(48)
+            with os.fdopen(secret_fd, "w", encoding="utf-8") as secret_file:
+                secret_file.write(secret)
+                secret_file.flush()
+                os.fsync(secret_file.fileno())
+
+        if len(secret) < 32:
+            raise RuntimeError(
+                f"Authentication secret at {secret_path} is missing or invalid."
+            )
+        os.environ["PETROLUMEN_SECRET_KEY"] = secret
+
+    return data_dir
+
+
 class DesktopApi:
     def __init__(self, port: int) -> None:
         self._port = port
@@ -30,12 +72,10 @@ class DesktopApi:
 
 
 def main() -> None:
-    repository_root = Path(__file__).resolve().parent.parent
-    backend_path = repository_root / "backend"
+    _configure_user_data()
+    os.environ.setdefault("MPLBACKEND", "Agg")
+    backend_path = _resource_path("backend")
     sys.path.insert(0, str(backend_path))
-
-    if "PETROLUMEN_SECRET_KEY" not in os.environ:
-        os.environ["PETROLUMEN_SECRET_KEY"] = secrets.token_urlsafe(48)
 
     from app.main import app
 
