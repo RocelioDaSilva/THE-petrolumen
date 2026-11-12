@@ -4,6 +4,40 @@ PetroLúmen is a React and FastAPI petroleum engineering workbench with a PyWebV
 
 ---
 
+## For Users
+
+### Windows desktop app
+
+Download and extract the complete `release/desktop/PetroLumen` folder, then
+run `PetroLumen.exe` inside it. Keep the folder intact; the executable depends
+on the bundled files alongside it. The packaged app does not require Python or
+Node.js. Windows still needs the Microsoft Edge WebView2 Runtime and .NET
+Framework for the embedded browser and desktop window.
+
+The app stores its local database and persistent authentication key in
+`%LOCALAPPDATA%\PetroLumen`.
+
+## For Developers
+
+### Build the Windows desktop package
+
+From the repository root, install the frontend dependencies and run the
+packaging script in PowerShell:
+
+```powershell
+npm ci
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build_exe.ps1
+```
+
+The script installs the backend, PyWebView, and PyInstaller dependencies,
+builds the React frontend, and creates an onedir package at
+`release\desktop\PetroLumen\`. Distribute the whole folder, not only
+`PetroLumen.exe`. To skip work when dependencies or `dist/` are already
+current, pass `-SkipDependencyInstall` and/or `-SkipFrontendBuild`.
+
+The package stores user data in `%LOCALAPPDATA%\PetroLumen`; the generated
+`release/` folder is local build output and is not committed to the repository.
+
 ## Quick Start
 
 ### 1. Server
@@ -41,7 +75,7 @@ provided; standalone API deployments must configure `PETROLUMEN_SECRET_KEY`.
 python -m pytest backend/tests -q
 npm test
 ```
-Latest recorded results: **225 backend tests passed (7 skipped), 34 frontend
+Latest recorded results: **238 backend tests passed (7 skipped), 34 frontend
 Vitest tests passed, and all 92 engineering benchmarks passed.** The production
 build also passes using `npm run build`; on Windows, if esbuild encounters a
 temporary-file cleanup issue, set `TEMP` and `TMP` to the project-local
