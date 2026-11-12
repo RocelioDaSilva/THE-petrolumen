@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchCurrentUser,
+  fetchProductionOverview,
+  fetchProductionWells,
   getApiAuthToken,
   importProductionCsv,
   resolveApiBaseUrl,
@@ -80,5 +82,41 @@ describe('API base URL resolution', () => {
 
     await expect(importProductionCsv(file)).resolves.toEqual(result);
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('fetches owner-scoped production dashboard data with the bearer token', async () => {
+    const wells = [
+      { id: 1, name: 'Well A', field: null, latitude: null, longitude: null },
+    ];
+    const overview = {
+      series: [{ date: '2025-01-01', oil_rate: 10, gas_rate: 20, water_rate: 3 }],
+      latest_import_at: '2025-01-02T10:00:00+00:00',
+      latest_well_rates: [
+        {
+          well_id: 1,
+          well_name: 'Well A',
+          date: '2025-01-01',
+          oil_rate: 10,
+          gas_rate: 20,
+          water_rate: 3,
+        },
+      ],
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer dashboard-token');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => String(input).endsWith('/production/wells') ? wells : overview,
+      } as Response;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    setApiAuthToken('dashboard-token');
+
+    await expect(fetchProductionWells()).resolves.toEqual(wells);
+    await expect(fetchProductionOverview()).resolves.toEqual(overview);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/production/wells');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/production/overview');
   });
 });

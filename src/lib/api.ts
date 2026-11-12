@@ -150,6 +150,44 @@ export interface ProductionCsvImportResponse {
   wells_created: number;
 }
 
+export interface ProductionWell {
+  id: number;
+  name: string;
+  field: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface ProductionTrendPoint {
+  date: string;
+  oil_rate: number;
+  gas_rate: number;
+  water_rate: number;
+}
+
+export interface ProductionWellLatestRates {
+  well_id: number;
+  well_name: string;
+  date: string;
+  oil_rate: number | null;
+  gas_rate: number | null;
+  water_rate: number | null;
+}
+
+export interface ProductionOverview {
+  series: ProductionTrendPoint[];
+  latest_import_at: string | null;
+  latest_well_rates: ProductionWellLatestRates[];
+}
+
+export function fetchProductionWells(): Promise<ProductionWell[]> {
+  return call<ProductionWell[]>('/api/production/wells');
+}
+
+export function fetchProductionOverview(): Promise<ProductionOverview> {
+  return call<ProductionOverview>('/api/production/overview');
+}
+
 export function importProductionCsv(file: File): Promise<ProductionCsvImportResponse> {
   const formData = new FormData();
   formData.append('file', file);

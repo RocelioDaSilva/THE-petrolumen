@@ -215,3 +215,64 @@ def test_user_cannot_import_production_into_another_users_well(
     with manager.session() as session:
         records = session.scalars(select(ProductionData)).all()
     assert len(records) == 1
+
+
+def test_production_overview_is_authenticated_and_scoped_to_the_owner(
+    production_import_client,
+):
+    client, _manager = production_import_client
+    user_a = _login(client, "overview-owner")
+    user_b = _login(client, "overview-other")
+
+    def import_csv(headers: dict[str, str], content: bytes):
+        return client.post(
+            "/api/production/import/csv",
+            headers=headers,
+            files={"file": ("production.csv", content, "text/csv")},
+        )
+
+    assert import_csv(
+        user_a,
+        (
+            b"well_name,date,oil_rate,gas_rate,water_rate\n"
+            b"Well A,2025-01-01,10,20,3\n"
+            b"Well A,2025-02-01,8,18,4\n"
+            b"Well B,2025-02-01,5,,1\n"
+        ),
+    ).status_code == 201
+    assert import_csv(
+        user_b,
+        b"well_name,date,oil_rate,gas_rate,water_rate\n"
+        b"Private Well,2025-02-01,999,999,999\n",
+    ).status_code == 201
+
+    assert client.get("/api/production/overview").status_code == 401
+    response = client.get("/api/production/overview", headers=user_a)
+    assert response.status_code == 200, response.text
+    overview = response.json()
+
+    assert overview["series"] == [
+        {
+            "date": "2025-01-01",
+            "oil_rate": 10.0,
+            "gas_rate": 20.0,
+            "water_rate": 3.0,
+        },
+        {
+            "date": "2025-02-01",
+            "oil_rate": 13.0,
+            "gas_rate": 18.0,
+            "water_rate": 5.0,
+        },
+    ]
+    assert {row["well_name"] for row in overview["latest_well_rates"]} == {
+        "Well A",
+        "Well B",
+    }
+    assert overview["latest_import_at"] is not None
+
+    latest = {
+        row["well_name"]: row for row in overview["latest_well_rates"]
+    }
+    assert latest["Well A"]["oil_rate"] == 8
+    assert latest["Well B"]["oil_rate"] == 5

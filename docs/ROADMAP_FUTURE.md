@@ -8,7 +8,8 @@ items are marked so remaining work is clear.
 
 **Status: Baseline workflow implemented.** The current flow includes an
 authenticated CSV import endpoint, bounded parsing/validation, duplicate
-skipping, and a React upload/preview/commit view.
+skipping, a React upload/preview/commit view, and an owner-scoped production
+dashboard.
 
 ### Implemented contract
 
@@ -27,6 +28,9 @@ skipping, and a React upload/preview/commit view.
   `GET /api/production/wells` endpoint lists only that user's wells. Existing
   wells are migrated with a nullable owner field and remain unassigned until
   explicitly claimed; they are not exposed in any user's catalog.
+- The dashboard's authenticated `GET /api/production/overview` endpoint returns
+  daily aggregated rates and each owned well's latest rates. Production records
+  retain their import timestamp for the latest-import summary.
 - The response reports received, inserted, skipped-duplicate, and created-well
   counts. Invalid files are rejected without partially importing production
   rows.

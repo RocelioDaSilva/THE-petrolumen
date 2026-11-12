@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import create_engine, inspect, select, text
 
 from app.persistence.database import DatabaseManager
-from app.persistence.models import Well
+from app.persistence.models import ProductionData, Well
 
 
 @pytest.fixture
@@ -103,6 +103,21 @@ def test_create_all_adds_owner_column_to_existing_wells_table(tmp_path):
                 "VALUES (1, 'Legacy well', '2025-01-01')"
             )
         )
+        connection.execute(
+            text(
+                "CREATE TABLE production_data ("
+                "id INTEGER PRIMARY KEY, well_id INTEGER NOT NULL, "
+                "date DATE NOT NULL, oil_rate FLOAT, gas_rate FLOAT, "
+                "water_rate FLOAT)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO production_data "
+                "(id, well_id, date, oil_rate) "
+                "VALUES (1, 1, '2025-01-01', 10)"
+            )
+        )
     legacy_engine.dispose()
 
     manager = DatabaseManager(database_url)
@@ -113,13 +128,23 @@ def test_create_all_adds_owner_column_to_existing_wells_table(tmp_path):
             column["name"] for column in inspect(manager.engine).get_columns("wells")
         }
         assert "owner_id" in columns
+        production_columns = {
+            column["name"]
+            for column in inspect(manager.engine).get_columns("production_data")
+        }
+        assert "imported_at" in production_columns
         assert any(
             foreign_key["referred_table"] == "users"
             for foreign_key in inspect(manager.engine).get_foreign_keys("wells")
         )
         with manager.session() as session:
             legacy_well = session.scalar(select(Well).where(Well.id == 1))
+            legacy_record = session.scalar(
+                select(ProductionData).where(ProductionData.id == 1)
+            )
         assert legacy_well is not None
         assert legacy_well.owner_id is None
+        assert legacy_record is not None
+        assert legacy_record.imported_at is not None
     finally:
         manager.close()

@@ -45,6 +45,28 @@ class ProductionWellResponse(BaseModel):
     longitude: float | None
 
 
+class ProductionTrendPoint(BaseModel):
+    date: str
+    oil_rate: float
+    gas_rate: float
+    water_rate: float
+
+
+class ProductionWellLatestResponse(BaseModel):
+    well_id: int
+    well_name: str
+    date: str
+    oil_rate: float | None
+    gas_rate: float | None
+    water_rate: float | None
+
+
+class ProductionOverviewResponse(BaseModel):
+    series: list[ProductionTrendPoint]
+    latest_import_at: str | None
+    latest_well_rates: list[ProductionWellLatestResponse]
+
+
 @router.get(
     "/production/wells",
     tags=["Production"],
@@ -59,6 +81,21 @@ def list_production_wells(
         ProductionWellResponse(**well)
         for well in database.list_wells(owner_id=user["id"])
     ]
+
+
+@router.get(
+    "/production/overview",
+    tags=["Production"],
+    response_model=ProductionOverviewResponse,
+)
+def get_production_overview(
+    user: dict[str, Any] = Depends(get_current_user),
+    database: DatabaseManager = Depends(get_database_manager),
+) -> ProductionOverviewResponse:
+    """Return date aggregates and latest rates for the authenticated user's wells."""
+    return ProductionOverviewResponse(
+        **database.get_production_overview(owner_id=user["id"])
+    )
 
 
 @router.post(

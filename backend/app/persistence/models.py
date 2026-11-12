@@ -63,6 +63,11 @@ class ProductionData(Base):
     oil_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
     gas_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
     water_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    imported_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.UTC),
+        nullable=False,
+    )
 
     well: Mapped["Well"] = relationship(back_populates="production_data")
 

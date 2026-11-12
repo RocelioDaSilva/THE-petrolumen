@@ -1,16 +1,4 @@
 import React, { useState, useMemo } from "react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +40,7 @@ import { useSessionRegistry } from "@/lib/sessionRegistry";
 import { useUnit } from "@/lib/unitContext";
 import SavedRunsPanel from "@/components/SavedRunsPanel";
 import { SavedSimulation } from "@/lib/api";
+import ProductionOverview from "@/components/visualizations/ProductionOverview";
 
 interface DashboardOverviewProps {
   onNavigate: (moduleId: string) => void;
@@ -339,22 +328,6 @@ export default function DashboardOverview({ onNavigate, onLoadSavedRun }: Dashbo
     setCarterSuite(freshCarter);
   };
 
-  // Field summary monthly production data
-  const fieldProduction = [
-    { month: "Jan", oil: 18500, gas: 12200, water: 3100 },
-    { month: "Fev", oil: 17800, gas: 12050, water: 3400 },
-    { month: "Mar", oil: 17200, gas: 11900, water: 3800 },
-    { month: "Abr", oil: 16750, gas: 11820, water: 4100 },
-    { month: "Mai", oil: 16400, gas: 11700, water: 4450 },
-    { month: "Jun", oil: 15950, gas: 11600, water: 4800 },
-    { month: "Jul", oil: 15600, gas: 11500, water: 5100 },
-    { month: "Ago", oil: 15250, gas: 11420, water: 5400 },
-    { month: "Set", oil: 14900, gas: 11300, water: 5750 },
-    { month: "Out", oil: 14600, gas: 11200, water: 6100 },
-    { month: "Nov", oil: 14350, gas: 11150, water: 6400 },
-    { month: "Dez", oil: 14100, gas: 11050, water: 6700 },
-  ];
-
   const modulesStatus = [
     { id: "well-control", name: "Controle de Poço & Kick Sheet", status: "active", desc: "KMW, ICP/FCP, MAASP, Método Wait & Weight e Influx ID" },
     { id: "drilling-hydraulics", name: "Hidráulica de Perfuração & ECD", status: "active", desc: "Jatos na Broca (TFA, HHP, JIF), Bingham Plastic e Teste LOT" },
@@ -424,6 +397,8 @@ export default function DashboardOverview({ onNavigate, onLoadSavedRun }: Dashbo
           </Button>
         </div>
       </div>
+
+      <ProductionOverview onNavigate={onNavigate} />
 
       {/* Active Scenario Card */}
       <Card className="p-4 bg-muted/30 border border-primary/20 shadow-xs">
@@ -738,59 +713,6 @@ export default function DashboardOverview({ onNavigate, onLoadSavedRun }: Dashbo
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Field Production Overview Chart */}
-      <Card className="shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <div>
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Histórico Consolidado de Produção do Campo (Últimos 12 Meses)
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Vazões totais de óleo (bbl/d), gás (Mscf/d) e água produzida (bbl/d).
-            </p>
-          </div>
-          <Badge variant="outline" className="text-xs">Produção de Campo</Badge>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={fieldProduction} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="month" />
-                <YAxis label={{ value: "Vazão Diária", angle: -90, position: "insideLeft", offset: 0 }} />
-                <Tooltip />
-                <Legend verticalAlign="top" height={36} />
-                <Line
-                  type="monotone"
-                  dataKey="oil"
-                  stroke="#16a34a"
-                  strokeWidth={2.5}
-                  name="Óleo (bbl/d)"
-                  dot={{ r: 3 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="gas"
-                  stroke="#dc2626"
-                  strokeWidth={2}
-                  name="Gás (Mscf/d)"
-                  dot={{ r: 3 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="water"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  name="Água (bbl/d)"
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
         </CardContent>
       </Card>
 

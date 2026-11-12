@@ -16,7 +16,7 @@ import logging
 from contextlib import contextmanager
 from typing import Any, Generator
 
-from sqlalchemy import create_engine, inspect, or_, select, text
+from sqlalchemy import and_, create_engine, func, inspect, or_, select, text, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -64,6 +64,7 @@ class DatabaseManager:
             raise ConnectionError("Database not connected; call connect() first.")
         Base.metadata.create_all(bind=self.engine)
         self._ensure_well_owner_column()
+        self._ensure_production_imported_at_column()
         SAVED_SIMULATION_OWNER_CREATED_INDEX.create(
             bind=self.engine,
             checkfirst=True,
@@ -94,6 +95,30 @@ class DatabaseManager:
             if index.name == "ix_wells_owner_id"
         )
         owner_index.create(bind=self.engine, checkfirst=True)
+
+    def _ensure_production_imported_at_column(self) -> None:
+        if self.engine is None:
+            raise ConnectionError("Database not connected; call connect() first.")
+
+        columns = {
+            column["name"]
+            for column in inspect(self.engine).get_columns("production_data")
+        }
+        if "imported_at" not in columns:
+            with self.engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "ALTER TABLE production_data ADD COLUMN imported_at DATETIME"
+                    )
+                )
+                connection.execute(
+                    update(ProductionData)
+                    .where(ProductionData.imported_at.is_(None))
+                    .values(imported_at=datetime.datetime.now(datetime.UTC))
+                )
+            logger.info(
+                "Added import timestamps to existing production data records."
+            )
 
     @contextmanager
     def session(self) -> Generator[Session, None, None]:
@@ -160,6 +185,76 @@ class DatabaseManager:
                 }
                 for w in wells
             ]
+
+    def get_production_overview(self, owner_id: int) -> dict[str, Any]:
+        """Return date-aggregated rates and each owned well's latest record."""
+        with self.session() as s:
+            series_rows = s.execute(
+                select(
+                    ProductionData.date,
+                    func.coalesce(func.sum(ProductionData.oil_rate), 0.0),
+                    func.coalesce(func.sum(ProductionData.gas_rate), 0.0),
+                    func.coalesce(func.sum(ProductionData.water_rate), 0.0),
+                )
+                .join(Well, ProductionData.well_id == Well.id)
+                .where(Well.owner_id == owner_id)
+                .group_by(ProductionData.date)
+                .order_by(ProductionData.date)
+            ).all()
+            latest_import_at = s.scalar(
+                select(func.max(ProductionData.imported_at))
+                .join(Well, ProductionData.well_id == Well.id)
+                .where(Well.owner_id == owner_id)
+            )
+            latest_dates = (
+                select(
+                    ProductionData.well_id,
+                    func.max(ProductionData.date).label("latest_date"),
+                )
+                .join(Well, ProductionData.well_id == Well.id)
+                .where(Well.owner_id == owner_id)
+                .group_by(ProductionData.well_id)
+                .subquery()
+            )
+            latest_rows = s.execute(
+                select(ProductionData, Well.id, Well.name)
+                .join(Well, ProductionData.well_id == Well.id)
+                .join(
+                    latest_dates,
+                    and_(
+                        ProductionData.well_id == latest_dates.c.well_id,
+                        ProductionData.date == latest_dates.c.latest_date,
+                    ),
+                )
+                .where(Well.owner_id == owner_id)
+                .order_by(Well.name)
+            ).all()
+
+            return {
+                "series": [
+                    {
+                        "date": date.isoformat(),
+                        "oil_rate": oil_rate,
+                        "gas_rate": gas_rate,
+                        "water_rate": water_rate,
+                    }
+                    for date, oil_rate, gas_rate, water_rate in series_rows
+                ],
+                "latest_import_at": (
+                    latest_import_at.isoformat() if latest_import_at else None
+                ),
+                "latest_well_rates": [
+                    {
+                        "well_id": well_id,
+                        "well_name": well_name,
+                        "date": production.date.isoformat(),
+                        "oil_rate": production.oil_rate,
+                        "gas_rate": production.gas_rate,
+                        "water_rate": production.water_rate,
+                    }
+                    for production, well_id, well_name in latest_rows
+                ],
+            }
 
     def get_field_data(
         self,
@@ -343,6 +438,7 @@ class DatabaseManager:
                         "oil_rate": record.get("oil_rate"),
                         "gas_rate": record.get("gas_rate"),
                         "water_rate": record.get("water_rate"),
+                        "imported_at": datetime.datetime.now(datetime.UTC),
                     }
                 )
 
