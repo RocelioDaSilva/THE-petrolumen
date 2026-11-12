@@ -8,6 +8,7 @@ import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { UnitProvider } from "@/lib/unitContext";
 import { SessionRegistryProvider } from "@/lib/sessionRegistry";
+import { getInitialDarkMode } from "@/lib/theme";
 
 // ---------------------------------------------------------------------------
 // Code-split ALL heavy view modules via React.lazy so they are only fetched
@@ -42,19 +43,18 @@ const AirGasView = lazy(() => import("@/components/visualizations/AirGasView"));
 const CompletionsView = lazy(() => import("@/components/visualizations/CompletionsView"));
 
 /** Dark-mode preference localStorage key. */
-const DARK_MODE_KEY = "petrolumen_dark_mode";
+const THEME_KEY = "petrolumen_theme";
 
 function MainApp() {
   const { t } = useI18n();
 
-  // Initialise dark mode from persisted user preference
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(DARK_MODE_KEY) === "1";
+      return getInitialDarkMode(localStorage.getItem(THEME_KEY));
     } catch {
-      return false;
+      return true;
     }
   });
   const [isDocsOpen, setIsDocsOpen] = useState<boolean>(false);
@@ -62,13 +62,9 @@ function MainApp() {
   // Sync dark class on document root
   useEffect(() => {
     try {
-      if (isDarkMode) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-      // Persist preference across page reloads
-      localStorage.setItem(DARK_MODE_KEY, isDarkMode ? "1" : "0");
+      document.documentElement.classList.toggle("dark", isDarkMode);
+      document.documentElement.classList.toggle("light", !isDarkMode);
+      localStorage.setItem(THEME_KEY, isDarkMode ? "dark" : "light");
     } catch {
       // safe fallback — localStorage may be unavailable in restricted environments
     }

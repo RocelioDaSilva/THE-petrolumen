@@ -4,74 +4,92 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    color-scheme: dark;
+
+    --background: 222 47% 7%;
+    --foreground: 210 30% 96%;
+
+    --card: 222 34% 11%;
+    --card-foreground: 210 30% 96%;
+
+    --popover: 222 34% 12%;
+    --popover-foreground: 210 30% 96%;
+
+    --primary: 173 76% 43%;
+    --primary-foreground: 222 47% 8%;
+
+    --secondary: 218 25% 17%;
+    --secondary-foreground: 210 30% 94%;
+
+    --muted: 218 25% 16%;
+    --muted-foreground: 215 16% 66%;
+
+    --accent: 194 40% 18%;
+    --accent-foreground: 185 70% 82%;
+
+    --destructive: 0 66% 48%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 218 22% 21%;
+    --input: 218 22% 21%;
+    --ring: 173 76% 43%;
+
+    --radius: 0.65rem;
+  }
+
+  .light {
+    color-scheme: light;
+
+    --background: 210 30% 98%;
+    --foreground: 222 35% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 35% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 35% 12%;
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 173 77% 31%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 25% 94%;
+    --secondary-foreground: 222 30% 18%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 25% 94%;
+    --muted-foreground: 215 16% 42%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 185 38% 91%;
+    --accent-foreground: 190 70% 24%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 48%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-
-    --radius: 0.5rem;
+    --border: 214 22% 87%;
+    --input: 214 22% 87%;
+    --ring: 173 77% 31%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
-}
-
-@layer base {
   * {
     border-color: hsl(var(--border));
   }
+
   body {
+    min-width: 320px;
+    min-height: 100vh;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  input[type="number"],
+  output,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  code,
+  pre {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 }
