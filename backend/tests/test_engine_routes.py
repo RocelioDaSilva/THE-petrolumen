@@ -1,5 +1,6 @@
 import json
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
@@ -255,6 +256,37 @@ def test_black_oil_defaults_return_200():
     assert "pressure" in payload
     assert "saturations" in payload
     assert "wells" in payload
+
+
+def test_black_oil_maps_linear_solver_failure_to_422(monkeypatch):
+    def fail_solve(*_args, **_kwargs):
+        raise np.linalg.LinAlgError("singular matrix")
+
+    monkeypatch.setattr(
+        "app.api.simulation_routes.BlackOilSimulator.run_timestep",
+        fail_solve,
+    )
+    response = client.post(
+        "/api/simulate/black-oil",
+        json={
+            "grid": {"nx": 1, "ny": 1, "nz": 1, "dx": 50, "dy": 50, "dz": 10},
+            "porosity": [0.2],
+            "permeability": [100],
+            "rock_compressibility": 0,
+            "fluid_properties": {
+                "water_viscosity": 1,
+                "oil_viscosity": 2,
+                "gas_viscosity": 0.02,
+            },
+            "initial_pressure": 3000,
+            "initial_water_saturation": [0.2],
+            "initial_gas_saturation": [0],
+            "timesteps": [1],
+        },
+    )
+
+    assert response.status_code == 422
+    assert "failed numerically" in response.json()["detail"]
 
 
 @pytest.mark.parametrize(

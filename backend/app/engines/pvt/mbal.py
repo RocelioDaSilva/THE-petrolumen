@@ -174,8 +174,9 @@ class MaterialBalance:
         def objective(N):
             return self.calculate_oil_mbal(N, m, We, Wp, Gp, Bw, cw, cf, Swi)
             
-        N = fsolve(objective, 1e6)[0]
-        return N
+        return self._solve_positive_reserve_estimate(
+            objective, 1e6, "Oil material-balance"
+        )
         
     def solve_gas_mbal(self, We, Wp, Bw, cw, cf, Swi):
         """
@@ -195,5 +196,23 @@ class MaterialBalance:
         def objective(G):
             return self.calculate_gas_mbal(G, We, Wp, Bw, cw, cf, Swi)
             
-        G = fsolve(objective, 1e9)[0]
-        return G 
+        return self._solve_positive_reserve_estimate(
+            objective, 1e9, "Gas material-balance"
+        )
+
+    @staticmethod
+    def _solve_positive_reserve_estimate(objective, initial_guess, description):
+        estimate, _, status, message = fsolve(
+            objective,
+            initial_guess,
+            full_output=True,
+        )
+        if status != 1:
+            raise ValueError(f"{description} solver did not converge: {message.strip()}")
+
+        value = float(estimate[0])
+        if not np.isfinite(value) or value <= 0:
+            raise ValueError(
+                f"{description} solver returned a non-finite or non-positive estimate."
+            )
+        return value
