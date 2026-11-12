@@ -13,11 +13,18 @@ cd backend && pip install -r requirements.txt && python -m uvicorn app.main:app 
 
 ### 2. Desktop
 ```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install .\backend
+.\.venv\Scripts\python.exe -m pip install -r .\frontend_desktop\requirements_desktop.txt
 npm run build
-python -m pip install .\backend
-python -m pip install -r frontend_desktop/requirements_desktop.txt
-python frontend_desktop/desktop_app.py
+.\PetroLumen.cmd
 ```
+The desktop dependencies must be installed into the same local `.venv` that
+`PetroLumen.cmd` prefers. In particular, install
+`frontend_desktop\requirements_desktop.txt` there to provide PyWebView. Re-run
+the two `pip install` commands after changing backend or desktop requirements.
+
 The build produces the React assets in `dist/`, which the desktop app serves
 locally; the UI and embedded API do not require a separate Node.js server at
 runtime. The Windows installer copies the built `dist/` directory along with
