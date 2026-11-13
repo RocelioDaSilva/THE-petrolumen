@@ -303,6 +303,16 @@ export const APP_MODULES: NavModule[] = [
     defaultCategory: "Dados e Geologia",
   },
   {
+    id: "well-test-analysis",
+    nameKey: "Análise de Teste de Poço",
+    defaultName: "Análise de Teste de Poço",
+    icon: Activity,
+    descriptionKey: "Drawdown, buildup, permeabilidade e skin",
+    defaultDescription: "Drawdown, buildup, permeabilidade e skin",
+    categoryKey: "reservoirEng",
+    defaultCategory: "Engenharia de Reservatório",
+  },
+  {
     id: "connectors",
     nameKey: "Conectores & Eclipse",
     defaultName: "Conectores & Eclipse",

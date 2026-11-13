@@ -12,10 +12,21 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Database, Upload, CheckCircle, AlertTriangle } from "lucide-react";
 import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import { parseLASContent, getCalibratedSampleLog, ParsedWellLogData } from "@/lib/lasParser";
+import {
+  classifyFacies,
+  FaciesClassificationResult,
+  LasParseResult,
+  OoipCalculationResult,
+  parseLasFile,
+  runOoipCalculation,
+  uploadOoipLas,
+} from "@/lib/api";
 
 interface WellLogPoint {
   depth: number;
@@ -35,7 +46,20 @@ const mockWells = [
 export default function WellDataViewer() {
   const [selectedWellId, setSelectedWellId] = useState<string>("VOLVE-15-9-F12");
   const [uploadedLog, setUploadedLog] = useState<ParsedWellLogData | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [ooipAreaAcres, setOoipAreaAcres] = useState(100);
+  const [netToGrossCutoff, setNetToGrossCutoff] = useState(0.5);
+  const [ooipSessionId, setOoipSessionId] = useState<string | null>(null);
+  const [ooipResult, setOoipResult] = useState<OoipCalculationResult | null>(null);
+  const [ooipError, setOoipError] = useState<string | null>(null);
+  const [isCalculatingOoip, setIsCalculatingOoip] = useState(false);
+  const [serverLasInfo, setServerLasInfo] = useState<LasParseResult | null>(null);
+  const [serverLasError, setServerLasError] = useState<string | null>(null);
+  const [isParsingOnServer, setIsParsingOnServer] = useState(false);
+  const [faciesResult, setFaciesResult] = useState<FaciesClassificationResult | null>(null);
+  const [faciesError, setFaciesError] = useState<string | null>(null);
+  const [isClassifying, setIsClassifying] = useState(false);
 
   const selectedWell = mockWells.find((w) => w.id === selectedWellId) || mockWells[0];
 
@@ -59,6 +83,16 @@ export default function WellDataViewer() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadedLog(null);
+    setUploadedFile(null);
+    setUploadStatus(null);
+    setOoipSessionId(null);
+    setOoipResult(null);
+    setOoipError(null);
+    setServerLasInfo(null);
+    setServerLasError(null);
+    setFaciesResult(null);
+    setFaciesError(null);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -69,11 +103,13 @@ export default function WellDataViewer() {
         }
         const parsed = parseLASContent(text, file.name);
         setUploadedLog(parsed);
+        setUploadedFile(file);
         setUploadStatus({
           success: true,
           message: `Arquivo "${file.name}" processado com sucesso. ${parsed.sampleCount} amostras reais carregadas (Profundidade: ${parsed.startDepth}m a ${parsed.stopDepth}m).`,
         });
       } catch (err: unknown) {
+        setUploadedLog(null);
         const msg = err instanceof Error ? err.message : "Erro desconhecido ao processar arquivo LAS.";
         setUploadStatus({
           success: false,
@@ -83,6 +119,7 @@ export default function WellDataViewer() {
     };
 
     reader.onerror = () => {
+      setUploadedLog(null);
       setUploadStatus({
         success: false,
         message: "Erro de E/S ao ler o arquivo selecionado.",
@@ -91,6 +128,115 @@ export default function WellDataViewer() {
 
     reader.readAsText(file);
   };
+
+  const handleOoipCalculation = async () => {
+    if (!uploadedFile || !uploadedFile.name.toLowerCase().endsWith(".las")) {
+      setOoipError("Upload a LAS file to run the OOIP workflow.");
+      return;
+    }
+    if (!Number.isFinite(ooipAreaAcres) || ooipAreaAcres <= 0) {
+      setOoipError("Area must be a positive number of acres.");
+      return;
+    }
+    if (!Number.isFinite(netToGrossCutoff) || netToGrossCutoff < 0 || netToGrossCutoff > 1) {
+      setOoipError("Net-to-gross porosity cutoff must be between 0 and 1.");
+      return;
+    }
+
+    setIsCalculatingOoip(true);
+    setOoipError(null);
+    setOoipResult(null);
+    try {
+      const session = ooipSessionId
+        ? { session_id: ooipSessionId }
+        : await uploadOoipLas(uploadedFile);
+      setOoipSessionId(session.session_id);
+      const result = await runOoipCalculation({
+        session_id: session.session_id,
+        area_acres: ooipAreaAcres,
+        net_to_gross_cutoff: netToGrossCutoff,
+        water_saturation_method: "archie",
+        archie_params: { a: 1, m: 2, n: 2, Rw: 0.1 },
+      });
+      setOoipResult(result);
+    } catch (error: unknown) {
+      setOoipSessionId(null);
+      setOoipError(
+        typeof error === "object" && error !== null && "detail" in error && typeof error.detail === "string"
+          ? error.detail
+          : error instanceof Error ? error.message : "OOIP calculation failed.",
+      );
+    } finally {
+      setIsCalculatingOoip(false);
+    }
+  };
+
+  const handleServerLasParse = async () => {
+    if (!uploadedFile || !uploadedFile.name.toLowerCase().endsWith(".las")) {
+      setServerLasError("Select a LAS file to validate with the server parser.");
+      return;
+    }
+    setIsParsingOnServer(true);
+    setServerLasError(null);
+    setServerLasInfo(null);
+    try {
+      setServerLasInfo(await parseLasFile(uploadedFile));
+    } catch (error: unknown) {
+      setServerLasError(
+        typeof error === "object" && error !== null && "detail" in error && typeof error.detail === "string"
+          ? error.detail
+          : error instanceof Error ? error.message : "Server LAS parsing failed.",
+      );
+    } finally {
+      setIsParsingOnServer(false);
+    }
+  };
+
+  const handleFaciesClassification = async () => {
+    setIsClassifying(true);
+    setFaciesError(null);
+    setFaciesResult(null);
+    try {
+      const result = await classifyFacies(logData.map((point) => ({
+        gamma: point.gr,
+        resistivity: point.res,
+        density: point.rhob,
+        porosity: point.nphi,
+        depth: point.depth,
+      })));
+      setFaciesResult(result);
+    } catch (error: unknown) {
+      setFaciesError(
+        typeof error === "object" && error !== null && "detail" in error && typeof error.detail === "string"
+          ? error.detail
+          : error instanceof Error ? error.message : "Facies classification failed.",
+      );
+    } finally {
+      setIsClassifying(false);
+    }
+  };
+
+  const resetUploadedLog = () => {
+    setUploadedLog(null);
+    setUploadedFile(null);
+    setUploadStatus(null);
+    setOoipSessionId(null);
+    setOoipResult(null);
+    setOoipError(null);
+    setServerLasInfo(null);
+    setServerLasError(null);
+    setFaciesResult(null);
+    setFaciesError(null);
+  };
+
+  const faciesCounts = faciesResult?.facies_predictions.reduce<Record<string, number>>(
+    (counts, facies) => {
+      const key = String(facies);
+      counts[key] = (counts[key] ?? 0) + 1;
+      return counts;
+    },
+    {},
+  );
 
   return (
     <div className="space-y-6">
@@ -118,8 +264,7 @@ export default function WellDataViewer() {
               variant="outline"
               className="text-xs"
               onClick={() => {
-                setUploadedLog(null);
-                setUploadStatus(null);
+                resetUploadedLog();
               }}
             >
               Restaurar Amostra
@@ -162,8 +307,7 @@ export default function WellDataViewer() {
               value={selectedWellId}
               onChange={(e) => {
                 setSelectedWellId(e.target.value);
-                setUploadedLog(null);
-                setUploadStatus(null);
+                resetUploadedLog();
               }}
             >
               {mockWells.map((w) => (
@@ -261,6 +405,116 @@ export default function WellDataViewer() {
             <p className="text-[10px] text-muted-foreground text-center mt-2">
               Zona de Pay identificada entre 2860m e 2910m (net pay = 50m)
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">LAS-based volumetric OOIP</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Uses the backend Archie workflow. It requires a LAS file with a porosity curve;
+              resistivity defaults to 20 ohm-m when absent.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="ooip-area">Area (acres)</Label>
+                <Input
+                  id="ooip-area"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={ooipAreaAcres}
+                  onChange={(event) => setOoipAreaAcres(Number(event.target.value))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ooip-ntg-cutoff">Porosity cutoff</Label>
+                <Input
+                  id="ooip-ntg-cutoff"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={netToGrossCutoff}
+                  onChange={(event) => setNetToGrossCutoff(Number(event.target.value))}
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleServerLasParse}
+              disabled={isParsingOnServer || !uploadedFile?.name.toLowerCase().endsWith(".las")}
+            >
+              {isParsingOnServer ? "Validating..." : "Validate LAS with server"}
+            </Button>
+            {serverLasError && <p role="alert" className="text-sm text-destructive">{serverLasError}</p>}
+            {serverLasInfo && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Server parsed {serverLasInfo.row_count} rows across {serverLasInfo.curves.length} curves
+                ({serverLasInfo.depth_range[0]}–{serverLasInfo.depth_range[1]}).
+              </p>
+            )}
+            <Button
+              type="button"
+              onClick={handleOoipCalculation}
+              disabled={isCalculatingOoip || !uploadedFile?.name.toLowerCase().endsWith(".las")}
+            >
+              {isCalculatingOoip ? "Calculating..." : "Calculate OOIP"}
+            </Button>
+            {!uploadedFile?.name.toLowerCase().endsWith(".las") && (
+              <p className="text-sm text-muted-foreground">Select a .las file above to enable this workflow.</p>
+            )}
+            {ooipError && <p role="alert" className="text-sm text-destructive">{ooipError}</p>}
+            {ooipResult && (
+              <div role="status" className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">OOIP</p>
+                  <p className="font-mono text-lg font-semibold">{ooipResult.ooip_bbl.toLocaleString()} STB</p>
+                </div>
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Net pay / gross pay</p>
+                  <p className="font-mono text-lg font-semibold">
+                    {ooipResult.net_pay_ft.toFixed(2)} / {ooipResult.gross_pay_ft.toFixed(2)} ft
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2">{ooipResult.note}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Backend facies classification</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Classifies each displayed depth sample using gamma ray, resistivity, density, and porosity.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button type="button" onClick={handleFaciesClassification} disabled={isClassifying || logData.length === 0}>
+              {isClassifying ? "Classifying..." : `Classify ${logData.length} samples`}
+            </Button>
+            {faciesError && <p role="alert" className="text-sm text-destructive">{faciesError}</p>}
+            {faciesResult && faciesCounts && (
+              <div role="status" className="space-y-2">
+                <p className="text-sm">
+                  {faciesResult.training_samples_count} training samples; features: {faciesResult.features_used.join(", ")}.
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {Object.entries(faciesCounts).map(([facies, count]) => (
+                    <li key={facies} className="flex justify-between rounded-md border bg-muted/30 px-3 py-2">
+                      <span>Facies {facies}</span>
+                      <span>{count} samples</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

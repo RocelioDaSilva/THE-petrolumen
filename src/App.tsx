@@ -36,6 +36,7 @@ const EconomicsView = lazy(() => import("@/components/visualizations/EconomicsVi
 const ProductionDataImportView = lazy(() => import("@/components/visualizations/ProductionDataImportView"));
 const MLDashboardView = lazy(() => import("@/components/visualizations/MLDashboardView"));
 const WellDataViewer = lazy(() => import("@/components/visualizations/WellDataViewer"));
+const WellTestAnalysisView = lazy(() => import("@/components/visualizations/WellTestAnalysisView"));
 const ConnectorsView = lazy(() => import("@/components/visualizations/ConnectorsView"));
 const FieldBasicView = lazy(() => import("@/components/visualizations/FieldBasicView"));
 const RigOperationsView = lazy(() => import("@/components/visualizations/RigOperationsView"));
@@ -189,6 +190,8 @@ function MainApp() {
         return wrap(<MLDashboardView />);
       case "well-logs":
         return wrap(<WellDataViewer />);
+      case "well-test-analysis":
+        return wrap(<WellTestAnalysisView />);
       case "connectors":
         return wrap(<ConnectorsView />);
       default:

@@ -317,3 +317,170 @@ export type ValveDepthResponse = { depth: number; method: string };
 export function valveDepth(input: ValveDepthInput) {
   return call<ValveDepthResponse>('/api/v1/reservoir/gas-lift/valve-depth', { method: 'POST', body: JSON.stringify(input) });
 }
+
+export interface WellTestDrawdownRequest {
+  time: number[];
+  pressure: number[];
+  rate: number;
+  viscosity: number;
+  total_compressibility: number;
+  porosity: number;
+  wellbore_radius: number;
+  initial_pressure: number;
+  net_pay: number;
+  formation_volume_factor?: number;
+}
+
+export interface WellTestBuildupRequest {
+  time: number[];
+  pressure: number[];
+  rate: number;
+  viscosity: number;
+  total_compressibility: number;
+  porosity: number;
+  wellbore_radius: number;
+  producing_time: number;
+  p_wf_at_shutin: number;
+  net_pay: number;
+  formation_volume_factor?: number;
+}
+
+export interface WellTestResult {
+  permeability_md: number;
+  skin: number;
+  slope_psi_per_cycle: number;
+  p1hr_psi: number;
+  regimes: {
+    radial: [number, number] | null;
+    wellbore_storage: [number, number] | null;
+    boundary: [number, number] | null;
+    radial_slope: number | null;
+    radial_std: number | null;
+    notes: string[];
+  };
+}
+
+export interface DrawdownResult extends WellTestResult {
+  intercept_psi: number;
+  radius_of_investigation_ft: number;
+}
+
+export interface BuildupResult extends WellTestResult {
+  p_star_psi: number;
+}
+
+export function analyzeWellTestDrawdown(
+  input: WellTestDrawdownRequest,
+): Promise<DrawdownResult> {
+  return call<DrawdownResult>('/api/v1/reservoir/well-test/drawdown', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function analyzeWellTestBuildup(
+  input: WellTestBuildupRequest,
+): Promise<BuildupResult> {
+  return call<BuildupResult>('/api/v1/reservoir/well-test/buildup', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface OoipUploadResult {
+  session_id: string;
+  well_summary: Record<string, unknown>;
+  curve_list: string[];
+  depth_range: number[];
+}
+
+export interface LasParseResult {
+  well: Record<string, unknown>;
+  curves: string[];
+  row_count: number;
+  depth_range: number[];
+  curve_stats: Record<string, {
+    min: number | null;
+    max: number | null;
+    mean: number | null;
+    null_count: number;
+  }>;
+}
+
+export function parseLasFile(file: File): Promise<LasParseResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return call<LasParseResult>('/api/petrophysics/las/parse', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export interface OoipCalculationRequest {
+  session_id: string;
+  area_acres: number;
+  net_to_gross_cutoff: number;
+  water_saturation_method: 'archie';
+  archie_params: {
+    a: number;
+    m: number;
+    n: number;
+    Rw: number;
+  };
+}
+
+export interface OoipCalculationResult {
+  net_pay_ft: number;
+  gross_pay_ft: number;
+  net_to_gross: number;
+  average_porosity: number;
+  average_sw: number;
+  ooip_bbl: number;
+  ooip_stb_per_acre_ft: number;
+  facies_breakdown: Record<string, Record<string, number>>;
+  per_curve_summary: Record<string, Record<string, number>>;
+  note: string;
+}
+
+export function uploadOoipLas(file: File): Promise<OoipUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return call<OoipUploadResult>('/api/workflow/ooip/upload', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export function runOoipCalculation(
+  input: OoipCalculationRequest,
+): Promise<OoipCalculationResult> {
+  return call<OoipCalculationResult>('/api/workflow/ooip/run', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface FaciesLogRecord {
+  gamma: number;
+  resistivity: number;
+  density: number;
+  porosity: number;
+  depth?: number;
+}
+
+export interface FaciesClassificationResult {
+  facies_predictions: Array<number | string>;
+  classes: Array<number | string>;
+  features_used: string[];
+  training_samples_count: number;
+  classification_report: Record<string, unknown> | null;
+}
+
+export function classifyFacies(
+  predictData: FaciesLogRecord[],
+): Promise<FaciesClassificationResult> {
+  return call<FaciesClassificationResult>('/api/engine/petrophysics/facies/classify', {
+    method: 'POST',
+    body: JSON.stringify({ predict_data: predictData }),
+  });
+}
