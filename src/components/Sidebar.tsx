@@ -313,6 +313,16 @@ export const APP_MODULES: NavModule[] = [
     defaultCategory: "Engenharia de Reservatório",
   },
   {
+    id: "reservoir-operations",
+    nameKey: "Choke, Tubing e Gas-Lift",
+    defaultName: "Choke, Tubing e Gas-Lift",
+    icon: Zap,
+    descriptionKey: "Correlações de choke, esforços de tubing e válvulas de gas-lift",
+    defaultDescription: "Correlações de choke, esforços de tubing e válvulas de gas-lift",
+    categoryKey: "productionEng",
+    defaultCategory: "Engenharia de Produção",
+  },
+  {
     id: "connectors",
     nameKey: "Conectores & Eclipse",
     defaultName: "Conectores & Eclipse",

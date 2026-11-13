@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   analyzeWellTestBuildup,
   analyzeWellTestDrawdown,
+  calculateReservoirOperation,
   classifyFacies,
   fetchCurrentUser,
   fetchProductionOverview,
@@ -248,5 +249,24 @@ describe('API base URL resolution', () => {
     await expect(classifyFacies(samples)).resolves.toEqual(response);
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/engine/petrophysics/facies/classify');
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ predict_data: samples });
+  });
+
+  it('routes reservoir operation calculations to the matching endpoint', async () => {
+    const input = {
+      q_bpd: 1000,
+      glr: 600,
+      choke_64: 32,
+    };
+    const result = { p_wh: 850, method: 'gilbert_eq_5_12' };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => result,
+    } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(calculateReservoirOperation('choke/gilbert', input)).resolves.toEqual(result);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/reservoir/choke/gilbert');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(input);
   });
 });

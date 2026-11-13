@@ -318,6 +318,32 @@ export function valveDepth(input: ValveDepthInput) {
   return call<ValveDepthResponse>('/api/v1/reservoir/gas-lift/valve-depth', { method: 'POST', body: JSON.stringify(input) });
 }
 
+export type ReservoirOperationPath =
+  | 'choke/gilbert'
+  | 'choke/critical-ratio'
+  | 'choke/sonic-gas'
+  | 'choke/subsonic-gas'
+  | 'tubing/collapse-biaxial'
+  | 'tubing/ballooning'
+  | 'tubing/piston'
+  | 'tubing/bending-stress'
+  | 'gas-lift/valve-depth'
+  | 'gas-lift/valve-open-close'
+  | 'gas-lift/orifice-size'
+  | 'gas-lift/injection-glr';
+
+export type ReservoirOperationResult = Record<string, number | string>;
+
+export function calculateReservoirOperation(
+  path: ReservoirOperationPath,
+  input: Record<string, number>,
+): Promise<ReservoirOperationResult> {
+  return call<ReservoirOperationResult>(`/api/v1/reservoir/${path}`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export interface WellTestDrawdownRequest {
   time: number[];
   pressure: number[];
