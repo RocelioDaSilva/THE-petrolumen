@@ -16,7 +16,27 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { NodalPoint, computeVlp } from "@/lib/reservoirMath";
 import { vogel, vogelCurve } from "@/lib/api";
-import { Gauge, CheckCircle, ArrowRight, Zap, RefreshCw, Cloud } from "lucide-react";
+import {
+  AlertTriangle,
+  Gauge,
+  CheckCircle,
+  ArrowRight,
+  Zap,
+  RefreshCw,
+  Cloud,
+} from "lucide-react";
+
+function getApiError(error: unknown): string {
+  if (
+    typeof error === "object"
+    && error !== null
+    && "detail" in error
+    && typeof error.detail === "string"
+  ) {
+    return error.detail;
+  }
+  return error instanceof Error ? error.message : "The calculation could not be completed.";
+}
 
 export default function NodalAnalysisView() {
   const [pRes, setPRes] = useState<number>(3400); // psia
@@ -38,6 +58,9 @@ export default function NodalAnalysisView() {
     let cancelled = false;
     setIprLoading(true);
     setIprError(null);
+    setCurves([]);
+    setOperatingPoint(null);
+    setIprSource("backend");
     (async () => {
       try {
         const nPoints = 25;
@@ -46,8 +69,7 @@ export default function NodalAnalysisView() {
         try {
           const res = await vogelCurve({ qmax: qMax, pbar: pRes, n_points: nPoints });
           iprPoints = res.points;
-        } catch (e: any) {
-          console.warn("Backend IPR failed, using local fallback:", e);
+        } catch {
           source = "local";
           const dq = qMax / (nPoints - 1);
           iprPoints = Array.from({ length: nPoints }, (_, i) => {
@@ -76,8 +98,12 @@ export default function NodalAnalysisView() {
         setCurves(merged);
         setOperatingPoint(op);
         setIprSource(source);
-      } catch (e: any) {
-        if (!cancelled) setIprError(e?.detail ?? String(e));
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setCurves([]);
+          setOperatingPoint(null);
+          setIprError(getApiError(error));
+        }
       } finally {
         if (!cancelled) setIprLoading(false);
       }
@@ -100,8 +126,8 @@ export default function NodalAnalysisView() {
         }
       }
       setVerifyState({ loading: false, result: { pwf: pTest, q_local: qLocal ?? NaN, q_backend: res.q, delta: qLocal != null ? Math.abs(res.q - qLocal) : NaN } });
-    } catch (e: any) {
-      setVerifyState({ loading: false, error: e?.detail ?? String(e) });
+    } catch (error: unknown) {
+      setVerifyState({ loading: false, error: getApiError(error) });
     }
   };
 
@@ -124,6 +150,29 @@ export default function NodalAnalysisView() {
           </Badge>
         )}
       </div>
+
+      {iprLoading && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Calculating IPR curve...
+        </p>
+      )}
+      {!iprLoading && iprSource === "local" && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <p>Backend unavailable. Displaying a local Vogel fallback.</p>
+        </div>
+      )}
+      {iprError && (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+        >
+          IPR calculation failed: {iprError}
+        </p>
+      )}
 
       {/* Operating Point Highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
