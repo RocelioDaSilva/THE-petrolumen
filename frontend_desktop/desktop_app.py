@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 import socket
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -13,6 +15,8 @@ import uvicorn
 import webview
 from fastapi.staticfiles import StaticFiles
 
+logger = logging.getLogger(__name__)
+
 
 def _resource_path(relative_path: str) -> Path:
     bundle_root = Path(
@@ -21,44 +25,99 @@ def _resource_path(relative_path: str) -> Path:
     return bundle_root / relative_path
 
 
+def _ensure_writable_directory(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryFile(dir=directory):
+        pass
+
+
+def _read_or_create_secret(secret_path: Path) -> str:
+    try:
+        secret_fd = os.open(
+            secret_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+    except FileExistsError:
+        return secret_path.read_text(encoding="utf-8").strip()
+
+    secret = secrets.token_urlsafe(48)
+    with os.fdopen(secret_fd, "w", encoding="utf-8") as secret_file:
+        secret_file.write(secret)
+        secret_file.flush()
+        os.fsync(secret_file.fileno())
+    return secret
+
+
 def _configure_user_data() -> Path:
     local_app_data = os.environ.get("LOCALAPPDATA")
     if local_app_data:
-        data_dir = Path(local_app_data) / "PetroLumen"
+        local_data_dir = Path(local_app_data) / "PetroLumen"
     elif sys.platform == "win32":
-        data_dir = Path.home() / "AppData" / "Local" / "PetroLumen"
+        local_data_dir = Path.home() / "AppData" / "Local" / "PetroLumen"
     else:
-        data_dir = Path.home() / ".local" / "share" / "PetroLumen"
-    data_dir.mkdir(parents=True, exist_ok=True)
+        local_data_dir = Path.home() / ".local" / "share" / "PetroLumen"
+
+    candidates = [local_data_dir]
+    if sys.platform == "win32":
+        roaming_app_data = Path(
+            os.environ.get("APPDATA")
+            or Path.home() / "AppData" / "Roaming"
+        )
+        candidates.append(roaming_app_data / "PetroLumen")
+        if getattr(sys, "frozen", False):
+            candidates.append(Path(sys.executable).resolve().parent / "data")
+            meipass = getattr(sys, "_MEIPASS", None)
+            if meipass:
+                candidates.append(Path(meipass) / "data")
+        candidates.append(Path(tempfile.gettempdir()) / "PetroLumen" / "data")
+
+    unique_candidates = list(dict.fromkeys(candidates))
+    failures: list[tuple[Path, OSError]] = []
+    data_dir: Path | None = None
+    secret: str | None = None
+    for candidate in unique_candidates:
+        try:
+            _ensure_writable_directory(candidate)
+            webview_dir = candidate / "webview"
+            _ensure_writable_directory(webview_dir)
+            if "PETROLUMEN_SECRET_KEY" not in os.environ:
+                secret = _read_or_create_secret(candidate / "secret.key")
+        except OSError as exc:
+            failures.append((candidate, exc))
+            continue
+        data_dir = candidate
+        break
+
+    if data_dir is None:
+        failures_text = "; ".join(
+            f"{path}: {error}" for path, error in failures
+        )
+        raise RuntimeError(
+            f"Unable to create writable PetroLumen data directories: {failures_text}"
+        ) from failures[-1][1]
+
+    if failures:
+        logger.warning(
+            "Could not use earlier PetroLumen data directories; using %s after "
+            "failures: %s",
+            data_dir,
+            "; ".join(f"{path}: {error}" for path, error in failures),
+        )
+
+    if secret is not None:
+        if len(secret) < 32:
+            raise RuntimeError(
+                f"Authentication secret at {data_dir / 'secret.key'} is missing "
+                "or invalid."
+            )
+        os.environ["PETROLUMEN_SECRET_KEY"] = secret
 
     database_path = data_dir / "petrolumen.db"
     os.environ.setdefault(
         "PETROLUMEN_DATABASE_URL",
         f"sqlite:///{database_path.resolve().as_posix()}",
     )
-
-    if "PETROLUMEN_SECRET_KEY" not in os.environ:
-        secret_path = data_dir / "secret.key"
-        try:
-            secret_fd = os.open(
-                secret_path,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                0o600,
-            )
-        except FileExistsError:
-            secret = secret_path.read_text(encoding="utf-8").strip()
-        else:
-            secret = secrets.token_urlsafe(48)
-            with os.fdopen(secret_fd, "w", encoding="utf-8") as secret_file:
-                secret_file.write(secret)
-                secret_file.flush()
-                os.fsync(secret_file.fileno())
-
-        if len(secret) < 32:
-            raise RuntimeError(
-                f"Authentication secret at {secret_path} is missing or invalid."
-            )
-        os.environ["PETROLUMEN_SECRET_KEY"] = secret
 
     return data_dir
 
@@ -71,6 +130,16 @@ class DesktopApi:
         return self._port
 
 
+def _shutdown_server(server: uvicorn.Server, server_thread: threading.Thread) -> None:
+    server.should_exit = True
+    server_thread.join(timeout=2)
+    if server_thread.is_alive():
+        logger.critical(
+            "Embedded API did not stop within 2 seconds; terminating PetroLumen."
+        )
+        os._exit(0)
+
+
 def main() -> None:
     user_data_dir = _configure_user_data()
     os.environ.setdefault("MPLBACKEND", "Agg")
@@ -78,6 +147,9 @@ def main() -> None:
     sys.path.insert(0, str(backend_path))
 
     from app.main import app
+    from app.persistence.dependencies import initialize_database_manager
+
+    initialize_database_manager(app)
 
     web_root = _resource_path("dist")
     index_path = web_root / "index.html"
@@ -134,9 +206,16 @@ def main() -> None:
         min_size=(900, 600),
     )
 
+    shutdown_lock = threading.Lock()
+    shutdown_started = False
+
     def shutdown() -> None:
-        server.should_exit = True
-        server_thread.join(timeout=5)
+        nonlocal shutdown_started
+        with shutdown_lock:
+            if shutdown_started:
+                return
+            shutdown_started = True
+        _shutdown_server(server, server_thread)
 
     window.events.closed += shutdown
     try:

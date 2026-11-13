@@ -4,7 +4,7 @@ import logging
 from threading import Lock
 from typing import Any
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -17,13 +17,13 @@ _database_initialization_lock = Lock()
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def get_database_manager(request: Request) -> DatabaseManager:
-    manager = getattr(request.app.state, "database_manager", None)
+def initialize_database_manager(app: FastAPI) -> DatabaseManager:
+    manager = getattr(app.state, "database_manager", None)
     if manager is not None:
         return manager
 
     with _database_initialization_lock:
-        manager = getattr(request.app.state, "database_manager", None)
+        manager = getattr(app.state, "database_manager", None)
         if manager is not None:
             return manager
 
@@ -41,8 +41,12 @@ def get_database_manager(request: Request) -> DatabaseManager:
             logger.exception("Could not initialize the persistence database.")
             raise
 
-        request.app.state.database_manager = manager
+        app.state.database_manager = manager
         return manager
+
+
+def get_database_manager(request: Request) -> DatabaseManager:
+    return initialize_database_manager(request.app)
 
 
 def get_auth_manager(
