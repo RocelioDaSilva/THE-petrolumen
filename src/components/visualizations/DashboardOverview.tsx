@@ -45,9 +45,14 @@ import ProductionOverview from "@/components/visualizations/ProductionOverview";
 interface DashboardOverviewProps {
   onNavigate: (moduleId: string) => void;
   onLoadSavedRun: (run: SavedSimulation) => boolean;
+  onCompareSavedRuns: (runs: [SavedSimulation, SavedSimulation]) => void;
 }
 
-export default function DashboardOverview({ onNavigate, onLoadSavedRun }: DashboardOverviewProps) {
+export default function DashboardOverview({
+  onNavigate,
+  onLoadSavedRun,
+  onCompareSavedRuns,
+}: DashboardOverviewProps) {
   const { activeScenario } = useSessionRegistry();
   const { isMetric, formatPressure, formatDepth, formatDensity, formatRate } = useUnit();
 
@@ -440,7 +445,7 @@ export default function DashboardOverview({ onNavigate, onLoadSavedRun }: Dashbo
         </div>
       </Card>
 
-      <SavedRunsPanel onLoad={onLoadSavedRun} />
+      <SavedRunsPanel onLoad={onLoadSavedRun} onCompare={onCompareSavedRuns} />
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">

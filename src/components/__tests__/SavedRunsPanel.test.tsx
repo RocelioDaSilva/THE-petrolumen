@@ -79,6 +79,30 @@ describe("SavedRunsPanel", () => {
     expect(mocks.fetchSavedSimulation).toHaveBeenCalledWith(12);
   });
 
+  it("compares exactly two selected reservoir runs", async () => {
+    const secondSummary = { ...summary, id: 13, name: "Volve low case" };
+    const thirdSummary = { ...summary, id: 14, name: "Volve high case" };
+    const secondRun = { ...run, ...secondSummary };
+    const thirdRun = { ...run, ...thirdSummary };
+    mocks.fetchSavedSimulations.mockResolvedValue([summary, secondSummary, thirdSummary]);
+    mocks.fetchSavedSimulation.mockImplementation((id: number) =>
+      Promise.resolve(id === 13 ? secondRun : id === 14 ? thirdRun : run),
+    );
+    const onCompare = vi.fn();
+    render(<SavedRunsPanel onLoad={vi.fn()} onCompare={onCompare} />);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select Volve base run for comparison" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Volve low case for comparison" }));
+
+    expect(screen.getByRole("checkbox", { name: "Select Volve high case for comparison" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Compare selected" }));
+
+    await waitFor(() => expect(onCompare).toHaveBeenCalledWith([run, secondRun]));
+    expect(mocks.fetchSavedSimulation).toHaveBeenCalledWith(12);
+    expect(mocks.fetchSavedSimulation).toHaveBeenCalledWith(13);
+    expect(mocks.fetchSavedSimulation).not.toHaveBeenCalledWith(14);
+  });
+
   it("deletes a saved run and removes it from the list", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<SavedRunsPanel onLoad={vi.fn()} />);

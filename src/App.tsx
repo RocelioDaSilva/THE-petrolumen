@@ -18,6 +18,7 @@ import { SavedSimulation } from "@/lib/api";
 // Previously 14 components were eagerly imported, loading 300+ KB upfront.
 // ---------------------------------------------------------------------------
 const DashboardOverview = lazy(() => import("@/components/visualizations/DashboardOverview"));
+const ScenarioComparisonView = lazy(() => import("@/components/visualizations/ScenarioComparisonView"));
 const WellControlView = lazy(() => import("@/components/visualizations/WellControlView"));
 const DrillingHydraulicsView = lazy(() => import("@/components/visualizations/DrillingHydraulicsView"));
 const DrillingFluidsView = lazy(() => import("@/components/visualizations/DrillingFluidsView"));
@@ -54,6 +55,9 @@ function MainApp() {
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [loadedRun, setLoadedRun] = useState<SavedSimulation | null>(null);
+  const [comparisonRuns, setComparisonRuns] = useState<
+    [SavedSimulation, SavedSimulation] | null
+  >(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       return getInitialDarkMode(localStorage.getItem(THEME_KEY));
@@ -82,6 +86,16 @@ function MainApp() {
     setActiveModule("reservoir-simulation");
     return true;
   }, []);
+  const handleCompareSavedRuns = useCallback(
+    (runs: [SavedSimulation, SavedSimulation]) => {
+      setComparisonRuns(runs);
+      setActiveModule("scenario-comparison");
+    },
+    [],
+  );
+  const handleReturnToSavedRuns = useCallback(() => {
+    setActiveModule("dashboard");
+  }, []);
 
   /** Shared Suspense loading fallback with skeleton styling. */
   const loadingFallback = <LoadingSkeleton label={t.loadingModule} />;
@@ -102,6 +116,14 @@ function MainApp() {
           <DashboardOverview
             onNavigate={setActiveModule}
             onLoadSavedRun={handleLoadSavedRun}
+            onCompareSavedRuns={handleCompareSavedRuns}
+          />,
+        );
+      case "scenario-comparison":
+        return wrap(
+          <ScenarioComparisonView
+            runs={comparisonRuns}
+            onReturnToSavedRuns={handleReturnToSavedRuns}
           />,
         );
       case "well-control":
@@ -174,11 +196,20 @@ function MainApp() {
           <DashboardOverview
             onNavigate={setActiveModule}
             onLoadSavedRun={handleLoadSavedRun}
+            onCompareSavedRuns={handleCompareSavedRuns}
           />,
         );
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModule, t.loadingModule, loadedRun, handleLoadSavedRun]);
+  }, [
+    activeModule,
+    t.loadingModule,
+    loadedRun,
+    comparisonRuns,
+    handleLoadSavedRun,
+    handleCompareSavedRuns,
+    handleReturnToSavedRuns,
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">

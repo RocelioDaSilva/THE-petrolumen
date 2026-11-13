@@ -22,6 +22,7 @@ import {
   Wrench,
   Search,
   FileUp,
+  GitCompare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,6 +191,16 @@ export const APP_MODULES: NavModule[] = [
     defaultDescription: "Separadores 2/3 Fases & Coluna TEG",
     categoryKey: "surfaceFacilities",
     defaultCategory: "Engenharia de Superfície",
+  },
+  {
+    id: "scenario-comparison",
+    nameKey: "Scenario Comparison",
+    defaultName: "Scenario Comparison",
+    icon: GitCompare,
+    descriptionKey: "Compare saved reservoir simulation scenarios",
+    defaultDescription: "Compare saved reservoir simulation scenarios",
+    categoryKey: "reservoirEng",
+    defaultCategory: "Engenharia de Reservatório",
   },
   {
     id: "reservoir-simulation",

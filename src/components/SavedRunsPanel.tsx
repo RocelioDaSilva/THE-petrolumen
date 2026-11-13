@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Clock3, Database, LoaderCircle, LogIn, RefreshCw, Trash2 } from "lucide-react";
+import {
+  Clock3,
+  Database,
+  GitCompare,
+  LoaderCircle,
+  LogIn,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,25 +22,33 @@ import { useAuth } from "@/lib/authContext";
 
 interface SavedRunsPanelProps {
   onLoad: (run: SavedSimulation) => boolean;
+  onCompare?: (runs: [SavedSimulation, SavedSimulation]) => void;
 }
 
-export default function SavedRunsPanel({ onLoad }: SavedRunsPanelProps) {
+export default function SavedRunsPanel({ onLoad, onCompare }: SavedRunsPanelProps) {
   const { user, openAuthDialog } = useAuth();
   const [runs, setRuns] = useState<SavedSimulationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeRunId, setActiveRunId] = useState<number | null>(null);
+  const [selectedRunIds, setSelectedRunIds] = useState<number[]>([]);
+  const [isComparing, setIsComparing] = useState(false);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
     if (!user) {
       setRuns([]);
+      setSelectedRunIds([]);
       setError("");
       return;
     }
     setIsLoading(true);
     setError("");
     try {
-      setRuns(await fetchSavedSimulations());
+      const savedRuns = await fetchSavedSimulations();
+      setRuns(savedRuns);
+      setSelectedRunIds((current) =>
+        current.filter((id) => savedRuns.some((run) => run.id === id)),
+      );
     } catch (requestError) {
       setError(getApiError(requestError));
     } finally {
@@ -66,10 +82,51 @@ export default function SavedRunsPanel({ onLoad }: SavedRunsPanelProps) {
     try {
       await removeSavedSimulation(id);
       setRuns((current) => current.filter((run) => run.id !== id));
+      setSelectedRunIds((current) => current.filter((runId) => runId !== id));
     } catch (requestError) {
       setError(getApiError(requestError));
     } finally {
       setActiveRunId(null);
+    }
+  };
+
+  const toggleComparisonSelection = (id: number) => {
+    setSelectedRunIds((current) => {
+      if (current.includes(id)) return current.filter((runId) => runId !== id);
+      if (current.length >= 2) return current;
+      return [...current, id];
+    });
+  };
+
+  const handleCompare = async () => {
+    if (!onCompare || selectedRunIds.length !== 2) return;
+
+    const selected = selectedRunIds
+      .map((id) => runs.find((run) => run.id === id))
+      .filter((run): run is SavedSimulationSummary => run !== undefined);
+    if (selected.length !== 2) {
+      setError("Refresh the saved runs list and select two runs again.");
+      return;
+    }
+
+    setIsComparing(true);
+    setError("");
+    try {
+      const [runA, runB] = await Promise.all(
+        selected.map((run) => fetchSavedSimulation(run.id)),
+      );
+      if (
+        runA.simulation_type !== "reservoir-simulation" ||
+        runB.simulation_type !== "reservoir-simulation"
+      ) {
+        setError("Only reservoir simulation runs can be compared right now.");
+        return;
+      }
+      onCompare([runA, runB]);
+    } catch (requestError) {
+      setError(getApiError(requestError));
+    } finally {
+      setIsComparing(false);
     }
   };
 
@@ -131,6 +188,27 @@ export default function SavedRunsPanel({ onLoad }: SavedRunsPanelProps) {
         ) : (
           <div className="space-y-2">
             {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+            {onCompare && (
+              <div className="flex flex-col justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3 sm:flex-row sm:items-center">
+                <p className="text-xs text-muted-foreground" role="status">
+                  Select 2 reservoir simulation runs to compare ({selectedRunIds.length}/2).
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => void handleCompare()}
+                  disabled={selectedRunIds.length !== 2 || isComparing || activeRunId !== null}
+                >
+                  {isComparing ? (
+                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <GitCompare className="h-3.5 w-3.5" />
+                  )}
+                  Compare selected
+                </Button>
+              </div>
+            )}
             {runs.map((run) => (
               <div
                 key={run.id}
@@ -146,11 +224,35 @@ export default function SavedRunsPanel({ onLoad }: SavedRunsPanelProps) {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  {onCompare && (
+                    <label
+                      className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                      title={
+                        run.simulation_type === "reservoir-simulation"
+                          ? "Select this run for comparison"
+                          : "Only reservoir simulation runs can be compared"
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${run.name} for comparison`}
+                        checked={selectedRunIds.includes(run.id)}
+                        disabled={
+                          run.simulation_type !== "reservoir-simulation" ||
+                          (selectedRunIds.length >= 2 && !selectedRunIds.includes(run.id)) ||
+                          isComparing ||
+                          activeRunId !== null
+                        }
+                        onChange={() => toggleComparisonSelection(run.id)}
+                        className="h-4 w-4 accent-primary"
+                      />
+                    </label>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => void handleLoad(run.id)}
-                    disabled={activeRunId !== null}
+                    disabled={activeRunId !== null || isComparing}
                   >
                     {activeRunId === run.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : "Load"}
                   </Button>
@@ -158,7 +260,7 @@ export default function SavedRunsPanel({ onLoad }: SavedRunsPanelProps) {
                     size="icon"
                     variant="ghost"
                     onClick={() => void handleDelete(run.id)}
-                    disabled={activeRunId !== null}
+                    disabled={activeRunId !== null || isComparing}
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     aria-label={`Delete ${run.name}`}
                     title="Delete saved run"
