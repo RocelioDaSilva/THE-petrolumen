@@ -66,6 +66,7 @@ backend_tree = Tree(
 
 datas = [
     (str(FRONTEND_DIST), "dist"),
+    (str(ROOT / "public" / "petrolumen.ico"), "public"),
     (str(ROOT / "frontend_desktop" / "PetroLumen.exe.config"), "."),
     *[
         (source, str(Path(destination).parent))
@@ -94,6 +95,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="PetroLumen",
+    icon=str(ROOT / "public" / "petrolumen.ico"),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -72,7 +72,7 @@ class DesktopApi:
 
 
 def main() -> None:
-    _configure_user_data()
+    user_data_dir = _configure_user_data()
     os.environ.setdefault("MPLBACKEND", "Agg")
     backend_path = _resource_path("backend")
     sys.path.insert(0, str(backend_path))
@@ -122,6 +122,9 @@ def main() -> None:
         raise RuntimeError("The embedded FastAPI server did not start within 5 seconds.")
 
     api = DesktopApi(port)
+    icon_path = _resource_path("public/petrolumen.ico")
+    if not icon_path.is_file():
+        raise FileNotFoundError(f"Desktop application icon not found at {icon_path}.")
     window = webview.create_window(
         "PetroLumen",
         f"http://127.0.0.1:{port}/ui/?{urlencode({'api_port': port})}",
@@ -137,7 +140,11 @@ def main() -> None:
 
     window.events.closed += shutdown
     try:
-        webview.start()
+        webview.start(
+            icon=str(icon_path),
+            private_mode=False,
+            storage_path=str(user_data_dir / "webview"),
+        )
     finally:
         shutdown()
 

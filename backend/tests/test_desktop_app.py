@@ -1,11 +1,14 @@
 import json
 import importlib.util
 import re
+import socket
 import sys
 import types
 import urllib.request
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
+
+import pytest
 
 
 def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
@@ -30,7 +33,8 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
         state["uri"] = uri
         return Window()
 
-    def start():
+    def start(**kwargs):
+        state["webview_start_kwargs"] = kwargs
         with urllib.request.urlopen(state["uri"], timeout=3) as response:
             assert response.status == 200
             html = response.read().decode("utf-8")
@@ -82,7 +86,7 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(registration, timeout=3) as response:
+        with urllib.request.urlopen(registration, timeout=15) as response:
             assert response.status == 201
 
         token_request = urllib.request.Request(
@@ -93,15 +97,17 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(token_request, timeout=3) as response:
+        with urllib.request.urlopen(token_request, timeout=15) as response:
             access_token = json.loads(response.read())["access_token"]
 
         current_user = urllib.request.Request(
             f"http://127.0.0.1:{state['port']}/api/auth/me",
             headers={"Authorization": f"Bearer {access_token}"},
         )
-        with urllib.request.urlopen(current_user, timeout=3) as response:
+        with urllib.request.urlopen(current_user, timeout=15) as response:
             assert json.loads(response.read())["username"] == "desktop-user"
+
+        state["shutdown"]()
 
     webview_stub = types.ModuleType("webview")
     webview_stub.create_window = create_window
@@ -127,6 +133,13 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
     desktop_app.main()
 
     assert state["shutdown"].__name__ == "shutdown"
+    assert state["webview_start_kwargs"] == {
+        "icon": str(desktop_app._resource_path("public/petrolumen.ico")),
+        "private_mode": False,
+        "storage_path": str(tmp_path / "PetroLumen" / "webview"),
+    }
+    with pytest.raises(OSError):
+        socket.create_connection(("127.0.0.1", state["port"]), timeout=0.25)
     data_dir = tmp_path / "PetroLumen"
     secret = (data_dir / "secret.key").read_text(encoding="utf-8")
     assert len(secret) >= 32

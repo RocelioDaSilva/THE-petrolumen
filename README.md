@@ -14,8 +14,8 @@ on the bundled files alongside it. The packaged app does not require Python or
 Node.js. Windows still needs the Microsoft Edge WebView2 Runtime and .NET
 Framework for the embedded browser and desktop window.
 
-The app stores its local database and persistent authentication key in
-`%LOCALAPPDATA%\PetroLumen`.
+The app stores its local database, persistent authentication key, and dedicated
+WebView profile in `%LOCALAPPDATA%\PetroLumen`.
 
 ## For Developers
 
@@ -35,8 +35,9 @@ builds the React frontend, and creates an onedir package at
 `PetroLumen.exe`. To skip work when dependencies or `dist/` are already
 current, pass `-SkipDependencyInstall` and/or `-SkipFrontendBuild`.
 
-The package stores user data in `%LOCALAPPDATA%\PetroLumen`; the generated
-`release/` folder is local build output and is not committed to the repository.
+The package stores user data and its WebView profile in
+`%LOCALAPPDATA%\PetroLumen`; the generated `release/` folder is local build
+output and is not committed to the repository.
 
 ## Quick Start
 
