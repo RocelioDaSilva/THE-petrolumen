@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   analyzeWellTestBuildup,
   analyzeWellTestDrawdown,
+  calculateEos,
+  calculateFlash,
+  calculateMaterialBalance,
+  calculateProductionEconomics,
   calculateReservoirOperation,
   classifyFacies,
   fetchCurrentUser,
@@ -11,6 +15,7 @@ import {
   importProductionCsv,
   parseLasFile,
   resolveApiBaseUrl,
+  runBlackOilSimulation,
   runOoipCalculation,
   setApiAuthToken,
   uploadOoipLas,
@@ -268,5 +273,128 @@ describe('API base URL resolution', () => {
     await expect(calculateReservoirOperation('choke/gilbert', input)).resolves.toEqual(result);
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/reservoir/choke/gilbert');
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(input);
+  });
+
+  it('sends the black-oil simulation using the backend payload shape', async () => {
+    const input = {
+      grid: { nx: 1, ny: 1, nz: 1, dx: 50, dy: 50, dz: 10 },
+      porosity: [0.2],
+      permeability: [100],
+      rock_compressibility: 0,
+      fluid_properties: {
+        water_viscosity: 1,
+        oil_viscosity: 2,
+        gas_viscosity: 0.02,
+      },
+      initial_pressure: 3000,
+      initial_water_saturation: [0.2],
+      initial_gas_saturation: [0],
+      wells: [],
+      timesteps: [1],
+    };
+    const response = { pressure: [3000], saturations: { water: [0.2], gas: [0] }, wells: [] };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => response,
+    } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(runBlackOilSimulation(input)).resolves.toEqual(response);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/simulate/black-oil');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(input);
+  });
+
+  it('sends EOS and flash requests with component composition and EOS selection', async () => {
+    const input = {
+      pressure: 5_000_000,
+      temperature: 250,
+      eos_type: 'PR' as const,
+      components: [{
+        name: 'methane',
+        critical_pressure: 4_599_000,
+        critical_temperature: 190.56,
+        acentric_factor: 0.011,
+      }],
+      composition: { methane: 1 },
+    };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ z_factor: 0.9 }),
+    } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(calculateEos(input)).resolves.toEqual({ z_factor: 0.9 });
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/engine/pvt/eos');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(input);
+
+    const flashResponse = {
+      phase: 'vapor',
+      vapor_fraction: 1,
+      liquid_composition: null,
+      vapor_composition: { methane: 1 },
+      K_values: { methane: 2 },
+    };
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => flashResponse,
+    } as Response);
+    await expect(calculateFlash(input)).resolves.toEqual(flashResponse);
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/engine/pvt/flash');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual(input);
+  });
+
+  it('sends material-balance and production-economics requests using backend schemas', async () => {
+    const materialBalance = {
+      reservoir_type: 'gas' as const,
+      pressure_history: [4000, 3200],
+      production_history: [{ gas_prod: 5_000_000, water_prod: 100 }],
+    };
+    const economics = {
+      oil_price: 70,
+      gas_price: 3,
+      discount_rate: 10,
+      project_life: 2,
+      capex: { drilling: 1_000_000 },
+      opex: { fixed_opex: 50_000 },
+      tax_rate: 0.34,
+      water_disposal_cost_per_bbl: 1.5,
+      oil_production: [100_000, 80_000],
+      gas_production: [500_000, 400_000],
+      water_production: [20_000, 30_000],
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => String(input).endsWith('/mbal')
+        ? {
+          reservoir_type: 'gas',
+          ooip_or_ogip: 1_500_000,
+          drive_indices: null,
+          note: 'scalar result',
+        }
+        : {
+          npv: 25_000,
+          irr: 12,
+          payout: 2,
+          roi: 15,
+          cashflow: [-1_000_000, 500_000, 600_000],
+          cumulative_cashflow: [-1_000_000, -500_000, 100_000],
+          cash_flow_details: {},
+        },
+    } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(calculateMaterialBalance(materialBalance)).resolves.toMatchObject({
+      ooip_or_ogip: 1_500_000,
+    });
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/engine/pvt/mbal');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(materialBalance);
+
+    await expect(calculateProductionEconomics(economics)).resolves.toMatchObject({ npv: 25_000 });
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/engine/production/economics');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual(economics);
   });
 });

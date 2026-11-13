@@ -26,6 +26,7 @@ const CementingView = lazy(() => import("@/components/visualizations/CementingVi
 const CasingAndDirectionalView = lazy(() => import("@/components/visualizations/CasingAndDirectionalView"));
 const SurfaceFacilitiesView = lazy(() => import("@/components/visualizations/SurfaceFacilitiesView"));
 const ReservoirSimulationView = lazy(() => import("@/components/visualizations/ReservoirSimulationView"));
+const BlackOilSimulationView = lazy(() => import("@/components/visualizations/BlackOilSimulationView"));
 const ReservoirCompressibilityView = lazy(() => import("@/components/visualizations/ReservoirCompressibilityView"));
 const ReservoirGrid3D = lazy(() => import("@/components/visualizations/ReservoirGrid3D"));
 const DeclineCurveAnalysis = lazy(() => import("@/components/visualizations/DeclineCurveAnalysis"));
@@ -163,12 +164,16 @@ function MainApp() {
               <TabsList className="bg-muted p-1">
                 <TabsTrigger value="impes">Modelo Numérico IMPES 1D</TabsTrigger>
                 <TabsTrigger value="grid3d">Malha Geocelular 3D Interativa</TabsTrigger>
+                <TabsTrigger value="black-oil">Black-oil (backend)</TabsTrigger>
               </TabsList>
               <TabsContent value="impes" className="pt-2">
                 <ReservoirSimulationView savedRun={loadedRun} />
               </TabsContent>
               <TabsContent value="grid3d" className="pt-2">
                 <ReservoirGrid3D />
+              </TabsContent>
+              <TabsContent value="black-oil" className="pt-2">
+                <BlackOilSimulationView />
               </TabsContent>
             </Tabs>
           </div>

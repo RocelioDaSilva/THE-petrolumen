@@ -180,6 +180,174 @@ export interface ProductionOverview {
   latest_well_rates: ProductionWellLatestRates[];
 }
 
+export interface BlackOilSimulationInput {
+  grid: { nx: number; ny: number; nz: number; dx: number; dy: number; dz: number };
+  porosity: number[];
+  permeability: number[];
+  rock_compressibility: number;
+  fluid_properties: {
+    water_viscosity: number;
+    oil_viscosity: number;
+    gas_viscosity: number;
+  };
+  initial_pressure: number;
+  initial_water_saturation: number[];
+  initial_gas_saturation: number[];
+  wells?: Array<{
+    name: string;
+    i: number;
+    j: number;
+    perforation_layers: number[];
+    well_type: "producer" | "injector";
+    controls: Record<string, number>;
+  }>;
+  timesteps: number[];
+}
+
+export interface BlackOilSimulationResponse {
+  pressure: number[];
+  saturations: Record<string, number[]>;
+  wells: Array<{ name: string; rates: Record<string, unknown> }>;
+}
+
+export function runBlackOilSimulation(
+  input: BlackOilSimulationInput,
+): Promise<BlackOilSimulationResponse> {
+  return call<BlackOilSimulationResponse>('/api/simulate/black-oil', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface EosComponentInput {
+  name: string;
+  critical_pressure: number;
+  critical_temperature: number;
+  acentric_factor: number;
+  molecular_weight?: number;
+}
+
+export interface EosInput {
+  pressure: number;
+  temperature: number;
+  components: EosComponentInput[];
+  composition: Record<string, number>;
+  eos_type: "PR" | "SRK";
+}
+
+export interface EosResponse {
+  z_factor: number;
+}
+
+export interface FlashResponse {
+  phase: "liquid" | "vapor" | "two_phase";
+  vapor_fraction: number;
+  liquid_composition: Record<string, number> | null;
+  vapor_composition: Record<string, number> | null;
+  K_values: Record<string, number>;
+}
+
+export function calculateEos(input: EosInput): Promise<EosResponse> {
+  return call<EosResponse>('/api/engine/pvt/eos', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function calculateFlash(
+  input: EosInput & { initial_k_values?: number[] },
+): Promise<FlashResponse> {
+  return call<FlashResponse>('/api/engine/pvt/flash', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface MaterialBalanceInput {
+  reservoir_type: "oil" | "gas";
+  pressure_history: number[];
+  production_history: Array<{
+    oil_prod?: number | null;
+    gas_prod?: number | null;
+    water_prod?: number | null;
+  }>;
+  pvt_data?: Array<{
+    pressure: number;
+    bo?: number | null;
+    bg?: number | null;
+    rs?: number | null;
+    rv?: number | null;
+    z?: number | null;
+  }> | null;
+  m?: number;
+  We?: number;
+  Wp?: number;
+  Gp?: number;
+  Bw?: number;
+  cw?: number;
+  cf?: number;
+  Swi?: number;
+}
+
+export interface MaterialBalanceResponse {
+  reservoir_type: string;
+  ooip_or_ogip: number;
+  drive_indices: Record<string, number> | null;
+  note: string;
+}
+
+export function calculateMaterialBalance(
+  input: MaterialBalanceInput,
+): Promise<MaterialBalanceResponse> {
+  return call<MaterialBalanceResponse>('/api/engine/pvt/mbal', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface ProductionEconomicsInput {
+  oil_price: number;
+  gas_price: number;
+  discount_rate: number;
+  project_life: number;
+  capex: Record<string, number>;
+  opex: Record<string, number>;
+  tax_rate?: number;
+  water_disposal_cost_per_bbl?: number;
+  oil_production: number[];
+  gas_production: number[];
+  water_production: number[];
+}
+
+export interface ProductionEconomicsResponse {
+  npv: number;
+  irr: number | null;
+  payout: number | null;
+  roi: number | null;
+  cashflow: number[];
+  cumulative_cashflow: number[];
+  cash_flow_details: {
+    revenue: { oil: number[]; gas: number[]; total: number[] };
+    costs: { opex: number[]; water_disposal: number[]; total: number[]; initial_capex: number };
+    depreciation: number[];
+    ebitda: number[];
+    ebit: number[];
+    taxes: number[];
+    net_income: number[];
+    operating_cash_flow: number[];
+    cash_flow: number[];
+  };
+}
+
+export function calculateProductionEconomics(
+  input: ProductionEconomicsInput,
+): Promise<ProductionEconomicsResponse> {
+  return call<ProductionEconomicsResponse>('/api/engine/production/economics', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export function fetchProductionWells(): Promise<ProductionWell[]> {
   return call<ProductionWell[]>('/api/production/wells');
 }

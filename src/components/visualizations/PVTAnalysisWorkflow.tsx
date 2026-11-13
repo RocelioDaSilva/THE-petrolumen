@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FluidCompositionEditor } from "./pvt/FluidCompositionEditor";
 import { ModelManager } from "./pvt/ModelManager";
 import PVTCalculator from "./PVTCalculator";
+import PvtEosFlashView from "./PvtEosFlashView";
 import {
   deletePVTModel,
   getSavedPVTModels,
@@ -14,10 +15,11 @@ import type {
   SavedPVTModel,
 } from "@/lib/pvt/types";
 
-type WorkflowTab = "calculation" | "composition" | "models";
+type WorkflowTab = "calculation" | "eos-flash" | "composition" | "models";
 
 const tabs: Array<{ id: WorkflowTab; label: string }> = [
   { id: "calculation", label: "Calculation" },
+  { id: "eos-flash", label: "EOS & Flash" },
   { id: "composition", label: "Composition" },
   { id: "models", label: "Models" },
 ];
@@ -147,6 +149,7 @@ export default function PVTAnalysisWorkflow() {
         aria-labelledby={`pvt-tab-${activeTab}`}
       >
         {activeTab === "calculation" && <PVTCalculator />}
+        {activeTab === "eos-flash" && <PvtEosFlashView />}
         {activeTab === "composition" && (
           <div className="space-y-4">
             {!selectedModel && (

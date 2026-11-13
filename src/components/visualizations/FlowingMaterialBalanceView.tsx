@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { calculateFMBGas } from "@/lib/reservoirMath";
 import { Target, Layers, Activity, RefreshCw } from "lucide-react";
+import MaterialBalanceEnginePanel from "./MaterialBalanceEnginePanel";
 
 export default function FlowingMaterialBalanceView() {
   const [pi, setPi] = useState<number>(3600); // psia
@@ -179,6 +180,7 @@ export default function FlowingMaterialBalanceView() {
           </CardContent>
         </Card>
       </div>
+      <MaterialBalanceEnginePanel />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { calculateEconomics, EconomicsInput } from "@/lib/reservoirMath";
 import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import { DollarSign, TrendingUp, Calculator, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
 import { useSessionRegistry } from "@/lib/sessionRegistry";
+import ProductionEconomicsEnginePanel from "./ProductionEconomicsEnginePanel";
 
 export default function EconomicsView() {
   const { activeScenario, updateActiveParameters } = useSessionRegistry();
@@ -291,6 +292,7 @@ export default function EconomicsView() {
           </CardContent>
         </Card>
       </div>
+      <ProductionEconomicsEnginePanel />
     </div>
   );
 }

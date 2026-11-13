@@ -256,6 +256,9 @@ describe("PVT workflow", () => {
     window.localStorage.clear();
     render(<PVTAnalysisWorkflow />);
     expect(screen.getByText("Current PVT calculation view")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "EOS & Flash" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "EOS & Flash" }));
+    expect(screen.getByRole("heading", { name: "Mixture conditions" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Models" }));
     fireEvent.change(screen.getByLabelText("Model name"), {
