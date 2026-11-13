@@ -139,6 +139,7 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
     monkeypatch.setenv("PETROLUMEN_SECRET_KEY", "desktop-test-secret-key-at-least-32")
 
     desktop_app = _load_desktop_app()
+    monkeypatch.setattr(desktop_app, "_webview2_runtime_available", lambda: True)
 
     server_join_calls = [0]
     server_join_timeouts = []
@@ -176,10 +177,84 @@ def test_desktop_launcher_starts_embedded_api(monkeypatch, tmp_path):
     secret = (data_dir / "secret.key").read_text(encoding="utf-8")
     assert len(secret) >= 32
     assert (data_dir / "webview").is_dir()
+    assert (data_dir / "logs" / "petrolumen.log").is_file()
     assert (data_dir / "petrolumen.db").is_file()
     assert sys.modules["app.main"].app.state.database_manager.db_url == (
         f"sqlite:///{(data_dir / 'petrolumen.db').resolve().as_posix()}"
     )
+
+
+@pytest.mark.parametrize(
+    ("import_error", "expected_title", "expected_url"),
+    [
+        (
+            "WebView2 runtime unavailable",
+            "Microsoft Edge WebView2 Runtime required",
+            "https://developer.microsoft.com/microsoft-edge/webview2/",
+        ),
+        (
+            "No module named clr; .NET Framework is unavailable",
+            ".NET Framework 4.8 required",
+            "https://dotnet.microsoft.com/download/dotnet-framework/net48",
+        ),
+    ],
+)
+def test_webview_import_failure_shows_runtime_installation_help(
+    monkeypatch, import_error, expected_title, expected_url
+):
+    import builtins
+
+    desktop_app = _load_desktop_app()
+    dialogs = []
+    original_import = builtins.__import__
+
+    def fail_webview_import(name, *args, **kwargs):
+        if name == "webview":
+            raise ImportError(import_error)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(desktop_app, "_webview2_runtime_available", lambda: True)
+    monkeypatch.setattr(builtins, "__import__", fail_webview_import)
+    monkeypatch.setattr(
+        desktop_app,
+        "_show_startup_dialog",
+        lambda title, message: dialogs.append((title, message)),
+    )
+
+    desktop_app.main()
+
+    assert len(dialogs) == 1
+    title, message = dialogs[0]
+    assert title == expected_title
+    assert expected_url in message
+
+
+def test_missing_webview2_runtime_shows_download_dialog(monkeypatch):
+    desktop_app = _load_desktop_app()
+    dialogs = []
+    monkeypatch.setattr(desktop_app, "_webview2_runtime_available", lambda: False)
+    monkeypatch.setattr(
+        desktop_app,
+        "_show_startup_dialog",
+        lambda title, message: dialogs.append((title, message)),
+    )
+
+    desktop_app.main()
+
+    assert len(dialogs) == 1
+    assert dialogs[0][0] == "Microsoft Edge WebView2 Runtime required"
+    assert desktop_app.WEBVIEW2_DOWNLOAD_URL in dialogs[0][1]
+
+
+def test_webview2_runtime_preflight_checks_configured_folder(monkeypatch, tmp_path):
+    desktop_app = _load_desktop_app()
+    runtime_folder = tmp_path / "webview2"
+    runtime_folder.mkdir()
+    (runtime_folder / "msedgewebview2.exe").touch()
+    monkeypatch.setattr(desktop_app.sys, "platform", "win32")
+    monkeypatch.setenv("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", str(runtime_folder))
+
+    assert desktop_app._webview2_runtime_available()
 
 
 def test_user_data_falls_back_to_roaming_app_data_on_permission_error(

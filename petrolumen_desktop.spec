@@ -67,6 +67,7 @@ backend_tree = Tree(
 datas = [
     (str(FRONTEND_DIST), "dist"),
     (str(ROOT / "public" / "petrolumen.ico"), "public"),
+    (str(ROOT / "release" / "desktop" / "README.txt"), "."),
     (str(ROOT / "frontend_desktop" / "PetroLumen.exe.config"), "."),
     *[
         (source, str(Path(destination).parent))

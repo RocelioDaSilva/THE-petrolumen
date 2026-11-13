@@ -8,14 +8,30 @@ import sys
 import tempfile
 import threading
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from types import ModuleType
 from urllib.parse import urlencode
 
 import uvicorn
-import webview
 from fastapi.staticfiles import StaticFiles
 
 logger = logging.getLogger(__name__)
+
+WEBVIEW2_DOWNLOAD_URL = "https://developer.microsoft.com/microsoft-edge/webview2/"
+DOTNET_FRAMEWORK_DOWNLOAD_URL = (
+    "https://dotnet.microsoft.com/download/dotnet-framework/net48"
+)
+
+
+def _webview2_installation_guidance() -> tuple[str, str]:
+    return (
+        "Microsoft Edge WebView2 Runtime required",
+        "PetroLumen could not start because the Microsoft Edge WebView2 Runtime "
+        "is missing or unavailable. Install the Evergreen WebView2 Runtime, "
+        "then restart PetroLumen:\n\n"
+        f"{WEBVIEW2_DOWNLOAD_URL}",
+    )
 
 
 def _resource_path(relative_path: str) -> Path:
@@ -47,6 +63,89 @@ def _read_or_create_secret(secret_path: Path) -> str:
         secret_file.flush()
         os.fsync(secret_file.fileno())
     return secret
+
+
+def _webview2_runtime_available() -> bool:
+    if sys.platform != "win32":
+        return True
+
+    configured_folder = os.environ.get("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER")
+    if configured_folder and (
+        Path(configured_folder) / "msedgewebview2.exe"
+    ).is_file():
+        return True
+
+    runtime_roots = []
+    for program_files in (
+        os.environ.get("ProgramFiles(x86)"),
+        os.environ.get("ProgramFiles"),
+        os.environ.get("LOCALAPPDATA"),
+    ):
+        if program_files:
+            runtime_roots.append(
+                Path(program_files) / "Microsoft" / "EdgeWebView" / "Application"
+            )
+    return any(
+        any(runtime_root.glob("*/msedgewebview2.exe"))
+        for runtime_root in runtime_roots
+    )
+
+
+def _startup_error_guidance(exc: Exception) -> tuple[str, str] | None:
+    error_text = f"{type(exc).__name__}: {exc}".casefold()
+    if any(
+        marker in error_text
+        for marker in ("webview2", "edgechromium", "msedgewebview2", "webview2loader")
+    ):
+        return _webview2_installation_guidance()
+    if any(
+        marker in error_text
+        for marker in (
+            ".net",
+            "net framework",
+            "pythonnet",
+            "python.runtime",
+            "clr_loader",
+            "no module named clr",
+            "importing clr",
+            "could not load file or assembly",
+            "0x80131700",
+        )
+    ):
+        return (
+            ".NET Framework 4.8 required",
+            "PetroLumen could not initialize its Windows desktop runtime. Install "
+            "Microsoft .NET Framework 4.8, then restart PetroLumen:\n\n"
+            f"{DOTNET_FRAMEWORK_DOWNLOAD_URL}",
+        )
+    return None
+
+
+def _show_startup_dialog(title: str, message: str) -> None:
+    from tkinter import messagebox
+
+    messagebox.showerror(title, message)
+
+
+def _configure_file_logging(data_dir: Path) -> tuple[logging.Handler, int]:
+    log_dir = data_dir / "logs"
+    _ensure_writable_directory(log_dir)
+    handler = RotatingFileHandler(
+        log_dir / "petrolumen.log",
+        maxBytes=1_000_000,
+        backupCount=3,
+        encoding="utf-8",
+    )
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    )
+
+    root_logger = logging.getLogger()
+    previous_level = root_logger.level
+    root_logger.addHandler(handler)
+    if root_logger.level > logging.INFO:
+        root_logger.setLevel(logging.INFO)
+    return handler, previous_level
 
 
 def _configure_user_data() -> Path:
@@ -81,6 +180,7 @@ def _configure_user_data() -> Path:
             _ensure_writable_directory(candidate)
             webview_dir = candidate / "webview"
             _ensure_writable_directory(webview_dir)
+            _ensure_writable_directory(candidate / "logs")
             if "PETROLUMEN_SECRET_KEY" not in os.environ:
                 secret = _read_or_create_secret(candidate / "secret.key")
         except OSError as exc:
@@ -141,7 +241,31 @@ def _shutdown_server(server: uvicorn.Server, server_thread: threading.Thread) ->
 
 
 def main() -> None:
+    if not _webview2_runtime_available():
+        _show_startup_dialog(*_webview2_installation_guidance())
+        return
+
+    try:
+        import webview
+    except Exception as exc:
+        guidance = _startup_error_guidance(exc)
+        if guidance is None:
+            raise
+        _show_startup_dialog(*guidance)
+        return
+
     user_data_dir = _configure_user_data()
+    file_handler, previous_log_level = _configure_file_logging(user_data_dir)
+    root_logger = logging.getLogger()
+    try:
+        _run_desktop_app(webview, user_data_dir)
+    finally:
+        root_logger.removeHandler(file_handler)
+        file_handler.close()
+        root_logger.setLevel(previous_log_level)
+
+
+def _run_desktop_app(webview: ModuleType, user_data_dir: Path) -> None:
     os.environ.setdefault("MPLBACKEND", "Agg")
     backend_path = _resource_path("backend")
     sys.path.insert(0, str(backend_path))
@@ -224,6 +348,12 @@ def main() -> None:
             private_mode=False,
             storage_path=str(user_data_dir / "webview"),
         )
+    except Exception as exc:
+        guidance = _startup_error_guidance(exc)
+        if guidance is None:
+            raise
+        logger.exception("Desktop webview startup failed.")
+        _show_startup_dialog(*guidance)
     finally:
         shutdown()
 
