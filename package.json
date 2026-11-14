@@ -5,7 +5,7 @@
     "type":  "module",
     "scripts":  {
                     "dev":  "vite --host 0.0.0.0 --port 3000",
-                    "build":  "tsc \u0026\u0026 vite build",
+                    "build":  "tsc \u0026\u0026 vite build --target esnext --minify=false",
                     "lint":  "tsc --noEmit",
                     "test":  "npx tsx src/testRunner.ts \u0026\u0026 vitest run",
                     "test:benchmarks":  "npx tsx src/testRunner.ts",

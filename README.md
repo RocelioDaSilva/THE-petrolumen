@@ -4,6 +4,21 @@ PetroLúmen is a React and FastAPI petroleum engineering workbench with a PyWebV
 
 ---
 
+## Features
+
+- **Well testing:** pressure drawdown and buildup analysis with permeability, skin, pressure estimates, and flow-regime diagnostics.
+- **PVT and EOS:** reservoir-fluid correlations plus Peng–Robinson and SRK Z-factor calculations and a Wilson-K/Rachford–Rice screening flash.
+- **Reservoir operations:** choke-flow, tubing-stress/movement, and gas-lift valve/orifice calculations.
+- **Reservoir material balance and simulation:** backend Havlena–Odeh OOIP/OGIP estimation and a simplified black-oil solver; the solver's limitations are disclosed in its view.
+- **Production economics:** annual oil/gas/water cash flows, taxes, water-disposal costs, NPV, IRR, payout, and ROI.
+- **Production data:** authenticated CSV import, user-scoped well records, and a production overview dashboard.
+- **Well-log workflows:** LAS parsing, Archie-based OOIP estimation, and Random Forest facies classification.
+- **Existing engineering workbench:** drilling and well control, facilities, nodal analysis, decline, compressibility, scenario management, and saved-run comparison.
+
+See [docs/API_REFERENCE.md](docs/API_REFERENCE.md) for all active HTTP routes and their Pydantic schemas, and [docs/ENGINE_CAPABILITIES.md](docs/ENGINE_CAPABILITIES.md) for calculation methods and limitations. Compositional and thermal simulation endpoints are currently stubs returning HTTP 501.
+
+---
+
 ## For Users
 
 ### Windows desktop app
@@ -76,11 +91,9 @@ provided; standalone API deployments must configure `PETROLUMEN_SECRET_KEY`.
 python -m pytest backend/tests -q
 npm test
 ```
-Latest recorded results: **238 backend tests passed (7 skipped), 34 frontend
+Latest verification: **246 backend tests passed (7 skipped), 83 frontend
 Vitest tests passed, and all 92 engineering benchmarks passed.** The production
-build also passes using `npm run build`; on Windows, if esbuild encounters a
-temporary-file cleanup issue, set `TEMP` and `TMP` to the project-local
-`.temp/` directory for the build.
+build uses `npm run build`.
 
 ### 4. Interactive API Documentation (Swagger)
 Open your browser to:
@@ -90,29 +103,14 @@ http://127.0.0.1:8000/docs
 
 ---
 
-## What Works
+## API and engineering references
 
-The table below enumerates every endpoint currently returning 200 OK across the API surface, including the three new calculation engines (economics, facies classification, and material balance) alongside the LAS log parsing and workflow endpoints:
-
-| Method | Path | Tag | Purpose |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/engine/drilling/trajectory` | Drilling | 3D wellbore trajectory calculation using the minimum curvature method. |
-| `POST` | `/api/engine/drilling/trajectory/chart` | Drilling | Render trajectory profile chart as a base64-encoded PNG. |
-| `POST` | `/api/engine/geology/grid` | Geology | 3D reservoir mesh generation, cell volume computation, and geometry verification. |
-| `POST` | `/api/engine/geology/grid/chart` | Geology | Render 2D/3D reservoir grid cross-section chart as a base64-encoded PNG. |
-| `POST` | `/api/engine/petrophysics/facies/classify` | Petrophysics | Lithofacies classification from well log curves (gamma, resistivity, density, porosity) using Random Forest. |
-| `POST` | `/api/engine/production/economics` | Production | Field production economic evaluation calculating discounted cash flows, NPV, IRR, payout time, and fiscal sensitivities. |
-| `POST` | `/api/engine/pvt/eos` | PVT | Peng-Robinson equation of state solver computing natural gas Z-factors and compressibility. |
-| `POST` | `/api/engine/pvt/eos/chart` | PVT | Render Z-factor vs pressure isothermal curve chart as a base64-encoded PNG. |
-| `POST` | `/api/engine/pvt/mbal` | PVT | Havlena-Odeh material balance analysis, OOIP/OGIP estimation, and drive indices (water, gas cap, solution gas). |
-| `POST` | `/api/engine/reservoir/compressibility/rock` | Reservoir | Newman's sandstone/limestone pore-volume compressibility, with validity-range reporting. |
-| `POST` | `/api/engine/reservoir/compressibility/gas` | Reservoir | Gas isothermal compressibility and Z-factor pressure derivative at fixed temperature. |
-| `POST` | `/api/engine/reservoir/compressibility/total` | Reservoir | Phase-weighted total compressibility including rock, oil, water, and gas contributions. |
-| `POST` | `/api/engine/reservoir/nodal` | Reservoir | Nodal analysis solver determining operating point intersection between Vogel IPR and TPR curves. |
-| `POST` | `/api/engine/reservoir/nodal/chart` | Reservoir | Render Nodal analysis IPR/TPR intersection curve chart as a base64-encoded PNG. |
-| `POST` | `/api/petrophysics/las/parse` | Petrophysics | Ingest and parse wireline log `.las` files to extract well metadata, curve arrays, and summary statistics. |
-| `POST` | `/api/simulate/black-oil` | Simulation | 3D black-oil surrogate simulation running pressure and saturation timesteps across an uncoupled grid. |
-| `GET` | `/health` | General | System health check and API version reporting. |
+The maintained inventory is [docs/API_REFERENCE.md](docs/API_REFERENCE.md).
+It includes every OpenAPI operation mounted by the current FastAPI application,
+including authenticated persistence and production routes, chart routes, and
+the explicitly unimplemented simulation stubs. Calculation assumptions and
+the status of backend engine modules are in
+[docs/ENGINE_CAPABILITIES.md](docs/ENGINE_CAPABILITIES.md).
 
 ---
 

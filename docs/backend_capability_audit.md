@@ -1,5 +1,12 @@
 # PetroLúmen Backend Capability Audit
 
+> **Historical snapshot:** this audit predates the current route wiring and is
+> not the source of truth for the active API or engine status. See
+> [API_REFERENCE.md](API_REFERENCE.md) for the current OpenAPI operation
+> inventory and [ENGINE_CAPABILITIES.md](ENGINE_CAPABILITIES.md) for current
+> capability descriptions and limitations. The inventories and file counts
+> below are retained as historical audit evidence and may be stale.
+
 This document provides a comprehensive audit of the PetroLúmen FastAPI calculation backend under `backend/app/`, evaluating API endpoint definitions, computational calculation engines, functional surface gaps, and test suite execution coverage.
 
 ---
