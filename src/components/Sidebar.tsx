@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   LayoutDashboard,
   Layers,
@@ -12,6 +12,7 @@ import {
   Workflow,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ShieldAlert,
   Zap,
   Boxes,
@@ -350,6 +351,18 @@ export default function Sidebar({
   const { t, isPt } = useI18n();
   const { activeScenario } = useSessionRegistry();
   const [filterQuery, setFilterQuery] = useState("");
+  const activeCategoryKey =
+    APP_MODULES.find((module) => module.id === activeModule)?.categoryKey ?? "overview";
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    () => new Set([activeCategoryKey]),
+  );
+
+  useEffect(() => {
+    setExpandedCategories((current) => {
+      if (current.has(activeCategoryKey)) return current;
+      return new Set(current).add(activeCategoryKey);
+    });
+  }, [activeCategoryKey]);
 
   const filteredModules = useMemo(() => {
     if (!filterQuery.trim()) return APP_MODULES;
@@ -363,13 +376,13 @@ export default function Sidebar({
 
   // Group modules by category
   const categories = useMemo(() => {
-    const map = new Map<string, typeof APP_MODULES>();
+    const map = new Map<string, { name: string; modules: NavModule[] }>();
     filteredModules.forEach((mod) => {
       const cat = (t.categories as Record<string, string>)[mod.categoryKey] || mod.defaultCategory;
-      if (!map.has(cat)) {
-        map.set(cat, []);
+      if (!map.has(mod.categoryKey)) {
+        map.set(mod.categoryKey, { name: cat, modules: [] });
       }
-      map.get(cat)!.push(mod);
+      map.get(mod.categoryKey)!.modules.push(mod);
     });
     return Array.from(map.entries());
   }, [filteredModules, t.categories]);
@@ -419,44 +432,68 @@ export default function Sidebar({
 
       {/* Navigation List */}
       <nav className="flex-1 space-y-5 overflow-y-auto px-2 py-3">
-        {categories.map(([catName, mods]) => (
-          <div key={catName} className="space-y-1">
-            {!collapsed && (
-              <h3 className="mb-1 px-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-                {catName}
-              </h3>
-            )}
-            {mods.map((mod) => {
-              const Icon = mod.icon;
-              const isActive = activeModule === mod.id;
-              return (
+        {categories.map(([categoryKey, category]) => {
+          const isExpanded = Boolean(filterQuery.trim()) || expandedCategories.has(categoryKey);
+          const groupId = `sidebar-group-${categoryKey}`;
+          return (
+            <div key={categoryKey} className="space-y-1">
+              {!collapsed && (
                 <button
-                  key={mod.id}
-                  onClick={() => onSelectModule(mod.id)}
-                  title={collapsed ? `${mod.defaultName} — ${mod.defaultDescription}` : undefined}
-                  aria-label={mod.defaultName}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isActive
-                      ? "bg-primary/10 font-semibold text-primary ring-1 ring-inset ring-primary/20"
-                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-                  )}
+                  type="button"
+                  aria-expanded={isExpanded}
+                  aria-controls={groupId}
+                  onClick={() => {
+                    setExpandedCategories((current) => {
+                      const next = new Set(current);
+                      if (next.has(categoryKey)) next.delete(categoryKey);
+                      else next.add(categoryKey);
+                      return next;
+                    });
+                  }}
+                  className="mb-1 flex w-full items-center justify-between rounded px-2 py-1 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
-                  {!collapsed && (
-                    <div className="flex-1 overflow-hidden leading-tight">
-                      <div className="truncate font-medium">{mod.defaultName}</div>
-                      <div className="mt-0.5 truncate text-[10px] text-muted-foreground/80">
-                        {mod.defaultDescription}
-                      </div>
-                    </div>
+                  <span>{category.name}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
                   )}
                 </button>
-              );
-            })}
-          </div>
-        ))}
+              )}
+              <div id={groupId} hidden={!collapsed && !isExpanded}>
+                {category.modules.map((mod) => {
+                  const Icon = mod.icon;
+                  const isActive = activeModule === mod.id;
+                  return (
+                    <button
+                      key={mod.id}
+                      onClick={() => onSelectModule(mod.id)}
+                      title={collapsed ? `${mod.defaultName} — ${mod.defaultDescription}` : undefined}
+                      aria-label={mod.defaultName}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        isActive
+                          ? "bg-primary/10 font-semibold text-primary ring-1 ring-inset ring-primary/20"
+                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+                      {!collapsed && (
+                        <div className="flex-1 overflow-hidden leading-tight">
+                          <div className="truncate font-medium">{mod.defaultName}</div>
+                          <div className="mt-0.5 truncate text-[10px] text-muted-foreground/80">
+                            {mod.defaultDescription}
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
         {categories.length === 0 && (
           <p className="px-3 py-4 text-xs text-muted-foreground">{t.noModulesFound}</p>
         )}
