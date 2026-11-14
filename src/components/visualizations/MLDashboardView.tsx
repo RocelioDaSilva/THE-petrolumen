@@ -192,14 +192,17 @@ export default function MLDashboardView() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={forecastComparison} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis dataKey="month" />
+                    <XAxis
+                      dataKey="month"
+                      label={{ value: "Production month", position: "insideBottom", offset: -10 }}
+                    />
                     <YAxis label={{ value: "Vazão (STB/d)", angle: -90, position: "insideLeft", offset: 0 }} />
-                    <Tooltip />
+                    <Tooltip formatter={(value, name) => [`${Number(value).toFixed(2)} STB/d`, String(name)]} />
                     <Legend verticalAlign="top" height={36} />
                     <Line
                       type="monotone"
                       dataKey="actual"
-                      stroke="#10b981"
+                      stroke="hsl(var(--chart-1))"
                       strokeWidth={2.5}
                       name="Medição de Campo Real"
                       dot={{ r: 4 }}
@@ -207,7 +210,7 @@ export default function MLDashboardView() {
                     <Line
                       type="monotone"
                       dataKey="pred"
-                      stroke="#6366f1"
+                      stroke="hsl(var(--chart-3))"
                       strokeWidth={2.5}
                       name={`Predição ${selectedModel.toUpperCase()}`}
                       strokeDasharray="4 4"

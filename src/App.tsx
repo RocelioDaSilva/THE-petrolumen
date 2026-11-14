@@ -11,6 +11,7 @@ import { SessionRegistryProvider } from "@/lib/sessionRegistry";
 import { getInitialDarkMode } from "@/lib/theme";
 import { AuthProvider } from "@/lib/authContext";
 import { SavedSimulation } from "@/lib/api";
+import ApiErrorToast from "@/components/ApiErrorToast";
 
 // ---------------------------------------------------------------------------
 // Code-split ALL heavy view modules via React.lazy so they are only fetched
@@ -224,6 +225,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
+      <ApiErrorToast />
       {/* Enhanced Header with i18n, Units, Scenario Selector, and Audits */}
       <Header
         activeModuleTitle={`${activeCategory} • ${activeModuleMeta.defaultName}`}

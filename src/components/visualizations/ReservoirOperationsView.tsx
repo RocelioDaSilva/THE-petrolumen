@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Activity } from "lucide-react";
+import { Activity, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   calculateReservoirOperation,
   ReservoirOperationPath,
@@ -163,6 +165,47 @@ const operations: OperationDefinition[] = [
   },
 ];
 
+const fieldHelp: Record<string, string> = {
+  q_bpd: "Produced liquid rate at stock-tank conditions.",
+  glr: "Produced gas volume per stock-tank barrel of liquid.",
+  choke_64: "Choke diameter expressed in sixty-fourths of an inch.",
+  k: "Ratio of specific heats (Cp/Cv); this gas-flow parameter must exceed 1.",
+  cd: "Dimensionless discharge efficiency between 0 and 1.",
+  A2_in2: "Effective choke or orifice throat area.",
+  p_up: "Absolute pressure on the upstream side.",
+  t_up_R: "Absolute upstream temperature in degrees Rankine.",
+  gamma_g: "Gas molecular weight relative to air (air has SG 1).",
+  p_dn: "Absolute downstream pressure; it must not exceed upstream pressure.",
+  p_c: "Tubing collapse rating before the biaxial stress correction.",
+  sa: "Axial stress in the tubing string; retain the sign convention used by the source data.",
+  ym: "Material yield strength used by the collapse correction.",
+  dpi: "Change in tubing internal pressure.",
+  dpo: "Change in tubing external pressure.",
+  A_i: "Cross-sectional area inside the tubing.",
+  A_o: "Cross-sectional area outside the tubing.",
+  L: "Measured length of the tubing section.",
+  pi_c: "Internal pressure at the packer.",
+  po_c: "External pressure at the packer.",
+  A_p: "Packer bore area used in the piston-force calculation.",
+  E: "Young's modulus for the tubing material.",
+  A_s: "Steel cross-sectional area of the tubing.",
+  Do: "Tubing outside diameter.",
+  Rc: "Radius of curvature of the wellbore section.",
+  pk_s: "Surface kickoff pressure for unloading.",
+  dp_km: "Pressure increment used between unloading valves.",
+  phf: "Flowing pressure at the wellhead.",
+  Gs: "Gas pressure gradient with depth.",
+  pd: "Gas-lift valve dome charge pressure.",
+  St: "Spring force expressed as an equivalent pressure.",
+  R: "Bellows-to-port area ratio (Ab/Ap).",
+  pt: "Tubing pressure acting on the valve.",
+  q_mscfd: "Target gas injection rate in thousand standard cubic feet per day.",
+  gg: "Gas specific gravity relative to air.",
+  t_R: "Absolute gas temperature in degrees Rankine.",
+  glr_opt: "Optimum total gas-liquid ratio for the operating case.",
+  glr_form: "Gas-liquid ratio already supplied by the formation.",
+};
+
 function getErrorMessage(error: unknown): string {
   if (
     typeof error === "object"
@@ -230,6 +273,7 @@ export default function ReservoirOperationsView() {
             <Label htmlFor="reservoir-operation">Calculation</Label>
             <Select
               id="reservoir-operation"
+              aria-describedby="reservoir-operation-help"
               value={selectedPath}
               onChange={(event) => {
                 const selected = operations.find(({ path }) => path === event.target.value);
@@ -241,13 +285,14 @@ export default function ReservoirOperationsView() {
               ))}
             </Select>
           </div>
-          <p className="text-sm text-muted-foreground">{operation.description}</p>
+          <p id="reservoir-operation-help" className="text-sm text-muted-foreground">{operation.description}</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {operation.fields.map((field) => (
               <div key={field.key} className="space-y-1.5">
                 <Label htmlFor={`operation-${field.key}`}>{field.label}</Label>
                 <Input
                   id={`operation-${field.key}`}
+                  aria-describedby={`operation-${field.key}-help`}
                   type="number"
                   step={field.step}
                   value={values[field.key] ?? field.initial}
@@ -256,16 +301,33 @@ export default function ReservoirOperationsView() {
                     [field.key]: Number(event.target.value),
                   }))}
                 />
+                <FieldDescription id={`operation-${field.key}-help`}>
+                  {fieldHelp[field.key] ?? operation.description}
+                </FieldDescription>
               </div>
             ))}
           </div>
-          <Button type="button" onClick={calculate} disabled={isLoading}>
+          <Button type="button" onClick={calculate} disabled={isLoading} aria-busy={isLoading} className="gap-2">
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
             {isLoading ? "Calculating..." : "Calculate"}
           </Button>
         </CardContent>
       </Card>
 
       {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+
+      {isLoading && (
+        <Card role="status" aria-label="Calculating reservoir operation" aria-live="polite">
+          <CardContent className="space-y-3 p-5">
+            <Skeleton className="h-5 w-48" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <Skeleton key={index} className="h-16 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {result && (
         <Card aria-label="Calculation result">

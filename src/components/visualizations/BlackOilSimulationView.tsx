@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Activity, Play } from "lucide-react";
+import { Activity, Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BlackOilSimulationInput,
   BlackOilSimulationResponse,
@@ -95,10 +98,10 @@ export default function BlackOilSimulationView() {
   };
 
   const cellFields = [
-    { id: "black-oil-porosity", label: "Porosity per cell", value: porosity, setValue: setPorosity },
-    { id: "black-oil-permeability", label: "Permeability per cell (mD)", value: permeability, setValue: setPermeability },
-    { id: "black-oil-sw", label: "Initial water saturation per cell", value: waterSaturation, setValue: setWaterSaturation },
-    { id: "black-oil-sg", label: "Initial gas saturation per cell", value: gasSaturation, setValue: setGasSaturation },
+    { id: "black-oil-porosity", label: "Porosity per cell", hint: "Fractions from 0 to 1, one value per cell in grid order.", value: porosity, setValue: setPorosity },
+    { id: "black-oil-permeability", label: "Permeability per cell (mD)", hint: "One permeability value in millidarcies per cell, in grid order.", value: permeability, setValue: setPermeability },
+    { id: "black-oil-sw", label: "Initial water saturation per cell", hint: "Water saturation fraction for each cell; it must be between 0 and 1.", value: waterSaturation, setValue: setWaterSaturation },
+    { id: "black-oil-sg", label: "Initial gas saturation per cell", hint: "Gas saturation fraction for each cell; water plus gas saturation cannot exceed 1.", value: gasSaturation, setValue: setGasSaturation },
   ];
 
   return (
@@ -125,7 +128,7 @@ export default function BlackOilSimulationView() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="black-oil-nx">Cells (nx)</Label>
-              <Input id="black-oil-nx" type="number" min="1" max="512" value={nx} onChange={(event) => {
+              <Input id="black-oil-nx" aria-describedby="black-oil-nx-help" type="number" min="1" max="512" value={nx} onChange={(event) => {
                 const nextCount = Number(event.target.value);
                 setNx(nextCount);
                 const defaults = Array.from({ length: Math.max(0, Math.min(nextCount, 512)) }, () => "0.2");
@@ -134,19 +137,23 @@ export default function BlackOilSimulationView() {
                 setWaterSaturation(defaults.join(", "));
                 setGasSaturation(defaults.map(() => "0").join(", "));
               }} />
+              <FieldDescription id="black-oil-nx-help">Number of cells in the 1D grid; the backend limit is 512 cells.</FieldDescription>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="black-oil-pressure">Initial pressure (psia)</Label>
-              <Input id="black-oil-pressure" type="number" value={initialPressure} onChange={(event) => setInitialPressure(Number(event.target.value))} />
+              <Input id="black-oil-pressure" aria-describedby="black-oil-pressure-help" type="number" min="0" step="any" value={initialPressure} onChange={(event) => setInitialPressure(Number(event.target.value))} />
+              <FieldDescription id="black-oil-pressure-help">Uniform starting reservoir pressure in psia.</FieldDescription>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="black-oil-timestep">Timestep (days)</Label>
-              <Input id="black-oil-timestep" type="number" min="0.001" step="any" value={timestep} onChange={(event) => setTimestep(Number(event.target.value))} />
+              <Input id="black-oil-timestep" aria-describedby="black-oil-timestep-help" type="number" min="0.001" step="any" value={timestep} onChange={(event) => setTimestep(Number(event.target.value))} />
+              <FieldDescription id="black-oil-timestep-help">Duration of the single timestep in this demonstration run.</FieldDescription>
             </div>
-            {cellFields.map(({ id, label, value, setValue }) => (
+            {cellFields.map(({ id, label, hint, value, setValue }) => (
               <div key={id} className="space-y-1.5 sm:col-span-2 lg:col-span-3">
                 <Label htmlFor={id}>{label}</Label>
-                <Input id={id} value={value} onChange={(event) => setValue(event.target.value)} />
+                <Input id={id} aria-describedby={`${id}-help`} value={value} onChange={(event) => setValue(event.target.value)} />
+                <FieldDescription id={`${id}-help`}>{hint}</FieldDescription>
               </div>
             ))}
           </div>
@@ -159,52 +166,70 @@ export default function BlackOilSimulationView() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="black-oil-mu-water">Water viscosity (cP)</Label>
-              <Input id="black-oil-mu-water" type="number" min="0.001" step="any" value={waterViscosity} onChange={(event) => setWaterViscosity(Number(event.target.value))} />
+              <Input id="black-oil-mu-water" aria-describedby="black-oil-mu-water-help" type="number" min="0.001" step="any" value={waterViscosity} onChange={(event) => setWaterViscosity(Number(event.target.value))} />
+              <FieldDescription id="black-oil-mu-water-help">Water viscosity at reservoir conditions.</FieldDescription>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="black-oil-mu-oil">Oil viscosity (cP)</Label>
-              <Input id="black-oil-mu-oil" type="number" min="0.001" step="any" value={oilViscosity} onChange={(event) => setOilViscosity(Number(event.target.value))} />
+              <Input id="black-oil-mu-oil" aria-describedby="black-oil-mu-oil-help" type="number" min="0.001" step="any" value={oilViscosity} onChange={(event) => setOilViscosity(Number(event.target.value))} />
+              <FieldDescription id="black-oil-mu-oil-help">Oil viscosity at reservoir conditions.</FieldDescription>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="black-oil-mu-gas">Gas viscosity (cP)</Label>
-              <Input id="black-oil-mu-gas" type="number" min="0.001" step="any" value={gasViscosity} onChange={(event) => setGasViscosity(Number(event.target.value))} />
+              <Input id="black-oil-mu-gas" aria-describedby="black-oil-mu-gas-help" type="number" min="0.001" step="any" value={gasViscosity} onChange={(event) => setGasViscosity(Number(event.target.value))} />
+              <FieldDescription id="black-oil-mu-gas-help">Gas viscosity at reservoir conditions.</FieldDescription>
             </div>
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={includeWell} onChange={(event) => setIncludeWell(event.target.checked)} />
+            <input className="accent-primary" type="checkbox" aria-describedby="black-oil-well-help" checked={includeWell} onChange={(event) => setIncludeWell(event.target.checked)} />
             Include a well in the first cell
           </label>
+          <FieldDescription id="black-oil-well-help">Optionally apply one simple well control in cell 1.</FieldDescription>
           {includeWell && (
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label htmlFor="black-oil-well-type">Well type</Label>
-                <select id="black-oil-well-type" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={wellType} onChange={(event) => setWellType(event.target.value as "producer" | "injector")}>
+                <Select id="black-oil-well-type" aria-describedby="black-oil-well-type-help" value={wellType} onChange={(event) => setWellType(event.target.value as "producer" | "injector")}>
                   <option value="producer">Producer</option>
                   <option value="injector">Injector</option>
-                </select>
+                </Select>
+                <FieldDescription id="black-oil-well-type-help">Choose whether the well produces from or injects into the reservoir.</FieldDescription>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="black-oil-control">Control</Label>
-                <select id="black-oil-control" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={control} onChange={(event) => setControl(event.target.value as "bhp" | "water_rate" | "gas_rate")}>
+                <Select id="black-oil-control" aria-describedby="black-oil-control-help" value={control} onChange={(event) => setControl(event.target.value as "bhp" | "water_rate" | "gas_rate")}>
                   <option value="bhp">Bottom-hole pressure (psia)</option>
                   <option value="water_rate">Water rate</option>
                   <option value="gas_rate">Gas rate</option>
-                </select>
+                </Select>
+                <FieldDescription id="black-oil-control-help">Select the operating constraint applied to the well in this simplified run.</FieldDescription>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="black-oil-control-value">Control value</Label>
-                <Input id="black-oil-control-value" type="number" min="0" step="any" value={controlValue} onChange={(event) => setControlValue(Number(event.target.value))} />
+                <Input id="black-oil-control-value" aria-describedby="black-oil-control-value-help" type="number" min="0" step="any" value={controlValue} onChange={(event) => setControlValue(Number(event.target.value))} />
+                <FieldDescription id="black-oil-control-value-help">
+                  {control === "bhp" ? "Bottom-hole pressure in psia." : `Target ${control === "water_rate" ? "water" : "gas"} rate; the backend interprets this using its simplified control approximation.`}
+                </FieldDescription>
               </div>
             </div>
           )}
-          <Button type="button" onClick={() => void run()} disabled={isLoading} className="gap-2">
-            <Play className="h-4 w-4" />
+          <Button type="button" onClick={() => void run()} disabled={isLoading} aria-busy={isLoading} className="gap-2">
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
             {isLoading ? "Running..." : "Run black-oil solver"}
           </Button>
         </CardContent>
       </Card>
 
       {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+
+      {isLoading && (
+        <Card role="status" aria-label="Running black-oil simulation" aria-live="polite">
+          <CardContent className="space-y-3 p-5">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-36 w-full" />
+          </CardContent>
+        </Card>
+      )}
 
       {result && (
         <Card aria-label="Black-oil simulation results">

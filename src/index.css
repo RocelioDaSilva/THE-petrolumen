@@ -33,6 +33,11 @@
     --border: 218 22% 21%;
     --input: 218 22% 21%;
     --ring: 173 76% 43%;
+    --chart-1: 173 76% 43%;
+    --chart-2: 205 78% 58%;
+    --chart-3: 268 75% 70%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 347 77% 65%;
 
     --radius: 0.65rem;
   }
@@ -67,6 +72,11 @@
     --border: 214 22% 87%;
     --input: 214 22% 87%;
     --ring: 173 77% 31%;
+    --chart-1: 173 76% 35%;
+    --chart-2: 205 78% 42%;
+    --chart-3: 268 65% 52%;
+    --chart-4: 32 88% 43%;
+    --chart-5: 347 67% 48%;
   }
 
   * {
@@ -91,5 +101,27 @@
   code,
   pre {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .recharts-text,
+  .recharts-cartesian-axis-tick-value {
+    fill: hsl(var(--muted-foreground));
+  }
+
+  .recharts-cartesian-grid line {
+    stroke: hsl(var(--border));
+  }
+
+  .recharts-default-tooltip {
+    background-color: hsl(var(--popover)) !important;
+    border-color: hsl(var(--border)) !important;
+    border-radius: var(--radius);
+    color: hsl(var(--popover-foreground));
+  }
+
+  .recharts-tooltip-label,
+  .recharts-tooltip-item,
+  .recharts-legend-item-text {
+    color: hsl(var(--popover-foreground)) !important;
   }
 }

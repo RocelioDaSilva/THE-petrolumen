@@ -157,7 +157,7 @@ export default function FlowingMaterialBalanceView() {
                   <Line
                     type="monotone"
                     dataKey="pz"
-                    stroke="#2563eb"
+                    stroke="hsl(var(--chart-1))"
                     strokeWidth={2.5}
                     name="P/Z Histórico & Projetado"
                     dot={{ r: 4 }}
@@ -165,7 +165,7 @@ export default function FlowingMaterialBalanceView() {
                   <Line
                     type="monotone"
                     dataKey="pwf"
-                    stroke="#f59e0b"
+                    stroke="hsl(var(--chart-4))"
                     strokeWidth={2}
                     name="Pressão de Fundo de Fluxo (Pwf)"
                     dot={false}

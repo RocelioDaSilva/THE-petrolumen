@@ -1,8 +1,12 @@
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   calculateEos,
   calculateFlash,
@@ -100,18 +104,21 @@ export default function PvtEosFlashView() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="pvt-eos-pressure">Pressure (Pa)</Label>
-              <Input id="pvt-eos-pressure" type="number" min="0" step="any" value={pressure} onChange={(event) => setPressure(Number(event.target.value))} />
+              <Input id="pvt-eos-pressure" aria-describedby="pvt-eos-pressure-help" type="number" min="0" step="any" value={pressure} onChange={(event) => setPressure(Number(event.target.value))} />
+              <FieldDescription id="pvt-eos-pressure-help">Absolute pressure; use pascals to match the component critical pressures.</FieldDescription>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="pvt-eos-temperature">Temperature (K)</Label>
-              <Input id="pvt-eos-temperature" type="number" min="0" step="any" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} />
+              <Input id="pvt-eos-temperature" aria-describedby="pvt-eos-temperature-help" type="number" min="0" step="any" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} />
+              <FieldDescription id="pvt-eos-temperature-help">Absolute temperature in kelvin; use the same basis as critical temperatures.</FieldDescription>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="pvt-eos-type">Equation of state</Label>
-              <select id="pvt-eos-type" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={eosType} onChange={(event) => setEosType(event.target.value as "PR" | "SRK")}>
+              <Select id="pvt-eos-type" aria-describedby="pvt-eos-type-help" value={eosType} onChange={(event) => setEosType(event.target.value as "PR" | "SRK")}>
                 <option value="PR">Peng-Robinson (PR)</option>
                 <option value="SRK">Soave-Redlich-Kwong (SRK)</option>
-              </select>
+              </Select>
+              <FieldDescription id="pvt-eos-type-help">Choose the cubic equation used to estimate the vapor-root Z-factor.</FieldDescription>
             </div>
           </div>
           <div className="space-y-3">
@@ -119,16 +126,17 @@ export default function PvtEosFlashView() {
               <Card key={`${index}-${component.name}`}>
                 <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
                   {([
-                    ["name", "Component name", "text"],
-                    ["critical_pressure", "Critical pressure (Pa)", "number"],
-                    ["critical_temperature", "Critical temperature (K)", "number"],
-                    ["acentric_factor", "Acentric factor", "number"],
-                    ["fraction", "Mole fraction", "number"],
-                  ] as const).map(([field, label, type]) => (
+                    ["name", "Component name", "text", "Use a unique name; the composition keys must match these names."],
+                    ["critical_pressure", "Critical pressure (Pa)", "number", "Pure-component critical pressure in pascals."],
+                    ["critical_temperature", "Critical temperature (K)", "number", "Pure-component critical temperature in kelvin."],
+                    ["acentric_factor", "Acentric factor", "number", "Dimensionless measure of molecular shape and vapor-pressure behavior; use a value for this component."],
+                    ["fraction", "Mole fraction", "number", "Component fraction in the feed; all fractions must sum to 1."],
+                  ] as const).map(([field, label, type, hint]) => (
                     <div key={field} className="space-y-1.5">
                       <Label htmlFor={`pvt-component-${index}-${field}`}>{label}</Label>
                       <Input
                         id={`pvt-component-${index}-${field}`}
+                        aria-describedby={`pvt-component-${index}-${field}-help`}
                         type={type}
                         step={type === "number" ? "any" : undefined}
                         value={component[field]}
@@ -136,6 +144,9 @@ export default function PvtEosFlashView() {
                           [field]: type === "number" ? Number(event.target.value) : event.target.value,
                         })}
                       />
+                      <FieldDescription id={`pvt-component-${index}-${field}-help`}>
+                        {hint}
+                      </FieldDescription>
                     </div>
                   ))}
                   {components.length > 1 && (
@@ -155,10 +166,12 @@ export default function PvtEosFlashView() {
               acentric_factor: 0.1,
               fraction: 0,
             }])}>Add component</Button>
-            <Button type="button" disabled={isLoading} onClick={() => void calculate("eos")}>
+            <Button type="button" disabled={isLoading} aria-busy={isLoading} onClick={() => void calculate("eos")} className="gap-2">
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
               {isLoading ? "Calculating..." : "Calculate Z-factor"}
             </Button>
-            <Button type="button" variant="secondary" disabled={isLoading} onClick={() => void calculate("flash")}>
+            <Button type="button" variant="secondary" disabled={isLoading} aria-busy={isLoading} onClick={() => void calculate("flash")} className="gap-2">
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
               {isLoading ? "Calculating..." : "Run flash"}
             </Button>
           </div>
@@ -166,6 +179,14 @@ export default function PvtEosFlashView() {
       </Card>
 
       {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+      {isLoading && (
+        <Card role="status" aria-label="Calculating PVT result" aria-live="polite">
+          <CardContent className="space-y-3 p-5">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-16 w-full" />
+          </CardContent>
+        </Card>
+      )}
       {eosResult && (
         <Card aria-label="EOS result">
           <CardHeader><CardTitle className="text-base">Equation-of-state result</CardTitle></CardHeader>

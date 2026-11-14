@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { calculateEconomics, EconomicsInput } from "@/lib/reservoirMath";
 import { ProvenanceBadge } from "@/components/ui/ProvenanceBadge";
 import { DollarSign, TrendingUp, Calculator, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
@@ -181,52 +182,61 @@ export default function EconomicsView() {
               <Label htmlFor="econ-price">Preço do Barril de Óleo (US$ / bbl)</Label>
               <Input
                 id="econ-price"
+                aria-describedby="econ-price-help"
                 type="number"
                 value={oilPrice}
                 onChange={(e) => setOilPrice(Number(e.target.value))}
               />
+              <FieldDescription id="econ-price-help">Price applied to each annual oil production volume.</FieldDescription>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="econ-opex">Custo Operacional OPEX (US$ / bbl)</Label>
               <Input
                 id="econ-opex"
+                aria-describedby="econ-opex-help"
                 type="number"
                 value={opex}
                 onChange={(e) => setOpex(Number(e.target.value))}
               />
+              <FieldDescription id="econ-opex-help">Operating cost per produced barrel of oil.</FieldDescription>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="econ-capex">Investimento Inicial CAPEX (US$)</Label>
               <Input
                 id="econ-capex"
+                aria-describedby="econ-capex-help"
                 type="number"
                 step="100000"
                 value={capex}
                 onChange={(e) => setCapex(Number(e.target.value))}
               />
+              <FieldDescription id="econ-capex-help">One-time initial investment charged at the start of the project.</FieldDescription>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="econ-disc">Taxa Mínima de Atratividade - TMA (%)</Label>
               <Input
                 id="econ-disc"
+                aria-describedby="econ-disc-help"
                 type="number"
                 step="0.5"
                 value={discountRate}
                 onChange={(e) => setDiscountRate(Number(e.target.value))}
               />
+              <FieldDescription id="econ-disc-help">Annual discount rate entered as a percentage.</FieldDescription>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="econ-prof">Perfil Anual de Produção (bbl/ano, sep por vírgula)</Label>
               <Input
                 id="econ-prof"
+                aria-describedby="econ-prof-help"
                 value={productionProfileStr}
                 onChange={(e) => setProductionProfileStr(e.target.value)}
               />
-              <p className="text-[10px] text-muted-foreground">Volume previsto para 10 anos de operação</p>
+              <FieldDescription id="econ-prof-help">Enter one annual production volume in bbl for each project year, comma-separated.</FieldDescription>
             </div>
 
             <Button
@@ -258,21 +268,24 @@ export default function EconomicsView() {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 15, right: 30, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="year" />
+                  <XAxis
+                    dataKey="year"
+                    label={{ value: "Project year", position: "insideBottom", offset: -12 }}
+                  />
                   <YAxis
                     tickFormatter={(val) => `$${(val / 1000000).toFixed(1)}M`}
                     label={{ value: "Valor (Milhões USD)", angle: -90, position: "insideLeft", offset: 0 }}
                   />
                   <Tooltip
-                    formatter={(val: any, name: any) => [formatCurrency(Number(val)), name]}
+                    formatter={(value, name) => [formatCurrency(Number(value)), String(name)]}
                   />
                   <Legend verticalAlign="top" height={36} />
-                  <Bar dataKey="fluxoAnual" name="Fluxo de Caixa Anual" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="fluxoAnual" name="Fluxo de Caixa Anual" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
                   <Line
                     type="monotone"
                     dataKey="acumulado"
                     name="Fluxo de Caixa Acumulado"
-                    stroke="#10b981"
+                    stroke="hsl(var(--chart-1))"
                     strokeWidth={3}
                     dot={{ r: 4 }}
                   />

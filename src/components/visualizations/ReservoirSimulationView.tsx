@@ -532,8 +532,8 @@ export default function ReservoirSimulationView({ savedRun = null }: ReservoirSi
                           labelFormatter={(time) => `Dia ${time}`}
                         />
                         <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 11 }} />
-                        <Line type="monotone" dataKey="wellbore" stroke="#2dd4bf" strokeWidth={2.5} name="Poço produtor" dot={false} />
-                        <Line type="monotone" dataKey="block5" stroke="#f59e0b" strokeWidth={2} name="Bloco central" dot={false} />
+                        <Line type="monotone" dataKey="wellbore" stroke="hsl(var(--chart-1))" strokeWidth={2.5} name="Poço produtor" dot={false} />
+                        <Line type="monotone" dataKey="block5" stroke="hsl(var(--chart-4))" strokeWidth={2} name="Bloco central" dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -577,7 +577,7 @@ export default function ReservoirSimulationView({ savedRun = null }: ReservoirSi
                           formatter={(value) => [`${value} psia`, "Pressão"]}
                           labelFormatter={(distance) => `${distance} ft`}
                         />
-                        <Line type="monotone" dataKey="pressure" stroke="#2dd4bf" strokeWidth={2.5} name="Pressão da malha" dot={{ r: 3, fill: "#2dd4bf" }} />
+                        <Line type="monotone" dataKey="pressure" stroke="hsl(var(--chart-1))" strokeWidth={2.5} name="Pressão da malha" dot={{ r: 3, fill: "hsl(var(--chart-1))" }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>

@@ -343,7 +343,7 @@ export default function NodalAnalysisView() {
                   <Line
                     type="monotone"
                     dataKey="p_ipr"
-                    stroke="#16a34a"
+                    stroke="hsl(var(--chart-1))"
                     strokeWidth={2.5}
                     name="IPR (Inflow - Vogel)"
                     dot={false}
@@ -351,7 +351,7 @@ export default function NodalAnalysisView() {
                   <Line
                     type="monotone"
                     dataKey="p_vlp"
-                    stroke="#dc2626"
+                    stroke="hsl(var(--chart-5))"
                     strokeWidth={2.5}
                     name="VLP (Outflow - Beggs & Brill)"
                     dot={false}

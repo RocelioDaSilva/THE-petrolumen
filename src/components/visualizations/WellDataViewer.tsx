@@ -344,8 +344,11 @@ export default function WellDataViewer() {
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis type="number" domain={[0, 150]} label={{ value: "GR (API)", position: "insideBottom", offset: -5 }} />
                   <YAxis type="number" dataKey="depth" reversed domain={[depthMin, depthMax]} label={{ value: "Profundidade MD (m)", angle: -90, position: "insideLeft", offset: -5 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="gr" stroke="#d97706" strokeWidth={2} dot={false} />
+                  <Tooltip
+                    formatter={(value, name) => [`${Number(value).toFixed(2)} API`, String(name)]}
+                    labelFormatter={(depth) => `Measured depth: ${depth} m`}
+                  />
+                  <Line type="monotone" dataKey="gr" name="Gamma ray" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -369,9 +372,12 @@ export default function WellDataViewer() {
                 <LineChart data={logData} layout="vertical" margin={{ top: 10, right: 20, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis type="number" domain={[0.1, 200]} label={{ value: "Resistividade (ohm.m)", position: "insideBottom", offset: -5 }} />
-                  <YAxis type="number" dataKey="depth" reversed domain={[depthMin, depthMax]} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="res" stroke="#e11d48" strokeWidth={2} dot={false} />
+                  <YAxis type="number" dataKey="depth" reversed domain={[depthMin, depthMax]} label={{ value: "Measured depth (m)", angle: -90, position: "insideLeft", offset: -5 }} />
+                  <Tooltip
+                    formatter={(value, name) => [`${Number(value).toFixed(2)} ohm·m`, String(name)]}
+                    labelFormatter={(depth) => `Measured depth: ${depth} m`}
+                  />
+                  <Line type="monotone" dataKey="res" name="Resistivity" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -395,10 +401,13 @@ export default function WellDataViewer() {
                 <LineChart data={logData} layout="vertical" margin={{ top: 10, right: 20, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis type="number" domain={[1.9, 2.7]} label={{ value: "RHOB (g/cm³)", position: "insideBottom", offset: -5 }} />
-                  <YAxis type="number" dataKey="depth" reversed domain={[depthMin, depthMax]} />
-                  <Tooltip />
+                  <YAxis type="number" dataKey="depth" reversed domain={[depthMin, depthMax]} label={{ value: "Measured depth (m)", angle: -90, position: "insideLeft", offset: -5 }} />
+                  <Tooltip
+                    formatter={(value, name) => [`${Number(value).toFixed(3)} g/cm³`, String(name)]}
+                    labelFormatter={(depth) => `Measured depth: ${depth} m`}
+                  />
                   <Legend verticalAlign="top" height={30} />
-                  <Line type="monotone" dataKey="rhob" name="RHOB (g/cm³)" stroke="#2563eb" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="rhob" name="RHOB (g/cm³)" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

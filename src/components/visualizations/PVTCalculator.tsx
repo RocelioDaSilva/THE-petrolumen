@@ -411,22 +411,36 @@ export default function PVTCalculator() {
             <CardContent>
               <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sweepData} margin={{ top: 5, right: 20, left: 0, bottom: 15 }}>
+                  <LineChart data={sweepData} margin={{ top: 5, right: 40, left: 10, bottom: 15 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                     <XAxis
                       dataKey="pressure"
                       label={{ value: `Pressão (${pUnit})`, position: "insideBottom", offset: -8 }}
                     />
-                    <YAxis yAxisId="left" domain={[0.6, 1.3]} />
-                    <YAxis yAxisId="right" orientation="right" domain={[1.0, 1.8]} />
-                    <Tooltip />
+                    <YAxis
+                      yAxisId="left"
+                      domain={[0.6, 1.3]}
+                      label={{ value: "Gas Z-factor (dimensionless)", angle: -90, position: "insideLeft" }}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      domain={[1.0, 1.8]}
+                      label={{ value: "Oil formation volume factor (bbl/STB)", angle: 90, position: "insideRight" }}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        `${Number(value).toFixed(4)} ${String(name).includes("Bo") ? "bbl/STB" : "(dimensionless)"}`,
+                        String(name),
+                      ]}
+                    />
                     <Legend verticalAlign="top" height={30} />
                     <Line
                       yAxisId="left"
                       type="monotone"
                       dataKey="zFactor"
                       name="Fator Z do Gás"
-                      stroke="#8884d8"
+                      stroke="hsl(var(--chart-3))"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -435,7 +449,7 @@ export default function PVTCalculator() {
                       type="monotone"
                       dataKey="bo"
                       name="Bo (bbl/STB)"
-                      stroke="#10b981"
+                      stroke="hsl(var(--chart-1))"
                       strokeWidth={2}
                       dot={false}
                     />

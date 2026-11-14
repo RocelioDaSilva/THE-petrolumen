@@ -86,22 +86,29 @@ export function PhaseEnvelope({
                       position: "insideLeft",
                     }}
                   />
-                  <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+                  <Tooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    formatter={(value, name) => {
+                      const isTemperature = String(name).toLowerCase().includes("temperature");
+                      const unit = isTemperature ? temperatureUnit : pressureUnit;
+                      return [`${Number(value).toFixed(2)} ${unit}`, isTemperature ? "Temperature" : "Pressure"];
+                    }}
+                  />
                   <Legend />
                   {bubblePoints.length > 0 && (
                     <Scatter
                       name="Bubble point"
                       data={bubblePoints}
-                      line={{ stroke: "#ef4444", strokeWidth: 2 }}
-                      fill="#ef4444"
+                      line={{ stroke: "hsl(var(--chart-1))", strokeWidth: 2 }}
+                      fill="hsl(var(--chart-1))"
                     />
                   )}
                   {dewPoints.length > 0 && (
                     <Scatter
                       name="Dew point"
                       data={dewPoints}
-                      line={{ stroke: "#10b981", strokeWidth: 2 }}
-                      fill="#10b981"
+                      line={{ stroke: "hsl(var(--chart-2))", strokeWidth: 2 }}
+                      fill="hsl(var(--chart-2))"
                     />
                   )}
                   {criticalPoint && (
@@ -109,8 +116,8 @@ export function PhaseEnvelope({
                       x={criticalPoint.temperature}
                       y={criticalPoint.pressure}
                       r={6}
-                      fill="#f97316"
-                      stroke="white"
+                      fill="hsl(var(--chart-4))"
+                      stroke="hsl(var(--background))"
                       label="Critical point"
                     />
                   )}

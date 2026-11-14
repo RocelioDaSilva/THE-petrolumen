@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  API_DISCONNECTED_EVENT,
+  API_RECONNECTED_EVENT,
   analyzeWellTestBuildup,
   analyzeWellTestDrawdown,
   calculateEos,
@@ -65,6 +67,44 @@ describe('API base URL resolution', () => {
     await expect(fetchCurrentUser()).resolves.toEqual(user);
     expect(getApiAuthToken()).toBe('test-token');
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('announces network disconnects and clears them after a successful response', async () => {
+    const user = {
+      id: 8,
+      username: 'petro-user',
+      email: 'petro@example.com',
+      full_name: null,
+      role: 'user',
+      is_active: true,
+    };
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => user,
+      } as Response);
+    const disconnectedListener = vi.fn();
+    const reconnectedListener = vi.fn();
+    window.addEventListener(API_DISCONNECTED_EVENT, disconnectedListener);
+    window.addEventListener(API_RECONNECTED_EVENT, reconnectedListener);
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      await expect(fetchCurrentUser()).rejects.toMatchObject({ status: 0 });
+      expect(disconnectedListener).toHaveBeenCalledOnce();
+      const disconnectEvent = disconnectedListener.mock.calls[0][0] as CustomEvent<{
+        detail: string;
+      }>;
+      expect(disconnectEvent.detail.detail).toContain('fetch failed');
+
+      await expect(fetchCurrentUser()).resolves.toEqual(user);
+      expect(reconnectedListener).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener(API_DISCONNECTED_EVENT, disconnectedListener);
+      window.removeEventListener(API_RECONNECTED_EVENT, reconnectedListener);
+    }
   });
 
   it('uploads production CSV as authenticated multipart form data', async () => {

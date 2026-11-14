@@ -296,7 +296,7 @@ export default function DeclineCurveAnalysis() {
                   <Line
                     type="monotone"
                     dataKey="rate"
-                    stroke="#2563eb"
+                    stroke="hsl(var(--chart-1))"
                     strokeWidth={2.5}
                     name={`Vazão Prevista - Modelo ${model.toUpperCase()}`}
                     dot={false}

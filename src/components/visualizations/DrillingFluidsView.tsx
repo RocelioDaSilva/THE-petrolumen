@@ -314,13 +314,13 @@ export default function DrillingFluidsView() {
                       <YAxis
                         label={{ value: "Tensão τ (lbf/100ft²)", angle: -90, position: "insideLeft", offset: 10 }}
                       />
-                      <Tooltip />
+                      <Tooltip formatter={(value, name) => [`${Number(value).toFixed(2)} lbf/100ft²`, String(name)]} />
                       <Legend verticalAlign="top" height={32} />
                       <Line
                         type="monotone"
                         dataKey="bingham"
                         name="Bingham Plastic (τ = τy + μp·γ̇)"
-                        stroke="#2563eb"
+                        stroke="hsl(var(--chart-2))"
                         strokeWidth={2}
                         dot={false}
                       />
@@ -328,7 +328,7 @@ export default function DrillingFluidsView() {
                         type="monotone"
                         dataKey="powerLaw"
                         name="Power Law (τ = K·γ̇ⁿ)"
-                        stroke="#10b981"
+                        stroke="hsl(var(--chart-1))"
                         strokeWidth={2}
                         dot={false}
                       />

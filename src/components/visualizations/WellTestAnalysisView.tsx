@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Activity, AlertTriangle } from "lucide-react";
+import { Activity, AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   analyzeWellTestBuildup,
   analyzeWellTestDrawdown,
@@ -138,39 +140,49 @@ export default function WellTestAnalysisView() {
             <Label htmlFor="well-test-times">Elapsed time (hours, comma-separated)</Label>
             <Input
               id="well-test-times"
+              aria-describedby="well-test-times-help"
               className={inputClassName}
               placeholder="0.1, 0.2, 0.5, 1, 2"
               value={times}
               onChange={(event) => setTimes(event.target.value)}
             />
+            <FieldDescription id="well-test-times-help">
+              Enter at least three positive values in strictly increasing order.
+            </FieldDescription>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="well-test-pressures">Pressure (psia, comma-separated)</Label>
             <Input
               id="well-test-pressures"
+              aria-describedby="well-test-pressures-help"
               className={inputClassName}
               placeholder="3400, 3320, 3250, 3180, 3120"
               value={pressures}
               onChange={(event) => setPressures(event.target.value)}
             />
+            <FieldDescription id="well-test-pressures-help">
+              Provide one pressure per time value, in the same order.
+            </FieldDescription>
           </div>
-          <NumberField id="well-test-rate" label="Rate (STB/day)" value={rate} onChange={setRate} />
-          <NumberField id="well-test-viscosity" label="Viscosity (cp)" value={viscosity} onChange={setViscosity} />
+          <NumberField id="well-test-rate" label="Rate (STB/day)" hint="Use the constant rate during the analyzed flow period." value={rate} onChange={setRate} />
+          <NumberField id="well-test-viscosity" label="Viscosity (cp)" hint="Use the fluid viscosity at reservoir conditions." value={viscosity} onChange={setViscosity} />
           <NumberField
             id="well-test-ct"
             label="Total compressibility (1/psi)"
+            hint="Total rock-plus-fluid compressibility at reservoir conditions."
             value={totalCompressibility}
             onChange={setTotalCompressibility}
             step="any"
           />
-          <NumberField id="well-test-phi" label="Porosity (fraction)" value={porosity} onChange={setPorosity} step="any" />
-          <NumberField id="well-test-radius" label="Wellbore radius (ft)" value={wellboreRadius} onChange={setWellboreRadius} step="any" />
-          <NumberField id="well-test-pay" label="Net pay (ft)" value={netPay} onChange={setNetPay} step="any" />
-          <NumberField id="well-test-fvf" label="Formation volume factor (RB/STB)" value={formationVolumeFactor} onChange={setFormationVolumeFactor} step="any" />
+          <NumberField id="well-test-phi" label="Porosity (fraction)" hint="Enter porosity as a fraction from 0 to 1, not percent." value={porosity} onChange={setPorosity} step="any" />
+          <NumberField id="well-test-radius" label="Wellbore radius (ft)" hint="Use the radius at the wellbore, not the diameter." value={wellboreRadius} onChange={setWellboreRadius} step="any" />
+          <NumberField id="well-test-pay" label="Net pay (ft)" hint="Enter the productive formation thickness." value={netPay} onChange={setNetPay} step="any" />
+          <NumberField id="well-test-fvf" label="Formation volume factor (RB/STB)" hint="Use the oil formation volume factor at reservoir conditions." value={formationVolumeFactor} onChange={setFormationVolumeFactor} step="any" />
           {mode === "drawdown" ? (
             <NumberField
               id="well-test-initial-pressure"
               label="Initial pressure (psia)"
+              hint="Reservoir pressure immediately before the drawdown test."
               value={initialPressure}
               onChange={setInitialPressure}
             />
@@ -179,19 +191,22 @@ export default function WellTestAnalysisView() {
               <NumberField
                 id="well-test-producing-time"
                 label="Producing time before shut-in (hours)"
+                hint="Total producing duration immediately before shut-in."
                 value={producingTime}
                 onChange={setProducingTime}
               />
               <NumberField
                 id="well-test-shutin-pressure"
                 label="Flowing pressure at shut-in (psia)"
+                hint="Bottom-hole flowing pressure just before shut-in."
                 value={shutInPressure}
                 onChange={setShutInPressure}
               />
             </>
           )}
           <div className="md:col-span-2">
-            <Button type="button" onClick={analyze} disabled={isLoading}>
+            <Button type="button" onClick={analyze} disabled={isLoading} aria-busy={isLoading} className="gap-2">
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
               {isLoading ? "Analyzing..." : `Analyze ${mode}`}
             </Button>
           </div>
@@ -203,6 +218,19 @@ export default function WellTestAnalysisView() {
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </p>
+      )}
+
+      {isLoading && (
+        <Card role="status" aria-label="Calculating well-test analysis" aria-live="polite">
+          <CardContent className="space-y-3 p-5">
+            <Skeleton className="h-5 w-48" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }, (_, index) => (
+                <Skeleton key={index} className="h-16 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {result && (
@@ -246,12 +274,14 @@ export default function WellTestAnalysisView() {
 function NumberField({
   id,
   label,
+  hint,
   value,
   onChange,
   step,
 }: {
   id: string;
   label: string;
+  hint: string;
   value: number;
   onChange: (value: number) => void;
   step?: string;
@@ -261,11 +291,13 @@ function NumberField({
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
+        aria-describedby={`${id}-help`}
         type="number"
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
       />
+      <FieldDescription id={`${id}-help`}>{hint}</FieldDescription>
     </div>
   );
 }

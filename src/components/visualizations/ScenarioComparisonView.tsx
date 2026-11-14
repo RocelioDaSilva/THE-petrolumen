@@ -221,7 +221,7 @@ export default function ScenarioComparisonView({
                     type="monotone"
                     dataKey="runA"
                     name={runA.name}
-                    stroke="#14b8a6"
+                    stroke="hsl(var(--chart-1))"
                     strokeWidth={2.5}
                     dot={false}
                     connectNulls={false}
@@ -230,7 +230,7 @@ export default function ScenarioComparisonView({
                     type="monotone"
                     dataKey="runB"
                     name={runB.name}
-                    stroke="#f59e0b"
+                    stroke="hsl(var(--chart-4))"
                     strokeWidth={2.5}
                     dot={false}
                     connectNulls={false}

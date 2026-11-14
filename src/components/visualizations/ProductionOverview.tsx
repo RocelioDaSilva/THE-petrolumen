@@ -231,23 +231,28 @@ export default function ProductionOverview({ onNavigate }: ProductionOverviewPro
               <CardContent>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={overview.series} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+                    <LineChart data={overview.series} margin={{ top: 8, right: 12, left: 12, bottom: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis
                         dataKey="date"
                         tickFormatter={formatDate}
                         minTickGap={24}
                         tick={{ fontSize: 11 }}
+                        label={{ value: "Production date", position: "insideBottom", offset: -4 }}
                       />
-                      <YAxis tick={{ fontSize: 11 }} width={60} />
+                      <YAxis
+                        tick={{ fontSize: 11 }}
+                        width={60}
+                        label={{ value: "Rate (source CSV units)", angle: -90, position: "insideLeft" }}
+                      />
                       <Tooltip
                         labelFormatter={(label) => formatDate(String(label))}
-                        formatter={(value, name) => [formatRate(Number(value)), name]}
+                        formatter={(value, name) => [`${formatRate(Number(value))} (source units)`, name]}
                       />
                       <Legend />
-                      <Line type="monotone" dataKey="oil_rate" name="Oil" stroke="#14b8a6" dot={false} strokeWidth={2} />
-                      <Line type="monotone" dataKey="gas_rate" name="Gas" stroke="#60a5fa" dot={false} strokeWidth={2} />
-                      <Line type="monotone" dataKey="water_rate" name="Water" stroke="#a78bfa" dot={false} strokeWidth={2} />
+                      <Line type="monotone" dataKey="oil_rate" name="Oil" stroke="hsl(var(--chart-1))" dot={false} strokeWidth={2} />
+                      <Line type="monotone" dataKey="gas_rate" name="Gas" stroke="hsl(var(--chart-2))" dot={false} strokeWidth={2} />
+                      <Line type="monotone" dataKey="water_rate" name="Water" stroke="hsl(var(--chart-3))" dot={false} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>

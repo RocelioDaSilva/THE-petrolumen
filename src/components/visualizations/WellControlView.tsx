@@ -693,7 +693,7 @@ export default function WellControlView() {
                           type="monotone"
                           dataKey="dpp"
                           name="Pressão Coluna (DPP)"
-                          stroke="#2563eb"
+                          stroke="hsl(var(--chart-1))"
                           strokeWidth={2.5}
                           dot={{ r: 3 }}
                         />
@@ -701,7 +701,7 @@ export default function WellControlView() {
                           type="monotone"
                           dataKey="cp"
                           name="Pressão Choke / Anular (CP)"
-                          stroke="#f59e0b"
+                          stroke="hsl(var(--chart-4))"
                           strokeWidth={2}
                           strokeDasharray="4 4"
                           dot={{ r: 3 }}

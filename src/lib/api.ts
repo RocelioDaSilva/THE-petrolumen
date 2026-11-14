@@ -19,6 +19,8 @@ const BASE_URL: string = resolveApiBaseUrl(
 );
 
 export type ApiError = { status: number; detail: string };
+export const API_DISCONNECTED_EVENT = 'petrolumen:api-disconnected';
+export const API_RECONNECTED_EVENT = 'petrolumen:api-reconnected';
 let apiAuthToken: string | null = null;
 
 export function setApiAuthToken(token: string | null): void {
@@ -46,7 +48,21 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
       headers,
     });
   } catch (e) {
-    throw { status: 0, detail: `Network error reaching ${url}: ${(e as Error).message}` } satisfies ApiError;
+    const networkError: ApiError = {
+      status: 0,
+      detail: `Network error reaching ${url}: ${
+        e instanceof Error ? e.message : 'The connection could not be established.'
+      }`,
+    };
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent<ApiError>(API_DISCONNECTED_EVENT, { detail: networkError }),
+      );
+    }
+    throw networkError;
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(API_RECONNECTED_EVENT));
   }
   if (!res.ok) {
     let detail = res.statusText;

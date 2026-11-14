@@ -376,7 +376,7 @@ export default function DrillingHydraulicsView() {
                       type="monotone"
                       dataKey="pressure"
                       name="Pressão do Teste LOT (psi)"
-                      stroke="#dc2626"
+                      stroke="hsl(var(--chart-5))"
                       strokeWidth={2.5}
                       dot={{ r: 4 }}
                     />

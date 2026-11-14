@@ -1,8 +1,12 @@
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   calculateMaterialBalance,
   MaterialBalanceInput,
@@ -108,32 +112,44 @@ export default function MaterialBalanceEnginePanel() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="mbal-reservoir-type">Reservoir type</Label>
-            <select id="mbal-reservoir-type" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={reservoirType} onChange={(event) => setReservoirType(event.target.value as "oil" | "gas")}>
+            <Select id="mbal-reservoir-type" aria-describedby="mbal-reservoir-type-help" value={reservoirType} onChange={(event) => setReservoirType(event.target.value as "oil" | "gas")}>
               <option value="gas">Gas</option>
               <option value="oil">Oil</option>
-            </select>
+            </Select>
+            <FieldDescription id="mbal-reservoir-type-help">Choose the reservoir fluid system for the material-balance calculation.</FieldDescription>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mbal-pressure-history">Pressure history (psia, comma-separated)</Label>
-            <Input id="mbal-pressure-history" value={pressureHistory} onChange={(event) => setPressureHistory(event.target.value)} />
+            <Input id="mbal-pressure-history" aria-describedby="mbal-pressure-history-help" value={pressureHistory} onChange={(event) => setPressureHistory(event.target.value)} />
+            <FieldDescription id="mbal-pressure-history-help">Enter at least two measured reservoir pressures in chronological order.</FieldDescription>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mbal-oil-production">Oil production (STB, comma-separated)</Label>
-            <Input id="mbal-oil-production" value={oilProduction} onChange={(event) => setOilProduction(event.target.value)} />
+            <Input id="mbal-oil-production" aria-describedby="mbal-oil-production-help" value={oilProduction} onChange={(event) => setOilProduction(event.target.value)} />
+            <FieldDescription id="mbal-oil-production-help">Cumulative oil volume per pressure observation; leave blank if unavailable.</FieldDescription>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mbal-gas-production">Gas production (Mscf, comma-separated)</Label>
-            <Input id="mbal-gas-production" value={gasProduction} onChange={(event) => setGasProduction(event.target.value)} />
+            <Input id="mbal-gas-production" aria-describedby="mbal-gas-production-help" value={gasProduction} onChange={(event) => setGasProduction(event.target.value)} />
+            <FieldDescription id="mbal-gas-production-help">Cumulative gas volume per pressure observation; leave blank for unavailable entries.</FieldDescription>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mbal-water-production">Water production (STB, comma-separated)</Label>
-            <Input id="mbal-water-production" value={waterProduction} onChange={(event) => setWaterProduction(event.target.value)} />
+            <Input id="mbal-water-production" aria-describedby="mbal-water-production-help" value={waterProduction} onChange={(event) => setWaterProduction(event.target.value)} />
+            <FieldDescription id="mbal-water-production-help">Cumulative water volume per pressure observation; leave blank if unavailable.</FieldDescription>
           </div>
         </div>
-        <Button type="button" onClick={() => void run()} disabled={isLoading}>
+        <Button type="button" onClick={() => void run()} disabled={isLoading} aria-busy={isLoading} className="gap-2">
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {isLoading ? "Calculating..." : "Run Havlena–Odeh"}
         </Button>
         {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+        {isLoading && (
+          <div role="status" aria-label="Calculating material balance" aria-live="polite" className="space-y-3 rounded-md border p-3">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        )}
         {result && (
           <div role="status" className="rounded-md border bg-muted/30 p-3">
             <p className="text-sm font-semibold">

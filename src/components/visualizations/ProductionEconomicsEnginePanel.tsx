@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   calculateProductionEconomics,
   ProductionEconomicsResponse,
@@ -86,24 +89,26 @@ export default function ProductionEconomicsEnginePanel() {
       <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {([
-            ["econ-api-oil-price", "Oil price ($/bbl)", oilPrice, setOilPrice],
-            ["econ-api-gas-price", "Gas price ($/Mscf)", gasPrice, setGasPrice],
-            ["econ-api-discount", "Discount rate (%)", discountRate, setDiscountRate],
-            ["econ-api-capex", "Initial CAPEX ($)", capex, setCapex],
-            ["econ-api-opex", "Annual OPEX ($)", annualOpex, setAnnualOpex],
-            ["econ-api-tax", "Tax rate (fraction)", taxRate, setTaxRate],
-            ["econ-api-water-cost", "Water disposal ($/bbl)", waterDisposalCost, setWaterDisposalCost],
-          ] as const).map(([id, label, value, setValue]) => (
+            ["econ-api-oil-price", "Oil price ($/bbl)", oilPrice, setOilPrice, "Price applied to each annual oil volume."],
+            ["econ-api-gas-price", "Gas price ($/Mscf)", gasPrice, setGasPrice, "Price applied to each annual gas volume in Mscf."],
+            ["econ-api-discount", "Discount rate (%)", discountRate, setDiscountRate, "Annual discount rate entered as a percentage."],
+            ["econ-api-capex", "Initial CAPEX ($)", capex, setCapex, "One-time project investment charged at year zero."],
+            ["econ-api-opex", "Annual OPEX ($)", annualOpex, setAnnualOpex, "Recurring operating cost applied in each project year."],
+            ["econ-api-tax", "Tax rate (fraction)", taxRate, setTaxRate, "Enter a fraction from 0 to 1 (for example, 0.34 for 34%)."],
+            ["econ-api-water-cost", "Water disposal ($/bbl)", waterDisposalCost, setWaterDisposalCost, "Disposal cost multiplied by annual produced-water volume."],
+          ] as const).map(([id, label, value, setValue, hint]) => (
             <div key={id} className="space-y-1.5">
               <Label htmlFor={id}>{label}</Label>
               <Input
                 id={id}
+                aria-describedby={`${id}-help`}
                 type="number"
                 min="0"
                 step="any"
                 value={value}
                 onChange={(event) => setValue(Number(event.target.value))}
               />
+              <FieldDescription id={`${id}-help`}>{hint}</FieldDescription>
             </div>
           ))}
           {([
@@ -113,14 +118,25 @@ export default function ProductionEconomicsEnginePanel() {
           ] as const).map(([id, label, value, setValue]) => (
             <div key={id} className="space-y-1.5 lg:col-span-2">
               <Label htmlFor={id}>{label}</Label>
-              <Input id={id} value={value} onChange={(event) => setValue(event.target.value)} />
+              <Input id={id} aria-describedby={`${id}-help`} value={value} onChange={(event) => setValue(event.target.value)} />
+              <FieldDescription id={`${id}-help`}>
+                Enter one annual volume per year, comma-separated; all three profiles must have equal lengths.
+              </FieldDescription>
             </div>
           ))}
         </div>
-        <Button type="button" onClick={() => void run()} disabled={isLoading}>
+        <Button type="button" onClick={() => void run()} disabled={isLoading} aria-busy={isLoading} className="gap-2">
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {isLoading ? "Calculating..." : "Run backend economics"}
         </Button>
         {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+        {isLoading && (
+          <div role="status" aria-label="Calculating production economics" aria-live="polite" className="grid gap-3 rounded-md border p-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => (
+              <Skeleton key={index} className="h-14 w-full" />
+            ))}
+          </div>
+        )}
         {result && (
           <div role="status" className="grid gap-3 rounded-md border bg-muted/30 p-3 sm:grid-cols-4">
             <p>NPV: <strong>{result.npv.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></p>

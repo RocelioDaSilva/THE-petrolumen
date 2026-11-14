@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Loader2,
   Activity,
   AlertTriangle,
   CheckCircle2,
@@ -7,8 +8,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldDescription } from "@/components/ui/FieldDescription";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   calculateGasCompressibility,
@@ -25,6 +29,22 @@ type CalculationResult =
   | { kind: "rock"; value: RockCompressibilityResponse }
   | { kind: "gas"; value: GasCompressibilityResponse }
   | { kind: "total"; value: TotalCompressibilityResponse };
+
+const fieldDescriptions: Record<string, string> = {
+  "rock-phi": "Fraction of bulk reservoir volume occupied by pore space.",
+  "gas-pressure": "Absolute gas pressure; Z-factor and compressibility depend on this value.",
+  "total-pressure": "Absolute gas pressure used for the gas-phase compressibility.",
+  "gas-temperature": "Gas temperature in degrees Fahrenheit; values must be above absolute zero.",
+  "total-temperature": "Gas temperature in degrees Fahrenheit; values must be above absolute zero.",
+  "gas-gravity": "Gas molecular weight relative to air (air has specific gravity 1).",
+  "total-gas-gravity": "Gas molecular weight relative to air (air has specific gravity 1).",
+  "total-phi": "Fraction of bulk reservoir volume occupied by pore space.",
+  "oil-compressibility": "Oil isothermal compressibility in reciprocal psi.",
+  "water-compressibility": "Water isothermal compressibility in reciprocal psi.",
+  "gas-saturation": "Fraction of pore volume occupied by gas.",
+  "oil-saturation": "Fraction of pore volume occupied by oil.",
+  "water-saturation": "Fraction of pore volume occupied by water.",
+};
 
 function errorMessage(error: unknown): string {
   if (
@@ -60,6 +80,7 @@ function NumberField({
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
+        aria-describedby={`${id}-help`}
         type="number"
         min={min}
         max={max}
@@ -67,6 +88,9 @@ function NumberField({
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
       />
+      <FieldDescription id={`${id}-help`}>
+        {fieldDescriptions[id] ?? "Enter the value in the units shown."}
+      </FieldDescription>
     </div>
   );
 }
@@ -164,28 +188,37 @@ export default function ReservoirCompressibilityView() {
                   />
                   <div className="space-y-1.5">
                     <Label htmlFor="rock-type">Rock type</Label>
-                    <select
+                    <Select
                       id="rock-type"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      aria-describedby="rock-type-help"
                       value={rockType}
                       onChange={(event) => setRockType(event.target.value as RockType)}
                     >
                       <option value="sandstone">Sandstone</option>
                       <option value="limestone">Limestone</option>
-                    </select>
+                    </Select>
+                    <FieldDescription id="rock-type-help">
+                      Lithology selects the published correlation used to estimate pore-volume compressibility.
+                    </FieldDescription>
                   </div>
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
+                    aria-describedby="rock-strict-help"
                     checked={strict}
                     onChange={(event) => setStrict(event.target.checked)}
                   />
                   Enforce published porosity range
                 </label>
+                <FieldDescription id="rock-strict-help">
+                  Reject porosity values outside the selected correlation&apos;s published validity range.
+                </FieldDescription>
                 <Button
                   type="button"
                   disabled={pending}
+                  aria-busy={pending}
+                  className="gap-2"
                   onClick={() => runCalculation(async () => ({
                     kind: "rock",
                     value: await calculateRockCompressibility({
@@ -195,6 +228,7 @@ export default function ReservoirCompressibilityView() {
                     }),
                   }))}
                 >
+                  {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                   {pending ? "Calculating…" : "Calculate rock compressibility"}
                 </Button>
               </TabsContent>
@@ -227,11 +261,14 @@ export default function ReservoirCompressibilityView() {
                 <Button
                   type="button"
                   disabled={pending}
+                  aria-busy={pending}
+                  className="gap-2"
                   onClick={() => runCalculation(async () => ({
                     kind: "gas",
                     value: await calculateGasCompressibility(gasInput),
                   }))}
                 >
+                  {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                   {pending ? "Calculating…" : "Calculate gas compressibility"}
                 </Button>
               </TabsContent>
@@ -272,15 +309,18 @@ export default function ReservoirCompressibilityView() {
                   />
                   <div className="space-y-1.5">
                     <Label htmlFor="total-rock-type">Rock type</Label>
-                    <select
+                    <Select
                       id="total-rock-type"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      aria-describedby="total-rock-type-help"
                       value={rockType}
                       onChange={(event) => setRockType(event.target.value as RockType)}
                     >
                       <option value="sandstone">Sandstone</option>
                       <option value="limestone">Limestone</option>
-                    </select>
+                    </Select>
+                    <FieldDescription id="total-rock-type-help">
+                      Lithology selects the published correlation used for pore-volume compressibility.
+                    </FieldDescription>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -331,14 +371,20 @@ export default function ReservoirCompressibilityView() {
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
+                    aria-describedby="total-strict-help"
                     checked={strict}
                     onChange={(event) => setStrict(event.target.checked)}
                   />
                   Enforce published rock porosity range
                 </label>
+                <FieldDescription id="total-strict-help">
+                  Reject porosity values outside the selected correlation&apos;s published validity range.
+                </FieldDescription>
                 <Button
                   type="button"
                   disabled={pending || Math.abs(saturationSum - 1) > 1e-6}
+                  aria-busy={pending}
+                  className="gap-2"
                   onClick={() => runCalculation(async () => ({
                     kind: "total",
                     value: await calculateTotalCompressibility({
@@ -354,6 +400,7 @@ export default function ReservoirCompressibilityView() {
                     }),
                   }))}
                 >
+                  {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                   {pending ? "Calculating…" : "Calculate total compressibility"}
                 </Button>
               </TabsContent>
@@ -371,7 +418,15 @@ export default function ReservoirCompressibilityView() {
                 {error}
               </div>
             )}
-            {!result && !error && (
+            {pending && (
+              <div role="status" aria-label="Calculating reservoir compressibility" aria-live="polite" className="space-y-3">
+                <Skeleton className="h-5 w-48" />
+                {Array.from({ length: 3 }, (_, index) => (
+                  <Skeleton key={index} className="h-10 w-full" />
+                ))}
+              </div>
+            )}
+            {!result && !error && !pending && (
               <div className="flex gap-2 rounded-md border p-3 text-sm text-muted-foreground">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 Run a calculation to see the engineering result and its range status.
