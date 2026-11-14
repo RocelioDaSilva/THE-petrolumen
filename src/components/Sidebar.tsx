@@ -339,6 +339,7 @@ interface SidebarProps {
   activeModule: string;
   onSelectModule: (id: string) => void;
   collapsed: boolean;
+  compact?: boolean;
   onToggleCollapse: () => void;
 }
 
@@ -346,6 +347,7 @@ export default function Sidebar({
   activeModule,
   onSelectModule,
   collapsed,
+  compact = false,
   onToggleCollapse,
 }: SidebarProps) {
   const { t, isPt } = useI18n();
@@ -406,7 +408,10 @@ export default function Sidebar({
           variant="ghost"
           size="icon"
           onClick={onToggleCollapse}
-          className="ml-auto h-8 w-8 text-muted-foreground hover:text-foreground"
+          className={cn(
+            "ml-auto h-8 w-8 text-muted-foreground hover:text-foreground",
+            compact && "hidden",
+          )}
           title={collapsed ? "Expandir menu" : "Recolher menu"}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

@@ -58,6 +58,9 @@ function MainApp() {
 
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [compactViewport, setCompactViewport] = useState<boolean>(
+    () => typeof window !== "undefined" && window.innerWidth <= 1024,
+  );
   const [loadedRun, setLoadedRun] = useState<SavedSimulation | null>(null);
   const [comparisonRuns, setComparisonRuns] = useState<
     [SavedSimulation, SavedSimulation] | null
@@ -70,6 +73,12 @@ function MainApp() {
     }
   });
   const [isDocsOpen, setIsDocsOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const updateCompactViewport = () => setCompactViewport(window.innerWidth <= 1024);
+    window.addEventListener("resize", updateCompactViewport);
+    return () => window.removeEventListener("resize", updateCompactViewport);
+  }, []);
 
   // Sync dark class on document root
   useEffect(() => {
@@ -239,7 +248,8 @@ function MainApp() {
         <Sidebar
           activeModule={activeModule}
           onSelectModule={setActiveModule}
-          collapsed={sidebarCollapsed}
+          collapsed={sidebarCollapsed || compactViewport}
+          compact={compactViewport}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 

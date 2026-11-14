@@ -72,4 +72,20 @@ describe("Sidebar navigation groups", () => {
     });
     expect(screen.getByRole("button", { name: "Cálculos PVT & Fases" })).toBeInTheDocument();
   });
+
+  it("uses icon-only navigation in compact viewports", () => {
+    render(
+      <Sidebar
+        activeModule="dashboard"
+        onSelectModule={vi.fn()}
+        collapsed
+        compact
+        onToggleCollapse={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Controle de Poço & Kick Sheet" })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Search modules")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse sidebar" })).not.toBeInTheDocument();
+  });
 });

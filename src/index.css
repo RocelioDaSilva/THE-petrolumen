@@ -124,4 +124,22 @@
   .recharts-legend-item-text {
     color: hsl(var(--popover-foreground)) !important;
   }
+
+  .recharts-responsive-container {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  @media (max-width: 640px) {
+    .recharts-cartesian-axis-tick-value,
+    .recharts-label,
+    .recharts-legend-item-text {
+      font-size: 10px !important;
+    }
+
+    .recharts-legend-wrapper {
+      max-width: 100%;
+      white-space: normal !important;
+    }
+  }
 }
